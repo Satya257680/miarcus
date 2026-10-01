@@ -1,4 +1,8 @@
 const express = require("express");
+
+// Shared "any format" bulk-upload middleware (Excel / CSV / Word / PDF /
+// photo) — see utils/bulkUploadEngine.js.
+const bulkFileUpload = require("../middleware/bulkFileUpload");
 const multer = require("multer");
 
 const router = express.Router();
@@ -177,7 +181,7 @@ router.post(
 
     adminOnly,
 
-    upload.single("file"),
+    bulkFileUpload.single("file"),
 
     importStoresFromCSV
 

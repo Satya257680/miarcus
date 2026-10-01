@@ -1,6 +1,6 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FaSearch,
   FaPlus,
@@ -26,6 +26,7 @@ import InsightStrip from "../components/premium/InsightStrip";
 import { formatCount } from "../utils/premiumFormat";
 import AddStoreModal from "../components/AddStoreModal";
 import ExportButton from "../components/common/ExportButton";
+import BulkUploadModal from "../components/common/BulkUploadModal";
 import { exportTableData } from "../utils/exportUtils.js";
 
 import {
@@ -34,7 +35,6 @@ import {
   updateStore,
   deleteStore,
   deleteAllStores,
-  importStores,
 } from "../services/storeService";
 function StoreManagement() {
 
@@ -53,7 +53,7 @@ function StoreManagement() {
   const [showModal, setShowModal] = useState(false);
 
   const [editingStore, setEditingStore] = useState(null);
-  const fileInputRef = useRef(null);
+  const [showBulkModal, setShowBulkModal] = useState(false);
 
   // Pagination
 
@@ -518,68 +518,9 @@ const handleImport = () => {
 
   }
 
-  fileInputRef.current.click();
+  setShowBulkModal(true);
 
 };
-
-// ==========================
-// Handle CSV File
-// ==========================
-
-const handleFileChange = async (e) => {
-
-  // RBAC Check
-  if (!canAdd) {
-
-    alert("You don't have permission to import stores.");
-
-    e.target.value = "";
-
-    return;
-
-  }
-
-  const file = e.target.files[0];
-
-  if (!file) return;
-
-  try {
-
-    const res = await importStores(file);
-
-    if (res.success) {
-
-      alert(res.message || "Stores imported successfully.");
-
-      fetchStores();
-
-    } else {
-
-      alert(
-        res.message || "Import failed."
-      );
-
-    }
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert(
-      err.response?.data?.message ||
-      err.message ||
-      "CSV Import Failed"
-    );
-
-  } finally {
-
-    // Allow selecting the same file again
-    e.target.value = "";
-
-  }
-
-};
-
 
   const statCards = [
     { key: "total", label: "Total Stores", value: formatCount(stats.total), hint: "Outlets on MIARCUS", icon: FaStore, tone: "violet", onClick: () => setStatusFilter("All"), active: statusFilter === "All" },
@@ -598,13 +539,14 @@ const handleFileChange = async (e) => {
   return (
     <div className="sm-page pp-premium">
 
-      {/* Hidden File Input for CSV Import */}
-      <input
-        type="file"
-        accept=".csv"
-        ref={fileInputRef}
-        style={{ display: "none" }}
-        onChange={handleFileChange}
+      {/* Global Bulk Upload (Excel / CSV / Word / PDF / photo) */}
+      <BulkUploadModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        onSuccess={fetchStores}
+        title="Stores"
+        moduleKey="stores"
+        uploadUrl="/api/stores/import"
       />
 
       {/* ==========================

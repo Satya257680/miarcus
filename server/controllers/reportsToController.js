@@ -4,6 +4,7 @@ const ExcelJS = require("exceljs");
 
 const Report = require("../models/reportsToModel");
 const { logActivity } = require("../utils/activityLogger");
+const { runBulkUpload, call: bulkCall, sql: bulkSql } = require("../utils/bulkUploadEngine");
 
 // ======================================================
 // GET ALL REPORTS TO
@@ -154,212 +155,62 @@ const createReport = (req, res) => {
 
 };
 // ======================================================
-// BULK UPLOAD REPORTS
+// BULK UPLOAD REPORTS TO  (global bulk-upload engine)
 // ======================================================
 
-const bulkUploadReports = (req, res) => {
+const bulkUploadReports = (req, res) =>
+    runBulkUpload({
+        req,
+        res,
+        module: "reports-to",
 
-    try {
+        validateRow: async (row, ctx) => {
+            const status = ctx.text("Status");
+            if (status && !["active", "inactive"].includes(status.toLowerCase())) {
+                ctx.fail("Status", status, "Status must be Active or Inactive.");
+            }
 
-        // ======================================
-        // CHECK FILE
-        // ======================================
+            const existing = await bulkSql(
+                "SELECT id FROM reports_to WHERE LOWER(TRIM(manager_name)) = LOWER(TRIM(?)) AND LOWER(TRIM(COALESCE(department,''))) = LOWER(TRIM(?)) LIMIT 1",
+                [ctx.text("Manager Name"), ctx.text("Department")]
+            );
+            if (existing.length) {
+                ctx.duplicate("Manager Name", ctx.text("Manager Name"), `${ctx.text("Manager Name")} already exists${ctx.text("Department") ? ` in ${ctx.text("Department")}` : ""}.`);
+            }
+        },
 
-        if (!req.file) {
+        duplicateKey: (row, ctx) => ({
+            key: `${ctx.text("Manager Name").toLowerCase()}|${ctx.text("Department").toLowerCase()}`,
+            column: "Manager Name",
+            value: ctx.text("Manager Name")
+        }),
 
-            return res.status(400).json({
-
-                success: false,
-
-                message: "No file uploaded"
-
+        processRow: async (row, ctx) => {
+            const result = await bulkCall(Report.addReport, {
+                manager_name: ctx.text("Manager Name"),
+                department: ctx.text("Department"),
+                designation: ctx.text("Designation"),
+                status: ctx.text("Status").toLowerCase() === "inactive" ? "Inactive" : "Active"
             });
+            return { id: result.insertId };
+        },
 
-        }
-
-        // ======================================
-        // READ EXCEL FILE
-        // ======================================
-
-        const workbook = XLSX.readFile(
-
-            req.file.path
-
-        );
-
-        const sheet = workbook.Sheets[
-
-            workbook.SheetNames[0]
-
-        ];
-
-        const reports = XLSX.utils.sheet_to_json(
-
-            sheet,
-
-            {
-
-                defval: "",
-
-                blankrows: false
-
-            }
-
-        );
-
-        // ======================================
-        // FILTER EMPTY ROWS
-        // ======================================
-
-        const filteredReports = reports.filter(
-
-            (item) => {
-
-                return String(
-
-                    item["Manager Name"] || ""
-
-                ).trim() !== "";
-
-            }
-
-        );
-
-        if (
-
-            filteredReports.length === 0
-
-        ) {
-
-            if (
-
-                fs.existsSync(req.file.path)
-
-            ) {
-
-                fs.unlinkSync(req.file.path);
-
-            }
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "No valid managers found."
-
+        finalize: async (ctx) => {
+            if (!ctx.report.uploaded) return;
+            logActivity({
+                activity_type: "Reports To",
+                reference_id: 0,
+                title: "Managers Imported",
+                description: `${ctx.report.uploaded} managers imported`,
+                module_name: "Reports To",
+                status: "Closed",
+                priority: "Medium",
+                created_by: req.user.id,
+                assigned_to: null
             });
-
         }
+    });
 
-        // ======================================
-        // INSERT RECORDS
-        // ======================================
-
-        Report.bulkInsertReports(
-
-            filteredReports,
-
-            (err, result) => {
-
-                // ======================================
-                // DELETE TEMP FILE
-                // ======================================
-
-                if (
-
-                    fs.existsSync(req.file.path)
-
-                ) {
-
-                    fs.unlinkSync(req.file.path);
-
-                }
-
-                if (err) {
-
-                    console.error(err);
-
-                    return res.status(500).json({
-
-                        success: false,
-
-                        message: "Bulk Upload Failed",
-
-                        error: err.sqlMessage
-
-                    });
-
-                }
-
-                // ======================================
-                // LOG ACTIVITY
-                // ======================================
-
-                logActivity({
-
-                    activity_type: "Reports To",
-
-                    reference_id: 0,
-
-                    title: "Managers Imported",
-
-                    description: `${result.affectedRows} managers imported from Excel`,
-
-                    module_name: "Reports To",
-
-                    status: "Closed",
-
-                    priority: "Medium",
-
-                    created_by: req.user.id,
-
-                    assigned_to: null
-
-                });
-
-                return res.json({
-
-                    success: true,
-
-                    message: `${result.affectedRows} managers uploaded successfully`,
-
-                    imported: result.affectedRows
-
-                });
-
-            }
-
-        );
-
-    }
-
-    catch (err) {
-
-        console.error(err);
-
-        if (
-
-            req.file &&
-
-            fs.existsSync(req.file.path)
-
-        ) {
-
-            fs.unlinkSync(req.file.path);
-
-        }
-
-        return res.status(500).json({
-
-            success: false,
-
-            message: "Upload Error"
-
-        });
-
-    }
-
-};
 // ======================================================
 // UPDATE REPORT
 // ======================================================

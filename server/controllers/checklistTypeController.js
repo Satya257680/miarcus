@@ -4,6 +4,8 @@ const ExcelJS = require("exceljs");
 const db = require("../config/db");
 
 const { logActivity } = require("../utils/activityLogger");
+const { runBulkUpload, call: bulkCall, sql: bulkSql, isEmail, parseYesNo } = require("../utils/bulkUploadEngine");
+
 
 const XLSX = require("xlsx");
 const csv = require("csv-parser");
@@ -951,377 +953,108 @@ exports.exportChecklistTypes = (req, res) => {
 };
 
 // ======================================================
-// BULK UPLOAD CHECKLIST TYPES
-// CSV + XLSX + XLS
+// BULK UPLOAD CHECKLIST TYPES  (global bulk-upload engine)
 // ======================================================
 
-exports.bulkUploadChecklistTypes = async (req, res) => {
+exports.bulkUploadChecklistTypes = (req, res) =>
+    runBulkUpload({
+        req,
+        res,
+        module: "checklist-types",
 
-    try {
+        prepare: async (ctx) => {
+            const [departments, types] = await Promise.all([
+                bulkSql("SELECT id, department_name FROM departments"),
+                bulkSql("SELECT LOWER(TRIM(checklist_name)) AS n FROM checklist_types")
+            ]);
+            ctx.data.departments = new Map(departments.map((d) => [String(d.department_name || "").trim().toLowerCase(), d.id]));
+            ctx.data.names = new Set(types.map((t) => t.n));
+        },
 
-        if (!req.file) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "Please upload a CSV or Excel file."
-
-            });
-
-        }
-
-        const extension = path
-            .extname(req.file.originalname)
-            .toLowerCase();
-
-        let rows = [];
-
-        // ======================================
-        // CSV
-        // ======================================
-
-        if (extension === ".csv") {
-
-            rows = await new Promise((resolve, reject) => {
-
-                const result = [];
-
-                Readable.from(req.file.buffer)
-
-                    .pipe(csv())
-
-                    .on("data", row => result.push(row))
-
-                    .on("end", () => resolve(result))
-
-                    .on("error", reject);
-
-            });
-
-        }
-
-        // ======================================
-        // XLS / XLSX
-        // ======================================
-
-        else {
-
-            const workbook = XLSX.read(
-
-                req.file.buffer,
-
-                {
-
-                    type: "buffer"
-
-                }
-
-            );
-
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-            rows = XLSX.utils.sheet_to_json(sheet);
-
-        }
-
-        if (!rows.length) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "No data found."
-
-            });
-
-        }
-
-        let imported = 0;
-
-        for (const row of rows) {
-
-            const checklist_name =
-
-                row["Checklist Name"] ||
-
-                row.checklist_name;
-
-            if (!checklist_name) {
-
-                continue;
-
+        validateRow: (row, ctx) => {
+            const name = ctx.text("Checklist Name");
+            if (name && ctx.data.names.has(name.toLowerCase())) {
+                ctx.duplicate("Checklist Name", name, `Checklist Type "${name}" already exists in the database.`);
             }
 
-            const allow_past_submission =
+            const past = ctx.cell("Allow Past Submission");
+            if (parseYesNo(past, false) === null) {
+                ctx.fail("Allow Past Submission", past, "Allow Past Submission must be Yes or No.");
+            }
 
-                String(
+            const cutoff = ctx.text("Cutoff Time");
+            if (cutoff && !/^\d{1,2}:\d{2}(:\d{2})?(\s*(am|pm))?$/i.test(cutoff) && !/^0?\.\d+$/.test(cutoff)) {
+                ctx.fail("Cutoff Time", cutoff, "Cutoff Time must look like 11:00 or 11:00 AM.");
+            }
 
-                    row["Allow Past Submission"] ||
-
-                    row.allow_past_submission ||
-
-                    ""
-
-                ).toLowerCase() === "yes"
-
-                    ? 1
-
-                    : 0;
-
-            const cutoff_time =
-
-                row["Cutoff Time"] ||
-
-                row.cutoff_time ||
-
-                null;
-
-            const status =
-
-                row.Status ||
-
-                row.status ||
-
-                "Active";
-
-            // ======================================
-            // INSERT CHECKLIST TYPE
-            // ======================================
-
-            const result = await new Promise(
-
-                (resolve, reject) => {
-
-                    db.query(
-
-                        `
-
-                        INSERT INTO checklist_types
-                        (
-
-                            checklist_name,
-
-                            allow_past_submission,
-
-                            cutoff_time,
-
-                            status
-
-                        )
-
-                        VALUES (?, ?, ?, ?)
-
-                        `,
-
-                        [
-
-                            checklist_name,
-
-                            allow_past_submission,
-
-                            cutoff_time,
-
-                            status
-
-                        ],
-
-                        (err, result) => {
-
-                            if (err) {
-
-                                return reject(err);
-
-                            }
-
-                            resolve(result);
-
-                        }
-
-                    );
-
-                }
-
-            );
-
-            const checklistTypeId = result.insertId;
-
-            imported++;
-
-            // ======================================
-            // SAVE DEPARTMENTS
-            // ======================================
-
-            const departments =
-
-                row.Departments ||
-
-                row.departments ||
-
-                "";
-
+            const departments = ctx.text("Departments");
+            ctx.departmentIds = [];
             if (departments) {
+                departments.split(/[,;|]/).map((d) => d.trim()).filter(Boolean).forEach((name) => {
+                    const id = ctx.data.departments.get(name.toLowerCase());
+                    if (id) ctx.departmentIds.push(id);
+                    else ctx.fail("Departments", name, `Department "${name}" does not exist.`);
+                });
+            }
+        },
 
-                const departmentNames =
+        duplicateKey: (row, ctx) => ({
+            key: ctx.text("Checklist Name").toLowerCase(),
+            column: "Checklist Name",
+            value: ctx.text("Checklist Name")
+        }),
 
-                    departments
-
-                        .split(",")
-
-                        .map(
-
-                            d => d.trim()
-
-                        );
-
-                for (const departmentName of departmentNames) {
-
-                    const department = await new Promise(
-
-                        (resolve) => {
-
-                            db.query(
-
-                                `
-
-                                SELECT id
-
-                                FROM departments
-
-                                WHERE department_name = ?
-
-                                `,
-
-                                [
-
-                                    departmentName
-
-                                ],
-
-                                (err, rows) => {
-
-                                    if (
-
-                                        err ||
-
-                                        rows.length === 0
-
-                                    ) {
-
-                                        return resolve(null);
-
-                                    }
-
-                                    resolve(rows[0]);
-
-                                }
-
-                            );
-
-                        }
-
-                    );
-
-                    if (department) {
-
-                        await new Promise(
-
-                            (resolve, reject) => {
-
-                                db.query(
-
-                                    `
-
-                                  INSERT INTO checklist_type_departments
-(
-    checklist_type_id,
-    department_id
-)
-VALUES (?, ?)
-
-                                    `,
-
-                                    [
-
-                                        checklistTypeId,
-
-                                        department.id
-
-                                    ],
-
-                                    (err) => {
-
-                                        if (err) {
-
-                                            return reject(err);
-
-                                        }
-
-                                        resolve();
-
-                                    }
-
-                                );
-
-                            }
-
-                        );
-
-                    }
-
+        processRow: async (row, ctx) => {
+            let cutoff = ctx.cell("Cutoff Time");
+            if (typeof cutoff === "number" && cutoff < 1) {
+                // Excel time fraction -> HH:MM
+                const minutes = Math.round(cutoff * 24 * 60);
+                cutoff = `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+            } else {
+                cutoff = ctx.text("Cutoff Time") || null;
+                const ampm = cutoff && cutoff.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)$/i);
+                if (ampm) {
+                    let h = Number(ampm[1]) % 12;
+                    if (ampm[3].toLowerCase() === "pm") h += 12;
+                    cutoff = `${String(h).padStart(2, "0")}:${ampm[2]}`;
                 }
-
             }
 
+            const result = await bulkSql(
+                `INSERT INTO checklist_types (checklist_name, allow_past_submission, cutoff_time, status) VALUES (?, ?, ?, ?)`,
+                [
+                    ctx.text("Checklist Name"),
+                    parseYesNo(ctx.cell("Allow Past Submission"), false) ? 1 : 0,
+                    cutoff,
+                    ctx.text("Status").toLowerCase() === "inactive" ? "Inactive" : "Active"
+                ]
+            );
+
+            for (const departmentId of [...new Set(ctx.departmentIds)]) {
+                await bulkSql(
+                    "INSERT INTO checklist_type_departments (checklist_type_id, department_id) VALUES (?, ?)",
+                    [result.insertId, departmentId]
+                );
+            }
+
+            return { id: result.insertId };
+        },
+
+        finalize: async (ctx) => {
+            if (!ctx.report.uploaded) return;
+            logActivity({
+                activity_type: "Checklist Type",
+                reference_id: 0,
+                title: "Checklist Types Imported",
+                description: `${ctx.report.uploaded} checklist types were imported`,
+                module_name: "Checklist Types",
+                status: "Completed",
+                priority: "Medium",
+                created_by: req.user.id,
+                assigned_to: null
+            });
         }
-
-        logActivity({
-
-            activity_type: "Checklist Type",
-
-            reference_id: 0,
-
-            title: "Checklist Types Imported",
-
-            description: `${imported} checklist types were imported`,
-
-            module_name: "Checklist Types",
-
-            status: "Completed",
-
-            priority: "Medium",
-
-            created_by: req.user.id,
-
-            assigned_to: null
-
-        });
-
-        return res.status(200).json({
-
-            success: true,
-
-            message: `${imported} Checklist Types uploaded successfully.`
-
-        });
-
-    }
-
-    catch (err) {
-
-        console.error(err);
-
-        return res.status(500).json({
-
-            success: false,
-
-            message: err.message
-
-        });
-
-    }
-
-};
+    });
 
 // ======================================================
 // EXPORT CONTROLLER FUNCTIONS

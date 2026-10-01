@@ -8,6 +8,8 @@ const workflowService = require("../services/nsoWorkflowService");
 const nsoService = require("../services/nsoService");
 
 const db = require("../config/db");
+const { runBulkUpload } = require("../utils/bulkUploadEngine");
+const { defineBulkModule, COMMON_GUIDELINES } = require("../config/bulkUploadModules");
 
 // ======================================================
 // WHICH new_store_openings COLUMNS ARE ACTUALLY NUMERIC?
@@ -827,846 +829,68 @@ exports.exportNewStoreOpeningsCSV = async (
 
 };
 // ======================================================
-// BULK IMPORT NEW STORE OPENINGS
-// SUPPORTS CSV + XLSX + XLS
+// BULK IMPORT NEW STORE OPENINGS  (global bulk-upload engine)
+// Any format. Every row is saved on its own (no all-or-nothing batch):
+// invalid dates / missing Location are reported with the exact Excel
+// row, column, value and reason while all valid rows are created.
+// Extra columns are kept with the project (bulk_extra_data).
 // ======================================================
 
-exports.bulkUploadNewStoreOpenings = async (
-    req,
-    res
-) => {
-
-    try {
-
-        // ==================================================
-        // CHECK FILE
-        // ==================================================
-
-        if (!req.file) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Please upload a CSV, XLSX or XLS file."
-
-            });
-
-        }
-
-
-        // ==================================================
-        // CHECK FILE EXTENSION
-        // ==================================================
-
-        const fileName =
-            req.file.originalname ||
-            req.file.filename ||
-            "";
-
-        const extension =
-            fileName
-                .split(".")
-                .pop()
-                .toLowerCase();
-
-
-        if (
-            ![
-                "csv",
-                "xlsx",
-                "xls"
-            ].includes(extension)
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Only CSV, XLSX and XLS files are supported."
-
-            });
-
-        }
-
-
-        // ==================================================
-        // DATE FORMATTER
-        // ==================================================
-        //
-        // Supports:
-        //
-        // XLSX:
-        // Excel serial number
-        // JavaScript Date
-        //
-        // CSV:
-        // DD-MM-YYYY
-        // DD/MM/YYYY
-        // YYYY-MM-DD
-        //
-        // Output:
-        // YYYY-MM-DD
-        //
-        // Suitable for MySQL DATE and
-        // React <input type="date">
-        // ==================================================
-
-        const formatImportDate = (
-            value
-        ) => {
-
-            // ----------------------------------------------
-            // EMPTY
-            // ----------------------------------------------
-
-            if (
-                value === undefined ||
-                value === null ||
-                value === ""
-            ) {
-
-                return null;
-
-            }
-
-
-            // ----------------------------------------------
-            // DATE OBJECT
-            // ----------------------------------------------
-
-            if (
-                value instanceof Date
-            ) {
-
-                if (
-                    isNaN(
-                        value.getTime()
-                    )
-                ) {
-
-                    return null;
-
-                }
-
-                const year =
-                    value.getFullYear();
-
-                const month =
-                    String(
-                        value.getMonth() + 1
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-                const day =
-                    String(
-                        value.getDate()
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-                return `${year}-${month}-${day}`;
-
-            }
-
-
-            // ----------------------------------------------
-            // EXCEL SERIAL DATE
-            // ----------------------------------------------
-
-            if (
-                typeof value === "number" &&
-                Number.isFinite(value)
-            ) {
-
-                /*
-                 * Excel date serial number.
-                 *
-                 * Example:
-                 * 46520
-                 *
-                 * XLSX files can return dates this way.
-                 */
-
-                const excelDate =
-                    new Date(
-                        Date.UTC(
-                            1899,
-                            11,
-                            30
-                        ) +
-                        (
-                            value *
-                            86400000
-                        )
-                    );
-
-
-                if (
-                    !isNaN(
-                        excelDate.getTime()
-                    )
-                ) {
-
-                    const year =
-                        excelDate.getUTCFullYear();
-
-                    const month =
-                        String(
-                            excelDate.getUTCMonth() + 1
-                        ).padStart(
-                            2,
-                            "0"
-                        );
-
-                    const day =
-                        String(
-                            excelDate.getUTCDate()
-                        ).padStart(
-                            2,
-                            "0"
-                        );
-
-                    return `${year}-${month}-${day}`;
-
-                }
-
-            }
-
-
-            // ----------------------------------------------
-            // STRING
-            // ----------------------------------------------
-
-            let dateString =
-                String(value).trim();
-
-
-            if (!dateString) {
-
-                return null;
-
-            }
-
-
-            // ----------------------------------------------
-            // REMOVE TIME
-            // ----------------------------------------------
-
-            if (
-                dateString.includes("T")
-            ) {
-
-                dateString =
-                    dateString.split("T")[0];
-
-            }
-
-            else if (
-                dateString.includes(" ")
-            ) {
-
-                dateString =
-                    dateString.split(" ")[0];
-
-            }
-
-
-            // ----------------------------------------------
-            // DD-MM-YYYY
-            // ----------------------------------------------
-
-            let match =
-                dateString.match(
-                    /^(\d{1,2})-(\d{1,2})-(\d{4})$/
-                );
-
-
-            if (match) {
-
-                const day =
-                    String(
-                        match[1]
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-                const month =
-                    String(
-                        match[2]
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-                const year =
-                    match[3];
-
-
-                return `${year}-${month}-${day}`;
-
-            }
-
-
-            // ----------------------------------------------
-            // DD/MM/YYYY
-            // ----------------------------------------------
-
-            match =
-                dateString.match(
-                    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
-                );
-
-
-            if (match) {
-
-                const day =
-                    String(
-                        match[1]
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-                const month =
-                    String(
-                        match[2]
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-                const year =
-                    match[3];
-
-
-                return `${year}-${month}-${day}`;
-
-            }
-
-
-            // ----------------------------------------------
-            // YYYY-MM-DD
-            // ----------------------------------------------
-
-            match =
-                dateString.match(
-                    /^(\d{4})-(\d{1,2})-(\d{1,2})$/
-                );
-
-
-            if (match) {
-
-                const year =
-                    match[1];
-
-                const month =
-                    String(
-                        match[2]
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-                const day =
-                    String(
-                        match[3]
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-
-                return `${year}-${month}-${day}`;
-
-            }
-
-
-            // ----------------------------------------------
-            // FALLBACK
-            // ----------------------------------------------
-
-            const parsedDate =
-                new Date(
-                    dateString
-                );
-
-
-            if (
-                !isNaN(
-                    parsedDate.getTime()
-                )
-            ) {
-
-                const year =
-                    parsedDate.getFullYear();
-
-                const month =
-                    String(
-                        parsedDate.getMonth() + 1
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-                const day =
-                    String(
-                        parsedDate.getDate()
-                    ).padStart(
-                        2,
-                        "0"
-                    );
-
-
-                return `${year}-${month}-${day}`;
-
-            }
-
-
-            // ----------------------------------------------
-            // INVALID
-            // ----------------------------------------------
-
-            return null;
-
-        };
-
-
-        // ==================================================
-        // READ FILE
-        // ==================================================
-        //
-        // XLSX.readFile() supports:
-        //
-        // CSV
-        // XLSX
-        // XLS
-        //
-        // ==================================================
-
-        const workbook =
-            XLSX.readFile(
-                req.file.path,
-                {
-                    cellDates: true
-                }
-            );
-
-
-        // ==================================================
-        // CHECK WORKSHEET
-        // ==================================================
-
-        if (
-            !workbook.SheetNames ||
-            workbook.SheetNames.length === 0
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "The uploaded file does not contain a worksheet."
-
-            });
-
-        }
-
-
-        // ==================================================
-        // FIRST SHEET
-        // ==================================================
-
-        const sheet =
-            workbook.Sheets[
-                workbook.SheetNames[0]
-            ];
-
-
-        if (!sheet) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Unable to read the uploaded file."
-
-            });
-
-        }
-
-
-        // ==================================================
-        // SHEET → JSON
-        // ==================================================
-
-        const rows =
-            XLSX.utils.sheet_to_json(
-                sheet,
-                {
-                    defval: null,
-                    raw: true
-                }
-            );
-
-
-        // ==================================================
-        // EMPTY FILE
-        // ==================================================
-
-        if (
-            !rows ||
-            rows.length === 0
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Uploaded file is empty."
-
-            });
-
-        }
-
-
-        // ==================================================
-        // WHICH COLUMNS ARE NUMERIC? (see getNumericColumns above)
-        // ==================================================
-
-        const numericColumns =
-            await getNumericColumns("new_store_openings");
-
-        // ==================================================
-        // NORMALIZE ROWS (alias-matched — see NSO_COLUMN_ALIASES
-        // and canonicalNsoField above)
-        // ==================================================
-
-        const unrecognizedHeaders = new Set();
-
-        const normalizedRows =
-            rows.map(
-                (
-                    originalRow
-                ) => {
-
-                    const row = {};
-
-
-                    Object.keys(
-                        originalRow
-                    ).forEach(
-                        (
-                            key
-                        ) => {
-
-                            const canonical =
-                                canonicalNsoField(key);
-
-                            if (canonical) {
-
-                                row[canonical] =
-                                    originalRow[key];
-
-                            } else if (
-                                String(key).trim()
-                            ) {
-
-                                unrecognizedHeaders.add(
-                                    String(key).trim()
-                                );
-
-                            }
-
-                        }
-                    );
-
-
-                    return row;
-
-                }
-            );
-
-
-        // ==================================================
-        // PREPARE RECORDS
-        // ==================================================
-
-        const records =
-            normalizedRows.map(
-                (
-                    row
-                ) => {
-
-                    return {
-
-                        // ----------------------------------
-                        // BASIC INFORMATION
-                        // ----------------------------------
-
-                        location:
-                            row.location ||
-                            null,
-
-                        city:
-                            row.city ||
-                            null,
-
-
-                        // ----------------------------------
-                        // AREA
-                        // ----------------------------------
-
-                        sb_area:
-                            sanitizeImportField("sb_area", row.sb_area, numericColumns),
-
-                        carpet_area:
-                            sanitizeImportField("carpet_area", row.carpet_area, numericColumns),
-
-
-                        // ----------------------------------
-                        // FINANCIAL
-                        //
-                        // Sanitized with sanitizeImportField()/toDecimalOrNull()
-                        // (see above) so a cell like "NA", "1,10,000" or "15%
-                        // After 3 years" can never abort the whole bulk upload
-                        // with an "Incorrect decimal value" SQL error — but
-                        // ONLY when the database actually reports that column
-                        // as numeric, so a genuinely text column (e.g. a
-                        // descriptive Escalation clause) is left exactly as
-                        // written in the spreadsheet.
-                        // ----------------------------------
-
-                        cam:
-                            sanitizeImportField("cam", row.cam, numericColumns),
-
-                        mg:
-                            sanitizeImportField("mg", row.mg, numericColumns),
-
-                        electricity_kva:
-                            sanitizeImportField("electricity_kva", row.electricity_kva, numericColumns),
-
-                        revenue_share:
-                            sanitizeImportField("revenue_share", row.revenue_share, numericColumns),
-
-                        escalation:
-                            sanitizeImportField("escalation", row.escalation, numericColumns),
-
-                        expected_sale:
-                            sanitizeImportField("expected_sale", row.expected_sale, numericColumns),
-
-
-                        // ----------------------------------
-                        // DATES
-                        // ----------------------------------
-
-                        possession_date_loi:
-                            formatImportDate(
-                                row.possession_date_loi
-                            ),
-
-                        possession_date_broker:
-                            formatImportDate(
-                                row.possession_date_broker
-                            ),
-
-                        actual_possession_date:
-                            formatImportDate(
-                                row.actual_possession_date
-                            ),
-
-                        received_by_nso:
-                            formatImportDate(
-                                row.received_by_nso
-                            ),
-
-
-                        // ----------------------------------
-                        // PEOPLE / ASSIGNMENTS
-                        // ----------------------------------
-
-                        broker_name:
-                            row.broker_name ||
-                            null,
-
-                        operation_head_assigned:
-                            row.operation_head_assigned ||
-                            null,
-
-                        asm_assigned:
-                            row.asm_assigned ||
-                            null,
-
-
-                        // ----------------------------------
-                        // OTHER INFORMATION
-                        // ----------------------------------
-
-                        remarks:
-                            row.remarks ||
-                            null,
-
-                        attachment:
-                            row.attachment ||
-                            null,
-
-                        approver_name:
-                            row.approver_name ||
-                            null,
-
-                        construction_vendor:
-                            row.construction_vendor ||
-                            null,
-
-                        project_taken_by:
-                            row.project_taken_by ||
-                            null
-
-                    };
-
-                }
-            );
-
-
-        // ==================================================
-        // AUTHENTICATED USER
-        // ==================================================
-
-        const userId =
-            req.user &&
-            (
-                req.user.id ||
-                req.user.user_id
-            );
-
-
-        if (!userId) {
-
-            return res.status(401).json({
-
-                success: false,
-
-                message:
-                    "Authenticated user not found."
-
-            });
-
-        }
-
-
-        // ==================================================
-        // DEBUG
-        // ==================================================
-
-        console.log(
-            "=========================================="
-        );
-
-        console.log(
-            "NSO BULK IMPORT"
-        );
-
-        console.log(
-            "File:",
-            fileName
-        );
-
-        console.log(
-            "Type:",
-            extension
-        );
-
-        console.log(
-            "Rows:",
-            records.length
-        );
-
-        console.log(
-            "First Record:",
-            records[0]
-        );
-
-        console.log(
-            "=========================================="
-        );
-
-
-        // ==================================================
-        // WORKFLOW
-        // ==================================================
-
-        const result =
-            await workflowService.bulkImportWorkflow(
-
-                records,
-
-                userId
-
-            );
-
-
-        // ==================================================
-        // RESPONSE
-        // ==================================================
-
-        return res.status(200).json({
-
-            success: true,
-
-            message:
-                "Bulk Upload Completed Successfully.",
-
-            imported:
-                result &&
-                result.affectedRows !== undefined
-                    ? result.affectedRows
-                    : records.length,
-
-            // Columns in the uploaded file that didn't match any known
-            // New Store Opening field (see NSO_COLUMN_ALIASES above) —
-            // every row still imported, but these specific columns were
-            // not recognised and so were not saved. Usually empty; if
-            // not, it's a real heads-up rather than a silent drop.
-            unrecognizedColumns:
-                Array.from(unrecognizedHeaders)
-
-        });
-
+exports.bulkUploadNewStoreOpenings = async (req, res) => {
+    const userId = req.user && (req.user.id || req.user.user_id);
+
+    if (!userId) {
+        return res.status(401).json({ success: false, message: "Authenticated user not found." });
     }
 
-    catch (error) {
+    return runBulkUpload({
+        req,
+        res,
+        module: "new-store-openings",
 
-        // ==================================================
-        // ERROR
-        // ==================================================
+        prepare: async (ctx) => {
+            ctx.data.numericColumns = await getNumericColumns("new_store_openings");
+        },
 
-        console.error(
-            "❌ Bulk Upload New Store Openings Error:",
-            error
-        );
+        validateRow: (row, ctx) => {
+            const record = {};
 
+            Object.keys(NSO_COLUMN_ALIASES).forEach((field) => {
+                const label = NSO_SAMPLE_HEADER_LABELS[field] || field;
+                const raw = ctx.cell(label);
 
-        return res.status(500).json({
+                if (NSO_DATE_FIELDS.includes(field)) {
+                    record[field] = ctx.date(label);
+                    return;
+                }
 
-            success: false,
+                if (ctx.data.numericColumns.has(field)) {
+                    const value = toDecimalOrNull(raw);
+                    const text = String(raw ?? "").trim();
+                    if (value === null && text && !/^(n\.?\/?a\.?|nil|none|-{1,2}|na)$/i.test(text)) {
+                        ctx.fail(label, text, `${label} must be a number.`);
+                    }
+                    record[field] = value;
+                    return;
+                }
 
-            message:
-                error.message ||
-                "Bulk upload failed."
+                record[field] = raw !== null && raw !== undefined && String(raw).trim() !== "" ? String(raw).trim() : null;
+            });
 
-        });
+            ctx.record = record;
+        },
 
-    }
+        processRow: async (row, ctx) => {
+            const result = await workflowService.bulkImportWorkflow([ctx.record], userId, { skipHistory: true });
+            return { id: result?.insertId || null };
+        },
 
+        finalize: async (ctx) => {
+            if (ctx.report.uploaded && workflowService.createImportHistory) {
+                await workflowService.createImportHistory(userId, ctx.report.uploaded);
+            }
+        }
+    });
 };
 
 // ======================================================
@@ -1713,6 +937,52 @@ const NSO_SAMPLE_HEADER_LABELS = {
     construction_vendor: "Construction Vendor",
     project_taken_by: "Project Taken By"
 };
+
+// Registers this module with the global bulk-upload engine. The
+// spreadsheet column names are the sample-file labels; every alias in
+// NSO_COLUMN_ALIASES (and the raw DB field name) is still accepted.
+const NSO_DATE_FIELDS = ["possession_date_loi", "possession_date_broker", "actual_possession_date", "received_by_nso"];
+
+defineBulkModule("new-store-openings", {
+    title: "New Store Openings",
+    table: "new_store_openings",
+    columns: Object.fromEntries(
+        Object.entries(NSO_COLUMN_ALIASES).map(([field, aliases]) => [
+            NSO_SAMPLE_HEADER_LABELS[field] || field,
+            {
+                aliases: [field, ...aliases],
+                required: field === "location" ? true : undefined,
+                sample: {
+                    location: "Hisar - Main Market",
+                    city: "Hisar",
+                    sb_area: "1500",
+                    carpet_area: "1200",
+                    cam: "25",
+                    mg: "150000",
+                    electricity_kva: "20",
+                    revenue_share: "12",
+                    escalation: "5% every 3 years",
+                    expected_sale: "800000",
+                    possession_date_loi: "01/11/2026",
+                    possession_date_broker: "05/11/2026",
+                    actual_possession_date: "",
+                    received_by_nso: "20/10/2026",
+                    broker_name: "ABC Realty",
+                    operation_head_assigned: "Rohit Singh",
+                    asm_assigned: "ASM North",
+                    remarks: "",
+                    attachment: "",
+                    approver_name: "Regional Head",
+                    construction_vendor: "XYZ Interiors",
+                    project_taken_by: "NSO Team"
+                }[field] ?? "",
+                help: NSO_DATE_FIELDS.includes(field) ? "Date (DD/MM/YYYY)." : undefined
+            }
+        ])
+    ),
+    guidelines: COMMON_GUIDELINES
+});
+
 
 const NSO_SAMPLE_ROW = {
     location: "Example Mall, Sector 21",

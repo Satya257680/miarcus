@@ -3,9 +3,8 @@
 // ==========================================================
 //
 // One multer config, reusable by every bulk-upload route in the
-// app (Users today; Departments/Designations/Announcements/etc.
-// can switch to this the same way — see routes/userRoutes.js
-// for the pattern). Accepts CSV, Excel, PDF, or a photo, and
+// app — every module's bulk-upload route uses it. Accepts Excel,
+// CSV/TSV/TXT, Word (.docx/.doc), PDF, JSON or a photo, and
 // hands the file to utils/bulkFileParser.js to turn into rows
 // regardless of which format it was.
 // ==========================================================
@@ -30,7 +29,10 @@ const storage = multer.diskStorage({
 });
 
 const ALLOWED_EXTENSIONS = [
-    ".csv", ".xlsx", ".xls", ".pdf",
+    ".csv", ".tsv", ".txt", ".json",
+    ".xlsx", ".xlsm", ".xlsb", ".xls", ".ods",
+    ".docx", ".doc",
+    ".pdf",
     ".jpg", ".jpeg", ".png", ".webp",
     // Video is accepted so it is never bounced at the upload layer.
     // Row/table data cannot be extracted from a video, so
@@ -41,7 +43,14 @@ const ALLOWED_EXTENSIONS = [
 
 const ALLOWED_MIME_TYPES = [
     "text/csv",
+    "text/plain",
+    "text/tab-separated-values",
+    "application/json",
     "application/vnd.ms-excel",
+    "application/vnd.ms-excel.sheet.macroEnabled.12",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/octet-stream", // some browsers send this for .csv/.xls
     "application/pdf",
@@ -63,7 +72,7 @@ const fileFilter = (req, file, cb) => {
     }
 
     return cb(
-        new Error("Only CSV, Excel (.xlsx/.xls), PDF, photo (.jpg/.png/.webp), or video (.mp4/.mov/.avi/.mkv/.webm) files are allowed.")
+        new Error("Only Excel (.xlsx/.xls), CSV, Word (.docx/.doc), PDF, or a photo (.jpg/.png/.webp) of the list can be bulk uploaded.")
     );
 };
 

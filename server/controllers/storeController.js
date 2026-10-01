@@ -2,6 +2,8 @@ const { readDeleteScope } = require("../utils/deleteScope");
 const Store = require("../models/storeModel");
 
 const { logActivity } = require("../utils/activityLogger");
+const { runBulkUpload, call: bulkCall, sql: bulkSql, isEmail, parseYesNo } = require("../utils/bulkUploadEngine");
+
 
 const fs = require("fs");
 
@@ -678,217 +680,74 @@ exports.deleteAllStores = (req, res) => {
 };
 
 // ======================================================
-// IMPORT STORES FROM CSV
+// IMPORT STORES  (global bulk-upload engine)
+// Any format: Excel / CSV / Word / PDF / photo. Each row on its own:
+// duplicates (same Store Code), invalid email etc. are reported with
+// row / column / value / reason and all valid rows are saved. Extra
+// columns are kept with the store (bulk_extra_data).
 // ======================================================
 
-exports.importStoresFromCSV = (req, res) => {
+exports.importStoresFromCSV = (req, res) =>
+    runBulkUpload({
+        req,
+        res,
+        module: "stores",
 
-    if (!req.file) {
+        prepare: async (ctx) => {
+            const rows = await bulkSql("SELECT store_code FROM stores WHERE store_code IS NOT NULL");
+            ctx.data.codes = new Set(rows.map((r) => String(r.store_code).trim().toLowerCase()));
+        },
 
-        return res.status(400).json({
+        validateRow: (row, ctx) => {
+            const code = ctx.text("Store Code");
+            if (code && ctx.data.codes.has(code.toLowerCase())) {
+                ctx.duplicate("Store Code", code, `Store Code ${code} already exists in the database.`);
+            }
 
-            success: false,
+            const email = ctx.text("Email");
+            if (email && !isEmail(email)) ctx.fail("Email", email, "Invalid email address.");
 
-            message: "Please upload a CSV file."
+            const status = ctx.text("Status");
+            if (status && !["active", "inactive"].includes(status.toLowerCase())) {
+                ctx.fail("Status", status, "Status must be Active or Inactive.");
+            }
+        },
 
-        });
+        duplicateKey: (row, ctx) => ({
+            key: ctx.text("Store Code").toLowerCase(),
+            column: "Store Code",
+            value: ctx.text("Store Code")
+        }),
 
-    }
-
-    const stores = [];
-
-    fs.createReadStream(req.file.path)
-
-        .pipe(csv())
-
-        .on("data", (row) => {
-
-            stores.push({
-
-                store_name:
-
-                    row.store_name ||
-
-                    row.StoreName ||
-
-                    row["Store Name"],
-
-                store_code:
-
-                    row.store_code ||
-
-                    row.StoreCode ||
-
-                    row["Store Code"],
-
-                country:
-
-                    row.country ||
-
-                    row.Country,
-
-                city:
-
-                    row.city ||
-
-                    row.City,
-
-                state:
-
-                    row.state ||
-
-                    row.State,
-
-                address:
-
-                    row.address ||
-
-                    row.Address,
-
-                manager_name:
-
-                    row.manager_name ||
-
-                    row.Manager ||
-
-                    row["Manager Name"],
-
-                contact_number:
-
-                    row.contact_number ||
-
-                    row.Contact ||
-
-                    row["Contact Number"],
-
-                email:
-
-                    row.email ||
-
-                    row.Email,
-
-                status:
-
-                    row.status ||
-
-                    row.Status ||
-
-                    "Active"
-
+        processRow: async (row, ctx) => {
+            const result = await bulkCall(Store.createStore, {
+                store_name: ctx.text("Store Name"),
+                store_code: ctx.text("Store Code"),
+                country: ctx.text("Country") || null,
+                city: ctx.text("City") || null,
+                state: ctx.text("State") || null,
+                address: ctx.text("Address") || null,
+                manager_name: ctx.text("Manager Name") || null,
+                contact_number: ctx.text("Contact Number") || null,
+                email: ctx.text("Email") || null,
+                status: ctx.text("Status").toLowerCase() === "inactive" ? "Inactive" : "Active"
             });
+            return { id: result.insertId };
+        },
 
-        })
-
-        .on("end", () => {
-
-            Store.bulkInsertStores(
-
-                stores,
-
-                (err, result) => {
-
-                    // ======================================
-                    // DELETE TEMP FILE
-                    // ======================================
-
-                    fs.unlink(
-
-                        req.file.path,
-
-                        () => {}
-
-                    );
-
-                    if (err) {
-
-                        console.error(
-
-                            "CSV IMPORT DATABASE ERROR:",
-
-                            err
-
-                        );
-
-                        return res.status(500).json({
-
-                            success: false,
-
-                            message: err.message,
-
-                            error: err
-
-                        });
-
-                    }
-
-                    // ======================================
-                    // LOG ACTIVITY
-                    // ======================================
-
-                    logActivity({
-
-                        activity_type: "Store",
-
-                        reference_id: 0,
-
-                        title: "Stores Imported",
-
-                        description: `${result.affectedRows} stores imported from CSV`,
-
-                        module_name: "Stores",
-
-                        status: "Closed",
-
-                        priority: "Medium",
-
-                        created_by: req.user.id,
-
-                        assigned_to: null
-
-                    });
-
-                    return res.json({
-
-                        success: true,
-
-                        message: `${result.affectedRows} stores imported successfully.`,
-
-                        imported: result.affectedRows
-
-                    });
-
-                }
-
-            );
-
-        })
-
-        .on("error", (err) => {
-
-            fs.unlink(
-
-                req.file.path,
-
-                () => {}
-
-            );
-
-            console.error(
-
-                "CSV READ ERROR:",
-
-                err
-
-            );
-
-            return res.status(500).json({
-
-                success: false,
-
-                message: err.message
-
+        finalize: async (ctx) => {
+            if (!ctx.report.uploaded) return;
+            logActivity({
+                activity_type: "Store",
+                reference_id: 0,
+                title: "Stores Imported",
+                description: `${ctx.report.uploaded} stores imported`,
+                module_name: "Stores",
+                status: "Closed",
+                priority: "Medium",
+                created_by: req.user.id,
+                assigned_to: null
             });
+        }
+    });
 
-        });
-
-};

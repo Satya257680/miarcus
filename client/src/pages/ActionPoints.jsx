@@ -2338,13 +2338,14 @@ return (
 ====================================================== */}
 
 <BulkUploadModal
+    moduleKey="action-points"
+    uploadUrl={"/api/action-points/bulk-upload"}
     isOpen={showBulkModal}
     onClose={() => setShowBulkModal(false)}
     title="Bulk Upload Action Points"
     uploadFunction={handleBulkUpload}
     onSuccess={() => fetchActionPoints({ silent: true })}
-    acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.avi,.mkv,.webm"
-    maxFileSize={100 * 1024 * 1024 * 1024}
+                maxFileSize={100 * 1024 * 1024 * 1024}
     enableChunkedUpload
 />
 

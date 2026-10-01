@@ -305,13 +305,13 @@ export default function DailyCollectionReport() {
             </section>
 
             <BulkUploadModal
+    moduleKey="daily-collections"
+    uploadUrl={"/api/daily-collection/bulk-upload"}
                 isOpen={bulkOpen}
                 onClose={() => setBulkOpen(false)}
                 uploadFunction={bulkUploadDailyCollections}
                 onSuccess={load}
-                title="Bulk Upload Daily Collection"
-                acceptedFile=".csv,.xlsx,.xls"
-            />
+                title="Bulk Upload Daily Collection"/>
 
             <ConfirmDialog
                 open={Boolean(deleteId)}

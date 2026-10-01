@@ -1,4 +1,8 @@
 const express = require("express");
+
+// Shared "any format" bulk-upload middleware (Excel / CSV / Word / PDF /
+// photo) — see utils/bulkUploadEngine.js.
+const bulkFileUpload = require("../middleware/bulkFileUpload");
 const router = express.Router();
 const controller = require("../controllers/assetController");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -16,7 +20,7 @@ router.get("/options", permissionMiddleware(MODULE, "View"), controller.options)
 router.get("/:type/export", permissionMiddleware(MODULE, "View"), controller.exportCsv);
 router.get("/:type/sample", permissionMiddleware(MODULE, "View"), controller.sample);
 router.get("/:type", permissionMiddleware(MODULE, "View"), controller.list);
-router.post("/:type/import", extendUploadTimeout, permissionMiddleware(MODULE, "Add"), upload.single("file"), controller.importCsv);
+router.post("/:type/import", extendUploadTimeout, permissionMiddleware(MODULE, "Add"), bulkFileUpload.single("file"), controller.importCsv);
 router.post("/:type", permissionMiddleware(MODULE, "Add"), upload.array("attachments", 10), syncGalleryAttachment("Asset Master", "attachments"), controller.create);
 router.put("/:type/:id", permissionMiddleware(MODULE, "Edit"), upload.array("attachments", 10), syncGalleryAttachment("Asset Master", "attachments"), controller.update);
 router.delete("/:type/delete-all", permissionMiddleware(MODULE, "Full"), controller.removeAll);

@@ -1141,6 +1141,8 @@ const uploadQuestions = async (file) => {
 ====================================================== */}
 
 <BulkUploadModal
+    moduleKey="questions"
+    uploadUrl={"/api/questions/bulk-upload"}
 
     isOpen={showBulkUpload}
 
@@ -1154,11 +1156,7 @@ const uploadQuestions = async (file) => {
 
     uploadFunction={uploadQuestions}
 
-    title="Bulk Upload Questions"
-
-    acceptedFile=".csv,.xlsx,.xls"
-
-    sampleFile="/samples/questions-sample.xlsx"
+    title="Bulk Upload Questions"sampleFile="/samples/questions-sample.xlsx"
 
 />
 

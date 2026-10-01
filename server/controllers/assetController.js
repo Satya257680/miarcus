@@ -1,6 +1,7 @@
 const { readDeleteScope } = require("../utils/deleteScope");
 const fs = require("fs");
 const Asset = require("../models/assetModel");
+const { runBulkUpload, parseNumber, isEmail } = require("../utils/bulkUploadEngine");
 const XLSX = require("xlsx");
 
 const normalizeHeader = (value) => String(value || "").trim().toLowerCase().replace(/[\s_\-/]+/g, "");
@@ -217,43 +218,58 @@ const remove = async (req, res) => {
     }
 };
 
-const importCsv = async (req, res) => {
+// Bulk import (global bulk-upload engine): any format, every row on its
+// own with exact row / column / value / reason, extra columns kept.
+const importCsv = (req, res) => {
     const { type } = req.params;
     if (!validateType(type)) return res.status(400).json({ success: false, message: "Invalid asset type." });
-    if (!req.file?.path) return res.status(400).json({ success: false, message: "CSV, XLSX or XLS file is required." });
-    try {
-        const workbook = XLSX.readFile(req.file.path, { cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        if (!sheetName) return res.status(400).json({ success: false, message: "The uploaded file contains no worksheet." });
-        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-            defval: "",
-            raw: false,
-            blankrows: false,
-        });
 
-        const rows = rawRows
-            .map((row) => mapCsvRow(type, row))
-            .filter((row) => Object.values(row).some((value) => String(value ?? "").trim() !== ""));
+    const marketing = type === "marketing";
+    const field = (label) => ({
+        "Particular Name": "particular_name", "Name": "name", "Store Name": "store_name", "Department": "department_name",
+        "Category": "category", "Type": "type", "Rate": "rate", "Size": "size", "Color": "color", "Brand": "brand",
+        "Location/Address": "location_address", "Email": "email", "Mobile": "mobile", "Buy Date": "buy_date",
+        "Expiry Date": "expiry_date", "Remark": "remark", "Short Description": "short_description",
+        "Date of Issue": "date_of_issue", "Status": "status", "Custom Field Name": "custom_field_name",
+        "Custom Field Value": "custom_field_value"
+    }[label]);
 
-        if (!rows.length) {
-            return res.status(400).json({
-                success: false,
-                message: "The uploaded file has no valid data rows. Please use the sample file format.",
+    return runBulkUpload({
+        req,
+        res,
+        module: marketing ? "assets-marketing" : "assets-legal",
+
+        validateRow: (row, ctx) => {
+            const data = {};
+            Object.keys(ctx.spec.columns).forEach((label) => {
+                const key = field(label);
+                if (!key) return;
+                if (["buy_date", "expiry_date", "date_of_issue"].includes(key)) {
+                    const value = ctx.date(label);
+                    data[key] = value || "";
+                } else {
+                    data[key] = ctx.text(label);
+                }
             });
+
+            if (marketing) {
+                const rate = ctx.cell("Rate");
+                if (String(rate ?? "").trim() && Number.isNaN(parseNumber(rate))) ctx.fail("Rate", rate, "Rate must be a number.");
+                else data.rate = parseNumber(rate);
+                if (data.email && !isEmail(data.email)) ctx.fail("Email", data.email, "Invalid email address.");
+                if (data.buy_date && data.expiry_date && data.expiry_date < data.buy_date) {
+                    ctx.fail("Expiry Date", ctx.cell("Expiry Date"), "Expiry Date is before Buy Date.");
+                }
+            }
+
+            ctx.asset = data;
+        },
+
+        processRow: async (row, ctx) => {
+            const created = await Asset.create(type, ctx.asset, req.user?.id);
+            return { id: created?.id, table: Asset.TABLES[type] };
         }
-
-        const result = await Asset.importRows(type, rows, req.user?.id);
-        const message = result.skipped
-            ? `Imported ${result.imported} record(s). Skipped ${result.skipped}.`
-            : `${result.imported} record(s) uploaded successfully.`;
-
-        return res.json({ success: result.imported > 0, message, data: result });
-    } catch (error) {
-        console.error("Asset bulk import error:", error);
-        return res.status(500).json({ success: false, message: "Unable to process the uploaded file." });
-    } finally {
-        fs.promises.unlink(req.file.path).catch(() => {});
-    }
+    });
 };
 
 const removeAll = async (req, res) => {

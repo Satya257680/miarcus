@@ -264,6 +264,18 @@ const createTables = (callback) => {
     },
 
     /*
+      PER-STORE VISIT DATE
+      A visit plan now covers a date range (From -> To) and every
+      planned store carries its own visit date inside that range.
+    */
+    {
+      table: "sales_visit_plan_stores",
+      column: "visit_date",
+      definition:
+        "DATE NULL",
+    },
+
+    /*
       SALES REVIEW MIGRATIONS
 
       CREATE TABLE IF NOT EXISTS does not modify an already existing
@@ -857,7 +869,12 @@ const visitSelect = `
         v.visit_date
       ) + 1
       ELSE 1
-    END AS leave_days
+    END AS leave_days,
+
+    DATEDIFF(
+      COALESCE(v.end_date, v.visit_date),
+      v.visit_date
+    ) + 1 AS total_days
 
   FROM sales_visit_plans v
 
@@ -974,12 +991,14 @@ const getVisitPlans = (
             delete row.actual_store_ids_csv;
           });
 
-          callback(null, {
-            rows,
-            total: Number(
-              countRows[0]?.total || 0
-            ),
-          });
+          attachPlanStores(rows, () =>
+            callback(null, {
+              rows,
+              total: Number(
+                countRows[0]?.total || 0
+              ),
+            })
+          );
         }
       );
     }
@@ -1027,7 +1046,9 @@ const getVisitPlanById = (
       delete rows[0].planned_store_ids_csv;
       delete rows[0].actual_store_ids_csv;
 
-      callback(null, rows[0]);
+      attachPlanStores(rows, () =>
+        callback(null, rows[0])
+      );
     }
   );
 };
@@ -1042,6 +1063,11 @@ const replaceStores = (
   kind,
   callback
 ) => {
+  /*
+    storeIds may be:
+      [12, 15]                                   -> stores without a date
+      [{ store_id: 12, visit_date: "2026-10-01" }] -> stores with their own visit date
+  */
   query(
     `
     DELETE FROM sales_visit_plan_stores
@@ -1059,15 +1085,28 @@ const replaceStores = (
         return callback(deleteErr);
       }
 
-      const ids = [
-        ...new Set(
-          (storeIds || [])
-            .map(Number)
-            .filter(Boolean)
-        ),
-      ];
+      const byId = new Map();
 
-      if (!ids.length) {
+      (storeIds || []).forEach((item) => {
+        const id = Number(
+          item && typeof item === "object"
+            ? item.store_id ?? item.id
+            : item
+        );
+
+        if (!id) {
+          return;
+        }
+
+        const rawDate =
+          item && typeof item === "object"
+            ? String(item.visit_date || "").slice(0, 10)
+            : "";
+
+        byId.set(id, /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null);
+      });
+
+      if (!byId.size) {
         return callback(null);
       }
 
@@ -1077,20 +1116,125 @@ const replaceStores = (
           (
             plan_id,
             store_id,
-            store_kind
+            store_kind,
+            visit_date
           )
 
         VALUES ?
         `,
         [
-          ids.map((id) => [
+          [...byId.entries()].map(([id, visitDate]) => [
             planId,
             id,
             kind,
+            visitDate,
           ]),
         ],
         callback
       );
+    }
+  );
+};
+
+/* =========================================================
+   ATTACH PER-STORE SCHEDULE
+   Adds `planned_stores` ([{ store_id, store_name, store_code,
+   city, visit_date, extra }]) and `planned_store_schedule`
+   (readable text) to every visit plan row.
+========================================================= */
+
+const formatDmy = (value) => {
+  if (!value) return "";
+  const text =
+    value instanceof Date
+      ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`
+      : String(value).slice(0, 10);
+  const [y, m, d] = text.split("-");
+  return d && m && y ? `${d}/${m}/${y}` : text;
+};
+
+const toYmd = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+  }
+  return String(value).slice(0, 10);
+};
+
+const attachPlanStores = (
+  rows,
+  callback
+) => {
+  const ids = [
+    ...new Set(
+      (rows || [])
+        .map((row) => Number(row.id))
+        .filter(Boolean)
+    ),
+  ];
+
+  if (!ids.length) {
+    return callback(null, rows);
+  }
+
+  query(
+    `
+    SELECT
+      ps.*,
+      s.store_name,
+      s.store_code,
+      s.city AS store_city
+    FROM sales_visit_plan_stores ps
+    LEFT JOIN stores s
+      ON s.id = ps.store_id
+    WHERE ps.plan_id IN (?)
+      AND ps.store_kind = 'planned'
+    ORDER BY
+      ps.plan_id,
+      COALESCE(ps.visit_date, '9999-12-31'),
+      s.store_name
+    `,
+    [ids],
+    (err, storeRows) => {
+      if (err) {
+        // Never fail the list because of the schedule details.
+        console.error("Visit plan store schedule failed:", err.message);
+        return callback(null, rows);
+      }
+
+      const byPlan = new Map();
+
+      (storeRows || []).forEach((item) => {
+        let extra = {};
+        try {
+          extra = item.bulk_extra_data ? JSON.parse(item.bulk_extra_data) : {};
+        } catch {
+          extra = {};
+        }
+
+        const list = byPlan.get(Number(item.plan_id)) || [];
+        list.push({
+          store_id: Number(item.store_id),
+          store_name: item.store_name || `Store #${item.store_id}`,
+          store_code: item.store_code || "",
+          city: item.store_city || "",
+          visit_date: toYmd(item.visit_date),
+          extra,
+        });
+        byPlan.set(Number(item.plan_id), list);
+      });
+
+      rows.forEach((row) => {
+        const list = byPlan.get(Number(row.id)) || [];
+        row.planned_stores = list;
+        row.planned_store_schedule = list
+          .map((store) =>
+            `${store.store_name}${store.store_code ? ` (${store.store_code})` : ""}${store.visit_date ? ` - ${formatDmy(store.visit_date)}` : ""}`
+          )
+          .join("; ");
+      });
+
+      callback(null, rows);
     }
   );
 };
@@ -1165,7 +1309,9 @@ const createVisitPlan = (
       replaceStores(
         result.insertId,
 
-        data.planned_store_ids,
+        Array.isArray(data.planned_stores) && data.planned_stores.length
+          ? data.planned_stores
+          : data.planned_store_ids,
 
         "planned",
 
@@ -1252,7 +1398,9 @@ const updateVisitPlan = (
       replaceStores(
         id,
 
-        data.planned_store_ids,
+        Array.isArray(data.planned_stores) && data.planned_stores.length
+          ? data.planned_stores
+          : data.planned_store_ids,
 
         "planned",
 
@@ -1524,12 +1672,14 @@ const getTravelPlans = (
             delete row.actual_store_ids_csv;
           });
 
-          callback(null, {
-            rows,
-            total: Number(
-              countRows[0]?.total || 0
-            ),
-          });
+          attachPlanStores(rows, () =>
+            callback(null, {
+              rows,
+              total: Number(
+                countRows[0]?.total || 0
+              ),
+            })
+          );
         }
       );
     }
@@ -1835,7 +1985,7 @@ const getApprovalDetails = (
         delete row.actual_store_ids_csv;
       });
 
-      callback(null, rows);
+      attachPlanStores(rows, () => callback(null, rows));
     }
   );
 };
@@ -3208,6 +3358,52 @@ const importReviewRows = (
 };
 
 /* =========================================================
+   VISIT EXPORT ROWS
+   Readable columns + per-store dates + every extra column that
+   was uploaded with the plan (bulk_extra_data).
+========================================================= */
+
+const flattenVisitExportRows = (rows) => {
+  const extraKeys = new Set();
+  const parsed = rows.map((row) => {
+    let extra = {};
+    try {
+      extra = row.bulk_extra_data ? JSON.parse(row.bulk_extra_data) : {};
+    } catch {
+      extra = {};
+    }
+    Object.keys(extra).forEach((key) => extraKeys.add(key));
+    return { row, extra };
+  });
+
+  return parsed.map(({ row, extra }) => {
+    const out = {
+      "Plan ID": row.id,
+      "Employee ID": row.employee_code || "",
+      "Employee Name": row.name || "",
+      "Department": row.department || "",
+      "Designation": row.designation || "",
+      "From Date": formatDmy(row.visit_date),
+      "To Date": formatDmy(row.end_date || row.visit_date),
+      "Total Days": row.total_days || 1,
+      "Week Off": Number(row.week_off) === 1 ? "Yes" : "No",
+      "City": row.city || "",
+      "Reason to Travel": row.reason_to_travel || "",
+      "Planned Stores": row.planned_store_names || "",
+      "Store Visit Schedule": row.planned_store_schedule || "",
+      "Remarks": row.remarks || "",
+      "Approval Status": row.approval_status || "Pending",
+    };
+
+    extraKeys.forEach((key) => {
+      if (!(key in out)) out[key] = extra[key] ?? "";
+    });
+
+    return out;
+  });
+};
+
+/* =========================================================
    EXPORT VISIT PLANS
 ========================================================= */
 
@@ -3250,7 +3446,15 @@ const exportVisitRows = (
       v.id DESC
     `,
     params,
-    callback
+    (err, rows) => {
+      if (err) {
+        return callback(err);
+      }
+
+      attachPlanStores(rows || [], () => {
+        callback(null, flattenVisitExportRows(rows || []));
+      });
+    }
   );
 };
 
@@ -3366,6 +3570,7 @@ const exportReviewRows = (
 ========================================================= */
 
 module.exports = {
+  attachPlanStores,
   createTables,
 
   getEmployees,

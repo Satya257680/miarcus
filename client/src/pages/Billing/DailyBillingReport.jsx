@@ -823,12 +823,8 @@ export default function DailyBillingReport() {
 
   const handleExportCSV =
     async (format = "csv") => {
-
-      if (
-        !filteredDetails.length
-      ) {
-        return;
-      }
+      // An empty day still exports (headers only) so CSV, Excel and
+      // PDF are always available from the Export menu.
 
       const headers = [
         "Bill No",
@@ -983,7 +979,7 @@ export default function DailyBillingReport() {
 
           <ExportButton
             onExport={handleExportCSV}
-            disabled={loading || !filteredDetails.length}
+            disabled={loading}
           />
 
 </div>}

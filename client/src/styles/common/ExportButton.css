@@ -217,3 +217,34 @@
 }
 
 }
+
+/* ==========================================
+   PORTAL MENU
+   The dropdown is rendered on <body> so a parent with
+   overflow:hidden (page heroes, cards) can never clip it —
+   CSV, Excel and PDF are always visible.
+========================================== */
+
+.export-menu.export-menu-portal{
+
+    border-radius:12px;
+
+    box-shadow:0 18px 40px rgba(28,21,55,.18);
+
+    background:var(--mi-surface,#fff);
+
+    border-color:var(--mi-border,#e2e6ea);
+
+}
+
+.export-menu.export-menu-portal .export-menu-item{
+
+    color:var(--mi-text,#333);
+
+}
+
+.export-menu.export-menu-portal .export-menu-item:hover{
+
+    background:var(--mi-accent-soft,#f1f4f6);
+
+}

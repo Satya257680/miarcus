@@ -1,94 +1,56 @@
 // ==========================================================
-// MI ARCUS — UNIVERSAL BULK FILE PARSER
+// MI ARCUS — UNIVERSAL BULK FILE PARSER  (v2)
 // ==========================================================
 //
 // Turns ANY bulk-upload source file into a plain array of row
-// objects keyed by column header, so a controller can treat
-// every upload the same way regardless of what the admin
-// actually attached:
+// objects keyed by column header so every module can validate and
+// import rows the same way, whatever the admin actually attached:
 //
-//   .csv                  -> streamed row-by-row (see the CSV
-//                            section below — this is the path that
-//                            was blocking the event loop on large
-//                            files; see CHANGES.md)
-//   .xlsx / .xls           -> read as a spreadsheet (header row
-//                            auto-detected — see below) via SheetJS
-//   .pdf                  -> text/table extraction (pdf-parse)
-//   .jpg / .jpeg / .png /
-//   .webp                 -> auto-resized, then OCR'd (sharp + tesseract.js)
+//   .csv / .tsv / .txt      -> streamed, delimiter auto-detected
+//                              ( , ; TAB | )
+//   .xlsx / .xlsm / .xlsb /
+//   .xls / .ods             -> every sheet that looks like a table
+//   .docx                   -> every Word table (or "Field: value"
+//                              text when the document has no table)
+//   .doc                    -> legacy Word, best-effort table/text read
+//   .pdf                    -> text/table extraction (pdf-parse)
+//   .json                   -> array of objects
+//   .jpg/.jpeg/.png/.webp   -> resized + OCR (sharp + tesseract.js)
 //
-// HEADER-ROW DETECTION (spreadsheets, and PDF/photo table mode)
-// ---------------------------------------------------------
-// A real-world Excel/CSV file often isn't "headers on row 1, data
-// underneath" — it can have a title/banner row above the headers
-// ("DEPARTMENT MASTER LIST"), blank spacer rows, or a trailing
-// note row below the data. Treating row 1 as the header
-// unconditionally (the old behaviour) breaks the moment there's a
-// banner row: every column ends up named after the banner text,
-// so nothing matches and the whole file gets rejected as "no
-// valid rows found" even though the data is perfectly fine one
-// row down.
+// WHAT CHANGED IN v2
+// ----------------------------------------------------------
+// 1. NO COLUMN IS DROPPED ANY MORE. Columns that match a known field
+//    are returned under the field's canonical name exactly as before.
+//    Every other column is kept on the row as `row.__extra`
+//    ({ "Transport Mode": "Car", "Travel Cost": 3500 }) using the
+//    exact header text from the file, so the importer can save it.
 //
-// Instead, this module scans the first 15 rows, scores each one
-// by how many cells match a *known* column name (via the alias
-// map passed in), and picks the highest-scoring row as the real
-// header — wherever it actually is. Rows before it (banners,
-// titles) and anything after the data that doesn't look like a
-// real row (blank, or a trailing "Note: ..." line with nothing in
-// the other columns) are simply not part of the table and are
-// dropped on their own, without needing special-case code. For the
-// streamed CSV path this scan happens against the first 15 rows as
-// they arrive, before anything is committed to memory as "data".
+// 2. EVERY ROW KNOWS WHERE IT CAME FROM. `row.__row` is the real
+//    line number the user sees in Excel / the CSV (header = its own
+//    line number, first data row = header + 1, blank lines counted),
+//    and `row.__sheet` is the sheet / table name. Error reports can
+//    therefore say "Row 7 · Store Code · ABC123 · Store not found".
 //
-// PDF and photo sources are inherently less reliable than a real
-// spreadsheet (extracted text can be noisy, OCR can misread
-// characters), so those paths stay conservative: if a row's
-// required columns can't be found with confidence, it's left out
-// rather than guessed at. The calling controller's own per-row
-// validation (e.g. "Department not found") is what ultimately
-// decides whether a row is safe to import — this module's job is
-// only to get every source format into the same shape so that
-// validation can run against it either way.
+// 3. HEADER TOLERANCE. Header matching ignores case, spaces,
+//    punctuation, "*" required markers and "(dd/mm/yyyy)" style hints.
+//    A header that is only slightly misspelt ("Viste Date") is mapped
+//    to the closest known column and reported back as auto-corrected.
 //
-// Usage:
-//   const { parseBulkFile, DEFAULT_COLUMN_ALIASES } = require("../utils/bulkFileParser");
+// 4. HEADER REPORT. The result includes `headers`, a list of every
+//    column found in the file with its status (matched / corrected /
+//    extra), used by the Column Validation screen and the final
+//    upload report.
 //
-//   // Using the built-in Users column set:
-//   const { rows, sourceType, warnings } =
-//       await parseBulkFile(req.file.path, req.file.originalname, req.file.mimetype);
-//
-//   // Using a module-specific column set (see departmentController.js):
-//   const DEPARTMENT_COLUMN_ALIASES = {
-//       "Department Name": ["departmentname", "department", "dept", "name"],
-//       "Description": ["description", "desc"],
-//       "Status": ["status", "active"],
-//       "Employee ID": ["employeeid", "empid", "employee id"]
-//   };
-//   const { rows } = await parseBulkFile(path, name, mimetype, DEPARTMENT_COLUMN_ALIASES);
-//
-//   // Optional 5th argument: called every ~1000 rows while the file is
-//   // being read (CSV: rows streamed so far; XLSX/XLS: rows converted so
-//   // far), so a caller running this inside a background job (see
-//   // controllers/checklistReportController.js) can surface live
-//   // progress instead of a silent "Reading your file…" the whole time.
-//   const { rows } = await parseBulkFile(path, name, mimetype, aliases, (n) => {
-//       updateJob(job.id, { message: `Reading your file… ${n} row(s) read so far` });
-//   });
+// The extra metadata fields are NON-ENUMERABLE, so existing callers
+// that spread / JSON.stringify rows see exactly the same objects as
+// before — this file is fully backward-compatible with v1 callers.
 // ==========================================================
 
 const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
-
-// Already a dependency of this project (see controllers/questionController.js,
-// storeController.js, checklistTypeController.js, listingTrackerController.js
-// for other places it's used) — no new package needed for the fix below.
 const csvParser = require("csv-parser");
 
-// These three are optional at require-time so that a server
-// that hasn't run `npm install` yet for the new deps still
-// boots — PDF/photo uploads simply report a clear error until
-// the packages are installed, instead of crashing the process.
 function safeRequire(name) {
     try {
         return require(name);
@@ -102,132 +64,360 @@ const sharp = safeRequire("sharp");
 const Tesseract = safeRequire("tesseract.js");
 
 // ==========================================================
-// DEFAULT COLUMN ALIASES (Users)
-// ==========================================================
-//
-// Kept as the default so existing call sites that don't pass a
-// `columnAliases` argument (e.g. the Users bulk upload) keep
-// working exactly as before.
+// DEFAULT COLUMN ALIASES (Users) — kept for v1 callers
 // ==========================================================
 
 const DEFAULT_COLUMN_ALIASES = {
-    "Employee ID": ["employeeid", "empid", "employee id", "id", "staffid", "employeecode"],
+    "Employee ID": ["employeeid", "empid", "employee id", "id", "staffid", "employeecode", "empcode"],
     "Name": ["name", "fullname", "employeename", "staffname"],
     "Email": ["email", "emailaddress", "mail", "emailid"],
-    "Call Contact": ["callcontact", "contact", "phone", "mobile", "mobilenumber", "phonenumber"],
+    "Call Contact": ["callcontact", "contact", "phone", "mobile", "mobilenumber", "phonenumber", "contactnumber"],
     "WhatsApp Contact": ["whatsappcontact", "whatsapp", "whatsappnumber"],
-    "Department": ["department", "dept"],
-    "Designation": ["designation", "role", "position", "title"],
-    "Reports To": ["reportsto", "reporting", "manager", "supervisor"],
+    "Department": ["department", "dept", "departmentname"],
+    "Designation": ["designation", "role", "position", "title", "designationname"],
+    "Reports To": ["reportsto", "reporting", "manager", "supervisor", "reportingmanager"],
     "Status": ["status", "active"]
 };
 
+// ==========================================================
+// HEADER NORMALISATION / MATCHING
+// ==========================================================
+
 function normalizeKey(key) {
-    return String(key || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    return String(key ?? "")
+        .replace(/^﻿/, "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
 }
 
-// Builds a lookup: normalized alias -> canonical column name.
-// The canonical name itself is always included (normalized) so a
-// spreadsheet that already spells a header exactly right — e.g.
-// one built from the app's own "Download Sample" file — matches
-// without needing to be listed as its own alias.
+// "Visit Date (dd/mm/yyyy) *" -> "visitdate"
+function normalizeHeaderLoose(key) {
+    return normalizeKey(
+        String(key ?? "")
+            .replace(/\([^)]*\)/g, " ")
+            .replace(/\[[^\]]*\]/g, " ")
+            .replace(/\*/g, " ")
+    );
+}
+
 function buildAliasLookup(columnAliases) {
     const lookup = {};
-    for (const [canonical, aliases] of Object.entries(columnAliases)) {
+    for (const [canonical, aliases] of Object.entries(columnAliases || {})) {
         lookup[normalizeKey(canonical)] = canonical;
-        for (const alias of aliases) {
-            lookup[normalizeKey(alias)] = canonical;
+        for (const alias of aliases || []) {
+            const key = normalizeKey(alias);
+            if (key && !lookup[key]) lookup[key] = canonical;
         }
     }
     return lookup;
 }
 
 function canonicalHeaderFor(rawHeader, aliasLookup) {
-    return aliasLookup[normalizeKey(rawHeader)] || null;
+    if (rawHeader === undefined || rawHeader === null) return null;
+    return (
+        aliasLookup[normalizeKey(rawHeader)] ||
+        aliasLookup[normalizeHeaderLoose(rawHeader)] ||
+        null
+    );
+}
+
+function levenshtein(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+        const curr = [i];
+        for (let j = 1; j <= b.length; j++) {
+            curr[j] = Math.min(
+                prev[j] + 1,
+                curr[j - 1] + 1,
+                prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+            );
+        }
+        prev = curr;
+    }
+    return prev[b.length];
+}
+
+function similarity(a, b) {
+    if (!a || !b) return 0;
+    const max = Math.max(a.length, b.length);
+    return max ? 1 - levenshtein(a, b) / max : 0;
+}
+
+// Closest known column for a header that did not match exactly.
+function fuzzyCanonicalFor(rawHeader, aliasLookup, minScore = 0.75) {
+    const key = normalizeHeaderLoose(rawHeader);
+    if (key.length < 4) return null;
+
+    let best = null;
+    let bestScore = 0;
+
+    for (const [alias, canonical] of Object.entries(aliasLookup)) {
+        if (alias.length < 4) continue;
+        const score = similarity(key, alias);
+        if (score > bestScore) {
+            bestScore = score;
+            best = canonical;
+        }
+    }
+
+    return bestScore >= minScore ? best : null;
 }
 
 // ==========================================================
-// SHARED SMALL HELPERS
+// SMALL HELPERS
 // ==========================================================
 
-// How often the CSV/XLSX readers below hand control back to the event
-// loop while working through a large file. See CHANGES.md for the full
-// story; in short, without this a big enough file can keep the whole
-// server from answering ANY other request (including the bulk-upload
-// job's own status-poll request) for as long as the file takes to read,
-// which is what was surfacing as a 502 on
-// /api/checklist-reports/bulk-upload/status/:jobId.
 const YIELD_EVERY_N_ROWS = 1000;
 
 function yieldToEventLoop() {
     return new Promise((resolve) => setImmediate(resolve));
 }
 
-function isBlankRow(cells) {
-    return cells.every(
-        (cell) => cell === undefined || cell === null || String(cell).trim() === ""
-    );
+function isEmptyCell(cell) {
+    return cell === undefined || cell === null || String(cell).trim() === "";
 }
 
-// Scores each of the first `maxScanRows` rows by how many cells
-// resolve to a known column via aliasLookup, and returns the
-// index of the best-scoring row (ties go to the first one found).
-// Returns -1 only if every scanned row scores 0, in which case the
-// caller falls back to treating row 0 as the header (the previous,
-// simpler behaviour) rather than silently returning nothing.
-function findHeaderRowIndex(rowsAoA, aliasLookup, maxScanRows = 15) {
+function isBlankRow(cells) {
+    return !cells || cells.every(isEmptyCell);
+}
+
+function nonEmptyCount(cells) {
+    return (cells || []).filter((c) => !isEmptyCell(c)).length;
+}
+
+function columnLetter(index) {
+    let n = index + 1;
+    let s = "";
+    while (n > 0) {
+        const m = (n - 1) % 26;
+        s = String.fromCharCode(65 + m) + s;
+        n = Math.floor((n - 1) / 26);
+    }
+    return s;
+}
+
+function defineHidden(obj, key, value) {
+    Object.defineProperty(obj, key, {
+        value,
+        enumerable: false,
+        writable: true,
+        configurable: true
+    });
+}
+
+function scoreHeaderRow(cells, aliasLookup) {
+    return (cells || []).filter((cell) => canonicalHeaderFor(cell, aliasLookup)).length;
+}
+
+// Index (into `candidates`) of the most header-like row among the first
+// 15 non-blank rows. Falls back to the first row that has at least two
+// text cells, then to 0.
+function findHeaderIndex(candidates, aliasLookup) {
     let bestIndex = -1;
     let bestScore = 0;
 
-    for (let i = 0; i < Math.min(rowsAoA.length, maxScanRows); i++) {
-        const row = rowsAoA[i] || [];
-        const score = row.filter((cell) => canonicalHeaderFor(cell, aliasLookup)).length;
-
+    for (let i = 0; i < Math.min(candidates.length, 15); i++) {
+        const score = scoreHeaderRow(candidates[i], aliasLookup);
         if (score > bestScore) {
             bestScore = score;
             bestIndex = i;
         }
     }
 
-    return bestIndex;
+    if (bestIndex !== -1) return { index: bestIndex, score: bestScore };
+
+    for (let i = 0; i < Math.min(candidates.length, 15); i++) {
+        const textCells = (candidates[i] || []).filter(
+            (c) => !isEmptyCell(c) && isNaN(Number(c))
+        ).length;
+        if (textCells >= 2) return { index: i, score: 0 };
+    }
+
+    return { index: 0, score: 0 };
 }
 
 // ==========================================================
-// CSV — STREAMED, NON-BLOCKING
-// ==========================================================
-//
-// WHY THIS CHANGED (see CHANGES.md for the full write-up)
-// ----------------------------------------------------------
-// The previous version read the entire CSV into memory with
-// fs.readFileSync() and handed the whole string to XLSX.read() in one
-// synchronous call. For a large bulk-upload file (tens/hundreds of MB,
-// hundreds of thousands of rows) that single call could block Node's
-// one and only event-loop thread for a long stretch. While blocked, the
-// server can't answer ANY other request — including the bulk-upload
-// job's own status-poll request — which is what was surfacing to the
-// browser as a 502 from the reverse proxy partway through a large
-// import, even though the upload itself had already completed fine and
-// the timeouts (extendUploadTimeout.js, web.config, server.js) were
-// already generously configured.
-//
-// This version streams the file with `csv-parser` (already a project
-// dependency — see the requires above) and periodically pauses to yield
-// back to the event loop (yieldToEventLoop(), above), so a huge CSV
-// import never keeps the server from answering other requests for more
-// than a moment at a time. It also never holds the raw file text and a
-// second fully-parsed copy in memory at the same time the way
-// fs.readFileSync() + XLSX.read() did.
-//
-// HEADER-ROW DETECTION works the same way it always has (see the note
-// at the top of this file) — it just happens against a small rolling
-// buffer of the first 15 *non-blank* rows as they stream in, instead of
-// against an already-fully-parsed array.
+// HEADER PLAN — decides, for every column of the header row,
+// which canonical field it maps to (or that it is an extra column).
 // ==========================================================
 
-// csv-parser (headers:false) emits each row as an object keyed by
-// column index ("0", "1", "2", ...) rather than a real array — this
-// turns it back into a plain, ordered array the rest of this file
-// already knows how to work with.
+function buildHeaderPlan(headerCells, aliasLookup, sheetName) {
+    const used = new Set();
+    const plan = [];
+
+    // Pass 1 — exact / loose matches.
+    (headerCells || []).forEach((cell, idx) => {
+        const label = isEmptyCell(cell) ? "" : String(cell).replace(/^﻿/, "").trim();
+        const canonical = label ? canonicalHeaderFor(label, aliasLookup) : null;
+
+        if (canonical && !used.has(canonical)) {
+            used.add(canonical);
+            plan[idx] = { index: idx, source: label, target: canonical, status: "matched", sheet: sheetName };
+        } else {
+            plan[idx] = { index: idx, source: label, target: null, status: "extra", sheet: sheetName };
+        }
+    });
+
+    // Pass 2 — fuzzy matches for the remaining labelled columns.
+    plan.forEach((entry) => {
+        if (!entry || entry.target || !entry.source) return;
+        const guess = fuzzyCanonicalFor(entry.source, aliasLookup);
+        if (guess && !used.has(guess)) {
+            used.add(guess);
+            entry.target = guess;
+            entry.status = "corrected";
+        }
+    });
+
+    // Unlabelled columns get a stable spreadsheet-style name.
+    plan.forEach((entry) => {
+        if (entry && !entry.source) entry.source = `Column ${columnLetter(entry.index)}`;
+    });
+
+    return plan;
+}
+
+// Turn one data row (cells array) into a row object using the plan.
+// `display` is an optional parallel array of formatted strings (Excel's
+// displayed text) used for extra columns so dates/percentages keep the
+// look the user typed.
+function buildRow(cells, plan, rowNumber, sheetName, display) {
+    const row = {};
+    const extra = {};
+    const raw = {};
+    let recognised = 0;
+    let filled = 0;
+
+    const width = Math.max(cells.length, plan.length);
+
+    for (let idx = 0; idx < width; idx++) {
+        const value = cells[idx];
+        if (isEmptyCell(value)) continue;
+        filled++;
+
+        const entry = plan[idx] || {
+            index: idx,
+            source: `Column ${columnLetter(idx)}`,
+            target: null,
+            status: "extra"
+        };
+
+        const shown =
+            display && !isEmptyCell(display[idx]) ? display[idx] : value;
+
+        raw[entry.source] = value;
+
+        if (entry.target) {
+            row[entry.target] = typeof value === "string" ? value.trim() : value;
+            recognised++;
+        } else {
+            extra[entry.source] = typeof shown === "string" ? shown.trim() : shown;
+        }
+    }
+
+    // Skip rows with nothing useful: either completely blank, or a lone
+    // note line ("Note: ...") that only fills an unrecognised column.
+    if (!filled) return null;
+    if (!recognised && filled < 2) return null;
+
+    defineHidden(row, "__row", rowNumber);
+    defineHidden(row, "__sheet", sheetName || null);
+    defineHidden(row, "__extra", extra);
+    defineHidden(row, "__raw", raw);
+
+    return row;
+}
+
+// ==========================================================
+// GENERIC TABLE -> ROWS (used by Excel, Word, PDF, JSON paths)
+// table = { name, rows: [{ cells, rowNumber, display? }] }
+// ==========================================================
+
+async function tableToRows(table, aliasLookup, onProgress) {
+    const nonBlank = table.rows.filter((r) => !isBlankRow(r.cells));
+    if (!nonBlank.length) return { rows: [], plan: [], score: 0 };
+
+    const { index, score } = findHeaderIndex(
+        nonBlank.map((r) => r.cells),
+        aliasLookup
+    );
+
+    const headerEntry = nonBlank[index];
+    const plan = buildHeaderPlan(headerEntry.cells, aliasLookup, table.name);
+    const rows = [];
+
+    const startPos = table.rows.indexOf(headerEntry) + 1;
+
+    for (let i = startPos; i < table.rows.length; i++) {
+        const entry = table.rows[i];
+        if (isBlankRow(entry.cells)) continue;
+
+        const row = buildRow(entry.cells, plan, entry.rowNumber, table.name, entry.display);
+        if (row) rows.push(row);
+
+        if ((i - startPos) % YIELD_EVERY_N_ROWS === 0 && i !== startPos) {
+            if (onProgress) onProgress(rows.length);
+            await yieldToEventLoop();
+        }
+    }
+
+    return { rows, plan, score };
+}
+
+// Pick which tables (sheets / Word tables) to import.
+function pickTables(evaluated) {
+    const withRows = evaluated.filter((t) => t.result.rows.length);
+    if (!withRows.length) return evaluated.slice(0, 1);
+
+    const best = Math.max(...withRows.map((t) => t.result.score));
+    if (best <= 1) return [withRows.find((t) => t.result.score === best)];
+
+    return withRows.filter((t) => t.result.score >= Math.max(2, Math.ceil(best * 0.6)));
+}
+
+// ==========================================================
+// CSV / TSV / TXT — STREAMED
+// ==========================================================
+
+function sniffDelimiter(filePath) {
+    let sample = "";
+    try {
+        const fd = fs.openSync(filePath, "r");
+        const buffer = Buffer.alloc(16384);
+        const bytes = fs.readSync(fd, buffer, 0, buffer.length, 0);
+        fs.closeSync(fd);
+        sample = buffer.subarray(0, bytes).toString("utf8");
+    } catch {
+        return ",";
+    }
+
+    const lines = sample.split(/\r?\n/).filter((l) => l.trim()).slice(0, 10);
+    if (!lines.length) return ",";
+
+    const candidates = [",", ";", "\t", "|"];
+    let best = ",";
+    let bestScore = 0;
+
+    for (const delimiter of candidates) {
+        const counts = lines.map((line) => line.split(delimiter).length - 1);
+        const max = Math.max(...counts);
+        if (!max) continue;
+        // Prefer a delimiter that appears consistently on many lines.
+        const consistent = counts.filter((c) => c === counts[0] || c === max).length;
+        const score = max * consistent;
+        if (score > bestScore) {
+            bestScore = score;
+            best = delimiter;
+        }
+    }
+
+    return best;
+}
+
 function rawCsvRowToArray(rawRow) {
     return Object.keys(rawRow)
         .sort((a, b) => Number(a) - Number(b))
@@ -236,16 +426,16 @@ function rawCsvRowToArray(rawRow) {
 
 function parseCsvStream(filePath, aliasLookup, onProgress) {
     return new Promise((resolve, reject) => {
-        const headerBuffer = [];
-        let headerIndex = -1;
-        let canonicalHeaders = null;
+        const separator = sniffDelimiter(filePath);
+        const headerBuffer = []; // { cells, rowNumber }
+        let plan = null;
         const rows = [];
-        let rawRowCount = 0;
-        let sawFirstRow = false;
+        let lineNumber = 0;
         let settled = false;
+        let headerScore = 0;
 
         const source = fs.createReadStream(filePath);
-        const parser = csvParser({ headers: false });
+        const parser = csvParser({ headers: false, separator });
 
         const fail = (err) => {
             if (settled) return;
@@ -255,67 +445,41 @@ function parseCsvStream(filePath, aliasLookup, onProgress) {
             reject(err);
         };
 
-        const finish = () => {
-            if (settled) return;
-            settled = true;
-            resolve({ rows, warnings: [] });
+        const pushDataRow = (cells, rowNumber) => {
+            const row = buildRow(cells, plan, rowNumber, null);
+            if (row) rows.push(row);
         };
 
-        function pushDataRow(cells) {
-            const row = {};
-            canonicalHeaders.forEach((canonical, idx) => {
-                const value = cells[idx];
-                if (canonical && value !== "" && value !== undefined && value !== null) {
-                    row[canonical] = value;
-                }
-            });
-
-            if (Object.keys(row).length) rows.push(row);
-        }
-
-        function finalizeHeader() {
-            let idx = findHeaderRowIndex(headerBuffer, aliasLookup);
-            if (idx === -1) idx = 0; // nothing recognised — fall back to "row 1 is the header"
-
-            headerIndex = idx;
-            canonicalHeaders = headerBuffer[idx].map((cell) => canonicalHeaderFor(cell, aliasLookup));
-
-            for (let i = idx + 1; i < headerBuffer.length; i++) {
-                pushDataRow(headerBuffer[i]);
+        const finalizeHeader = () => {
+            const found = findHeaderIndex(headerBuffer.map((r) => r.cells), aliasLookup);
+            headerScore = found.score;
+            const header = headerBuffer[found.index];
+            plan = buildHeaderPlan(header ? header.cells : [], aliasLookup, null);
+            for (let i = found.index + 1; i < headerBuffer.length; i++) {
+                pushDataRow(headerBuffer[i].cells, headerBuffer[i].rowNumber);
             }
-            headerBuffer.length = 0; // free the buffer now that it's been flushed
-        }
+            headerBuffer.length = 0;
+        };
 
         parser.on("data", (rawRow) => {
+            lineNumber += 1;
             const cells = rawCsvRowToArray(rawRow);
 
-            // A UTF-8 BOM (if the file has one) lands on the very first
-            // cell of the very first row — strip it the same way
-            // controllers/questionController.js's normalizeHeader()
-            // already does elsewhere in this codebase, or the first
-            // header cell ends up with an invisible character glued to
-            // it and never matches any alias.
-            if (!sawFirstRow) {
-                sawFirstRow = true;
-                if (typeof cells[0] === "string") {
-                    cells[0] = cells[0].replace(/^﻿/, "");
-                }
+            if (lineNumber === 1 && typeof cells[0] === "string") {
+                cells[0] = cells[0].replace(/^﻿/, "");
             }
 
-            if (isBlankRow(cells)) return; // never counts toward the header scan or the row total
+            if (isBlankRow(cells)) return;
 
-            rawRowCount += 1;
-
-            if (headerIndex === -1) {
-                headerBuffer.push(cells);
+            if (!plan) {
+                headerBuffer.push({ cells, rowNumber: lineNumber });
                 if (headerBuffer.length >= 15) finalizeHeader();
             } else {
-                pushDataRow(cells);
+                pushDataRow(cells, lineNumber);
             }
 
-            if (rawRowCount % YIELD_EVERY_N_ROWS === 0) {
-                if (onProgress) onProgress(rawRowCount);
-
+            if (lineNumber % YIELD_EVERY_N_ROWS === 0) {
+                if (onProgress) onProgress(lineNumber);
                 parser.pause();
                 yieldToEventLoop().then(() => {
                     if (!settled) parser.resume();
@@ -324,321 +488,647 @@ function parseCsvStream(filePath, aliasLookup, onProgress) {
         });
 
         parser.on("end", () => {
-            if (headerIndex === -1 && headerBuffer.length) finalizeHeader();
-            if (onProgress) onProgress(rawRowCount);
-            finish();
+            if (!plan) finalizeHeader();
+            if (onProgress) onProgress(lineNumber);
+            if (settled) return;
+            settled = true;
+            resolve({ rows, plan: plan || [], warnings: [], score: headerScore });
         });
 
         parser.on("error", fail);
         source.on("error", fail);
-
         source.pipe(parser);
     });
 }
 
 // ==========================================================
-// XLSX / XLS (SheetJS)
-// ==========================================================
-//
-// This path intentionally still uses the `xlsx` package's synchronous
-// XLSX.readFile(). Swapping it for a true streaming reader would also
-// change the shape individual cell values come back in (SheetJS hands
-// back plain strings/numbers; a streaming XLSX reader hands back richer
-// objects for formulas, rich text, hyperlinks and dates), which is a
-// real behaviour change worth doing carefully on its own rather than
-// folding into this fix. Two things keep this an acceptable trade-off
-// for now:
-//
-//   - .xls (the legacy binary format) is hard-capped at 65,536 rows by
-//     the file format itself, so it can never reach the file sizes that
-//     caused the CSV 502 in the first place.
-//   - .xlsx has no such cap, so a very large .xlsx can in principle
-//     still block the event loop the way the CSV did — the size check
-//     in parseBulkFile() below adds a warning for that case so it's
-//     surfaced to the uploader rather than silently causing the same
-//     failure. (If very large .xlsx uploads turn out to matter in
-//     practice, `exceljs` — already a dependency — has a genuine
-//     streaming XLSX reader that could replace this the same way
-//     csv-parser replaced the old CSV path.)
-//
-// What IS fixed here: the (pure JS, no library involved) loop that
-// turns parsed rows into the row objects this module returns now yields
-// back to the event loop periodically too, so it doesn't add its own
-// extra blocking stretch on top of the read.
+// EXCEL (all SheetJS-readable workbooks)
 // ==========================================================
 
-async function parseSpreadsheetYielding(filePath, aliasLookup, onProgress) {
-    // Give any response already queued (e.g. the controller's
-    // "processing" job-status update, written just before this is
-    // called) a chance to actually go out on the wire before the
-    // blocking XLSX.readFile() call below starts.
+const LARGE_XLSX_WARNING_BYTES = 20 * 1024 * 1024;
+
+function sheetToTable(sheet, name) {
+    const ref = sheet && sheet["!ref"];
+    if (!ref) return { name, rows: [] };
+
+    const range = XLSX.utils.decode_range(ref);
+    const rows = [];
+
+    for (let r = range.s.r; r <= range.e.r; r++) {
+        const cells = [];
+        const display = [];
+        let any = false;
+
+        for (let c = range.s.c; c <= range.e.c; c++) {
+            const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+            const idx = c - range.s.c;
+            if (!cell || cell.v === undefined || cell.v === null) {
+                cells[idx] = "";
+                display[idx] = "";
+                continue;
+            }
+            cells[idx] = cell.v;
+            display[idx] = cell.w !== undefined ? cell.w : cell.v;
+            if (!isEmptyCell(cell.v)) any = true;
+        }
+
+        rows.push({ cells: any ? cells : [], display, rowNumber: r + 1 });
+    }
+
+    return { name, rows };
+}
+
+async function parseWorkbook(filePath, aliasLookup, onProgress) {
     await yieldToEventLoop();
 
     const workbook = XLSX.readFile(filePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const evaluated = [];
 
-    // Read as an array-of-arrays first (rather than letting XLSX
-    // assume row 1 is the header) so the real header row can be
-    // located even when it isn't row 1 — see the header-detection
-    // note at the top of this file.
-    const rowsAoA = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: "",
-        blankrows: false
-    });
+    for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const table = sheetToTable(sheet, sheetName);
+        const result = await tableToRows(table, aliasLookup, onProgress);
+        evaluated.push({ name: sheetName, result });
+    }
 
-    if (!rowsAoA.length) return [];
-
-    let headerIndex = findHeaderRowIndex(rowsAoA, aliasLookup);
-    if (headerIndex === -1) headerIndex = 0; // nothing recognised — fall back to "row 1 is the header"
-
-    const headerRow = rowsAoA[headerIndex];
-    const canonicalHeaders = headerRow.map((cell) => canonicalHeaderFor(cell, aliasLookup));
-
+    const picked = pickTables(evaluated);
+    const multi = picked.length > 1;
     const rows = [];
-    for (let i = headerIndex + 1; i < rowsAoA.length; i++) {
-        const cells = rowsAoA[i];
-        const row = {};
+    const plans = [];
 
-        canonicalHeaders.forEach((canonical, idx) => {
-            const value = cells[idx];
-            if (canonical && value !== "" && value !== undefined && value !== null) {
-                row[canonical] = value;
-            }
+    for (const table of picked) {
+        if (!table) continue;
+        table.result.rows.forEach((row) => {
+            if (!multi) row.__sheet = null;
+            rows.push(row);
         });
+        plans.push(...table.result.plan.filter(Boolean).map((p) => ({ ...p, sheet: multi ? table.name : null })));
+    }
 
-        // A row with nothing recognised (a stray note, a blank
-        // spacer the sheet_to_json call didn't already drop, a
-        // trailing "Note: ..." line that only fills a column with
-        // no matching header) contributes nothing — skip it rather
-        // than passing an empty object down to the controller.
-        if (Object.keys(row).length) rows.push(row);
-
-        if ((i - headerIndex) % YIELD_EVERY_N_ROWS === 0) {
-            if (onProgress) onProgress(rows.length);
-            await yieldToEventLoop();
-        }
+    const warnings = [];
+    if (multi) {
+        warnings.push(
+            `Rows were read from ${picked.length} sheets: ${picked.map((t) => t.name).join(", ")}.`
+        );
     }
 
     if (onProgress) onProgress(rows.length);
-
-    return rows;
+    return { rows, plan: plans, warnings, score: picked[0]?.result?.score || 0 };
 }
 
-// A very large .xlsx can't be streamed the way CSV now is (see the note
-// above) — flag it so the uploader knows why a big Excel import is slow
-// and that CSV is the faster, safer option for very large files.
-const LARGE_XLSX_WARNING_BYTES = 20 * 1024 * 1024; // 20 MB
-
 // ==========================================================
-// TEXT -> ROWS (shared by PDF and OCR sources)
-// ==========================================================
-//
-// Two strategies, tried in order:
-//
-//   1. TABLE MODE — a real header line was found (two or more
-//      recognised column names on one line). Every following
-//      line is split on runs of 2+ spaces or a tab, and cells
-//      are matched to headers by position. This is what a PDF
-//      exported from a spreadsheet, or a neatly-formatted
-//      printed table, produces.
-//
-//   2. LINE MODE — no header/table structure detected (a photo
-//      of a hand-written or loosely formatted list). Each line
-//      is scanned for an email address (the most reliable
-//      anchor); the text before it becomes the Name, and an
-//      ID-shaped token elsewhere on the line (letters+digits,
-//      3-10 chars) is captured if present. Every other column is
-//      left blank — the controller's existing validation then
-//      safely skips anything that can't be completed rather than
-//      guessing. (Line mode is only useful for people-shaped data
-//      that has an email address to anchor on — a Department/
-//      Designation-only sheet uploaded as a photo will rely on
-//      table mode, and simply report 0 rows if no header could be
-//      found; that's surfaced to the admin as a warning rather
-//      than a silent empty import.)
+// WORD (.docx / .doc)
 // ==========================================================
 
-function splitHeaderLine(line) {
-    return line.split(/\t|\s{2,}/).map((c) => c.trim()).filter(Boolean);
+function decodeXmlEntities(text) {
+    return String(text || "")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, "\"")
+        .replace(/&apos;/g, "'")
+        .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+        .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+        .replace(/&amp;/g, "&");
 }
 
-function findHeaderLineIndex(lines, aliasLookup) {
-    for (let i = 0; i < Math.min(lines.length, 15); i++) {
-        const cells = splitHeaderLine(lines[i]);
-        const matches = cells.filter((c) => canonicalHeaderFor(c, aliasLookup)).length;
-        if (matches >= 2) return i;
+function xmlParagraphText(xml) {
+    // Paragraph -> text of its runs, tabs and breaks preserved.
+    const tokens = xml.match(/<w:t(?:\s[^>]*)?>[\s\S]*?<\/w:t>|<w:tab\/>|<w:br[^>]*\/>/g) || [];
+    return decodeXmlEntities(
+        tokens
+            .map((token) => {
+                if (token.startsWith("<w:tab")) return "\t";
+                if (token.startsWith("<w:br")) return " ";
+                return token.replace(/^<w:t(?:\s[^>]*)?>/, "").replace(/<\/w:t>$/, "");
+            })
+            .join("")
+    );
+}
+
+function readDocxXml(filePath) {
+    const cfb = XLSX.CFB.read(fs.readFileSync(filePath), { type: "buffer" });
+    const entry = XLSX.CFB.find(cfb, "/word/document.xml");
+    if (!entry || !entry.content) {
+        const error = new Error("This Word file could not be opened. Save it again as .docx (or export the table to Excel) and upload it.");
+        error.status = 400;
+        throw error;
     }
-    return -1;
+    return Buffer.from(entry.content).toString("utf8");
 }
 
-function parseTableMode(lines, headerIndex, aliasLookup) {
-    const headerCells = splitHeaderLine(lines[headerIndex]);
-    const canonicalHeaders = headerCells.map((c) => canonicalHeaderFor(c, aliasLookup));
+function docxTables(xml) {
+    const tables = [];
+    const tableRe = /<w:tbl(?:\s[^>]*)?>([\s\S]*?)<\/w:tbl>/g;
+    let match;
+    let tableNo = 0;
+
+    while ((match = tableRe.exec(xml))) {
+        tableNo += 1;
+        const rows = [];
+        const rowRe = /<w:tr[ >][\s\S]*?<\/w:tr>/g;
+        let rowMatch;
+        let rowNo = 0;
+
+        while ((rowMatch = rowRe.exec(match[1]))) {
+            rowNo += 1;
+            const cells = [];
+            const cellRe = /<w:tc(?:\s[^>]*)?>([\s\S]*?)<\/w:tc>/g;
+            let cellMatch;
+            while ((cellMatch = cellRe.exec(rowMatch[0]))) {
+                const paragraphs = cellMatch[1].match(/<w:p[ >][\s\S]*?<\/w:p>/g) || [];
+                cells.push(paragraphs.map(xmlParagraphText).join(" ").trim());
+            }
+            rows.push({ cells, rowNumber: rowNo });
+        }
+
+        tables.push({ name: `Table ${tableNo}`, rows });
+    }
+
+    return tables;
+}
+
+function docxText(xml) {
+    const body = xml.replace(/<w:tbl(?:\s[^>]*)?>[\s\S]*?<\/w:tbl>/g, "\n");
+    const paragraphs = body.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || [];
+    return paragraphs.map(xmlParagraphText).join("\n");
+}
+
+// Legacy binary .doc — best-effort. Text lives in the WordDocument
+// stream; table cells end with 0x07 and a row ends with an extra 0x07.
+function readDocText(filePath) {
+    const cfb = XLSX.CFB.read(fs.readFileSync(filePath), { type: "buffer" });
+    const entry = XLSX.CFB.find(cfb, "/WordDocument") || XLSX.CFB.find(cfb, "WordDocument");
+    if (!entry || !entry.content) {
+        const error = new Error("This .doc file could not be read. Open it in Word and save it as .docx (or copy the table into Excel) and upload again.");
+        error.status = 400;
+        throw error;
+    }
+
+    const buf = Buffer.from(entry.content);
+    const candidates = [buf.toString("utf16le"), buf.toString("latin1")];
+
+    const clean = (text) =>
+        text
+            .replace(/[^\x07\t\r\n\x20-\x7E -￿]/g, "\u0000")
+            .split("\u0000")
+            .filter((chunk) => chunk.replace(/[\x07\s]/g, "").length >= 2)
+            .join("\r");
+
+    const scored = candidates.map((text) => {
+        const cleaned = clean(text);
+        const letters = (cleaned.match(/[A-Za-z0-9]/g) || []).length;
+        return { cleaned, letters };
+    });
+
+    scored.sort((a, b) => b.letters - a.letters);
+    return scored[0].cleaned;
+}
+
+function docTextToTable(text) {
+    if (!text.includes("\x07")) return null;
 
     const rows = [];
-    for (let i = headerIndex + 1; i < lines.length; i++) {
-        const cells = lines[i].split(/\t|\s{2,}/).map((c) => c.trim());
-        if (cells.every((c) => c === "")) continue;
+    let current = [];
+    let rowNumber = 0;
 
-        const row = {};
-        canonicalHeaders.forEach((canonical, idx) => {
-            if (canonical && cells[idx]) row[canonical] = cells[idx];
-        });
-
-        if (Object.keys(row).length) rows.push(row);
+    const parts = text.split("\x07");
+    for (let i = 0; i < parts.length; i++) {
+        let piece = parts[i];
+        // The first cell of a row also carries any paragraphs that came
+        // before the table — keep only the text after the last paragraph mark.
+        if (!current.length && piece.includes("\r")) piece = piece.slice(piece.lastIndexOf("\r") + 1);
+        const cellText = piece.replace(/\r/g, " ").trim();
+        if (parts[i] === "" && current.length) {
+            rowNumber += 1;
+            rows.push({ cells: current, rowNumber });
+            current = [];
+            continue;
+        }
+        current.push(cellText);
     }
-    return rows;
+    // Anything after the last row-end mark is document text after the
+    // table (or binary noise), not a table row.
+
+    return rows.length ? { name: "Table 1", rows } : null;
+}
+
+// ==========================================================
+// TEXT -> ROWS (PDF, Word paragraphs, OCR)
+// ==========================================================
+
+function splitTextLine(line) {
+    if (line.includes("|")) {
+        return line.split("|").map((c) => c.trim()).filter((c, i, arr) => !(c === "" && (i === 0 || i === arr.length - 1)));
+    }
+    if (line.includes("\t")) return line.split("\t").map((c) => c.trim());
+    if (/\s{2,}/.test(line)) return line.split(/\s{2,}/).map((c) => c.trim());
+    if ((line.match(/,/g) || []).length >= 2) return line.split(",").map((c) => c.trim());
+    return [line.trim()];
+}
+
+function textTable(lines, aliasLookup) {
+    for (let i = 0; i < Math.min(lines.length, 25); i++) {
+        const cells = splitTextLine(lines[i]);
+        if (scoreHeaderRow(cells, aliasLookup) >= 2) {
+            const table = {
+                name: null,
+                rows: lines.slice(i).map((line, k) => ({
+                    cells: splitTextLine(line),
+                    rowNumber: k + 1
+                }))
+            };
+            return table;
+        }
+    }
+    return null;
+}
+
+// "Field: value" blocks — one record per block; a repeated field
+// starts a new record.
+function keyValueRecords(lines, aliasLookup) {
+    const records = [];
+    let current = null;
+    let currentLine = 0;
+    const KV = /^([^:]{2,60}?)\s*[:=–-]\s*(.*)$/;
+
+    lines.forEach((line, idx) => {
+        const match = line.match(KV);
+        if (!match) return;
+        const canonical = canonicalHeaderFor(match[1], aliasLookup) || fuzzyCanonicalFor(match[1], aliasLookup);
+        const label = match[1].trim();
+        const value = match[2].trim();
+
+        if (!current || (canonical && Object.prototype.hasOwnProperty.call(current.row, canonical))) {
+            if (current) records.push(current);
+            current = { row: {}, extra: {}, line: idx + 1 };
+            currentLine = idx + 1;
+        }
+
+        if (canonical) current.row[canonical] = value;
+        else current.extra[label] = value;
+    });
+
+    if (current) records.push(current);
+
+    return records
+        .filter((rec) => Object.keys(rec.row).length >= 2)
+        .map((rec, i) => {
+            const row = rec.row;
+            defineHidden(row, "__row", i + 1);
+            defineHidden(row, "__sheet", null);
+            defineHidden(row, "__extra", rec.extra);
+            defineHidden(row, "__raw", { ...rec.row, ...rec.extra });
+            defineHidden(row, "__line", rec.line || currentLine);
+            return row;
+        });
 }
 
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
-// A plausible ID token: at least one letter and one digit, 3-10
-// characters, so it doesn't accidentally grab a phone number or a
-// stray page number.
 const ID_TOKEN_PATTERN = /\b(?=[A-Z0-9]{3,10}\b)(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*[0-9])[A-Z0-9]{3,10}\b/i;
 
-// Line mode anchors on an email address, so it only produces rows
-// for column sets that include an "Email" canonical column (i.e.
-// the Users case). For a column set with no Email column at all
-// (Departments, Designations, ...) line mode correctly produces
-// nothing — there is no reliable anchor to reconstruct a row from
-// unstructured text, and guessing would be worse than reporting 0.
 function parseLineMode(lines, aliasLookup) {
-    const hasEmailColumn = Object.values(aliasLookup).includes("Email");
-    if (!hasEmailColumn) return [];
+    const targets = Object.values(aliasLookup);
+    if (!targets.includes("Email")) return [];
 
-    const idCanonical = Object.values(aliasLookup).includes("Employee ID") ? "Employee ID" : null;
+    const idCanonical = targets.includes("Employee ID") ? "Employee ID" : null;
+    const nameCanonical = targets.includes("Name") ? "Name" : null;
     const rows = [];
 
-    for (const line of lines) {
+    lines.forEach((line, idx) => {
         const emailMatch = line.match(EMAIL_PATTERN);
-        if (!emailMatch) continue; // no reliable anchor on this line — skip it
+        if (!emailMatch) return;
 
         const email = emailMatch[0];
-        const before = line.slice(0, emailMatch.index).trim();
-
-        let name = before;
+        let name = line.slice(0, emailMatch.index).trim();
         let idToken = "";
         const idMatch = line.match(ID_TOKEN_PATTERN);
         if (idMatch && idMatch[0].toLowerCase() !== email.split("@")[0].toLowerCase()) {
             idToken = idMatch[0];
             name = name.replace(idMatch[0], "").trim();
         }
-
         name = name.replace(/^[-,|:\s]+|[-,|:\s]+$/g, "");
 
-        const row = { "Email": email, "Name": name };
+        const row = { Email: email };
+        if (nameCanonical) row[nameCanonical] = name;
         if (idCanonical && idToken) row[idCanonical] = idToken;
-
+        defineHidden(row, "__row", idx + 1);
+        defineHidden(row, "__sheet", null);
+        defineHidden(row, "__extra", {});
+        defineHidden(row, "__raw", { ...row });
         rows.push(row);
-    }
+    });
 
     return rows;
 }
 
-function parseTextToRows(text, aliasLookup) {
-    const lines = text
-        .split(/\r?\n/)
-        .map((l) => l.trim())
+async function parseTextToRows(text, aliasLookup) {
+    const lines = String(text || "")
+        .split(/\r?\n|\r/)
+        .map((l) => l.replace(/\s+$/g, "").trim())
         .filter(Boolean);
 
-    const headerIndex = findHeaderLineIndex(lines, aliasLookup);
-
-    if (headerIndex !== -1) {
-        const rows = parseTableMode(lines, headerIndex, aliasLookup);
-        if (rows.length) return { rows, mode: "table" };
+    const table = textTable(lines, aliasLookup);
+    if (table) {
+        const result = await tableToRows(table, aliasLookup);
+        if (result.rows.length) return { rows: result.rows, plan: result.plan, mode: "table" };
     }
 
-    return { rows: parseLineMode(lines, aliasLookup), mode: "line" };
-}
-
-// ==========================================================
-// PDF SOURCE
-// ==========================================================
-
-async function parsePdf(filePath, aliasLookup) {
-    if (!pdfParse) {
-        const error = new Error(
-            "PDF bulk upload requires the 'pdf-parse' package. Run `npm install pdf-parse` in the server folder."
-        );
-        error.code = "PDF_PARSE_NOT_INSTALLED";
-        throw error;
+    const kv = keyValueRecords(lines, aliasLookup);
+    if (kv.length) {
+        const seen = new Map();
+        kv.forEach((row) => {
+            Object.keys(row).forEach((k) => seen.set(k, { source: k, target: k, status: "matched" }));
+            Object.keys(row.__extra).forEach((k) => {
+                if (!seen.has(k)) seen.set(k, { source: k, target: null, status: "extra" });
+            });
+        });
+        return { rows: kv, plan: [...seen.values()], mode: "fields" };
     }
 
-    const buffer = fs.readFileSync(filePath);
-    const { text } = await pdfParse(buffer);
-    const { rows, mode } = parseTextToRows(text || "", aliasLookup);
-
+    const lineRows = parseLineMode(lines, aliasLookup);
     return {
-        rows,
-        warnings:
-            mode === "line"
-                ? [
-                    "No table header was found in this PDF, so rows were reconstructed from email addresses found in the text. Please double-check the other columns before relying on the import — anything that couldn't be read from this file will cause a row to be skipped unless it already matches an existing record."
-                ]
-                : []
+        rows: lineRows,
+        plan: lineRows.length
+            ? [{ source: "Email", target: "Email", status: "matched" }]
+            : [],
+        mode: "line"
     };
 }
 
 // ==========================================================
-// PHOTO SOURCE (auto-resize + OCR)
+// PDF
 // ==========================================================
 
-const MAX_OCR_DIMENSION = 2200; // px — keeps OCR fast and memory-safe on large phone photos
+// Reads every text fragment WITH its position, so table columns can be
+// rebuilt from where the text sits on the page (plain PDF text loses the
+// gaps between cells: "Emp IDEmployee NameFrom Date").
+async function readPdfItems(buffer) {
+    const pages = [];
+    let pageNo = 0;
 
-async function resizeForOcr(filePath) {
-    if (!sharp) {
-        const error = new Error(
-            "Photo bulk upload requires the 'sharp' package. Run `npm install sharp` in the server folder."
-        );
-        error.code = "SHARP_NOT_INSTALLED";
+    const pagerender = (pageData) => {
+        pageNo += 1;
+        const current = pageNo;
+        return pageData
+            .getTextContent({ normalizeWhitespace: true, disableCombineTextItems: false })
+            .then((content) => {
+                const items = (content.items || [])
+                    .filter((item) => String(item.str || "").trim() !== "")
+                    .map((item) => ({
+                        str: String(item.str),
+                        x: item.transform[4],
+                        y: item.transform[5],
+                        w: Number(item.width) || String(item.str).length * 5,
+                        h: Math.abs(item.transform[3]) || 10
+                    }));
+                pages.push({ page: current, items });
+                return items.map((i) => i.str).join(" ");
+            });
+    };
+
+    const result = await pdfParse(buffer, { pagerender });
+    pages.sort((a, b) => a.page - b.page);
+    return { pages, text: result.text || "" };
+}
+
+// Groups positioned fragments into text lines (top to bottom). Each
+// fragment keeps its x position and width.
+function pdfLines(pages) {
+    const lines = [];
+
+    pages.forEach(({ page, items }) => {
+        const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
+        const pageLines = [];
+
+        sorted.forEach((item) => {
+            const tolerance = Math.max(2, item.h * 0.4);
+            const line = pageLines.find((l) => Math.abs(l.y - item.y) <= tolerance);
+            if (line) line.items.push(item);
+            else pageLines.push({ y: item.y, items: [item] });
+        });
+
+        pageLines.sort((a, b) => b.y - a.y);
+
+        pageLines.forEach((line) => {
+            const cells = line.items
+                .sort((a, b) => a.x - b.x)
+                .map((item) => ({ text: item.str.replace(/\s+/g, " ").trim(), x: item.x, w: item.w, h: item.h }))
+                .filter((c) => c.text);
+            if (cells.length) lines.push({ page, y: line.y, cells });
+        });
+    });
+
+    return lines;
+}
+
+// Header fragments -> header cells. Neighbouring fragments are joined only
+// when that produces a known column name ("Reason" + "to Travel"), or
+// when neither part is a known column and they are a word-space apart.
+function pdfHeaderCells(cells, aliasLookup) {
+    const out = [];
+    cells.forEach((cell) => {
+        const last = out[out.length - 1];
+        if (last) {
+            const joined = `${last.text} ${cell.text}`;
+            const gap = cell.x - (last.x + last.w);
+            const lastKnown = canonicalHeaderFor(last.text, aliasLookup);
+            const cellKnown = canonicalHeaderFor(cell.text, aliasLookup);
+            if (
+                canonicalHeaderFor(joined, aliasLookup) && !(lastKnown && cellKnown) ||
+                (!lastKnown && !cellKnown && gap > 0.5 && gap < Math.max(3, cell.h * 0.35))
+            ) {
+                last.text = joined;
+                last.w = cell.x + cell.w - last.x;
+                return;
+            }
+        }
+        out.push({ ...cell });
+    });
+    return out;
+}
+
+function joinFragments(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    // "01/10/202" + "6" (a wrapped number/date) joins without a space.
+    return /[\d/\-.]$/.test(a) && /^[\d/\-.]/.test(b) ? a + b : `${a} ${b}`;
+}
+
+// Builds a table from the positioned lines: the header line fixes the
+// column positions and every fragment below goes to the column it sits
+// under. Wrapped header/data lines are joined back, repeated headers on
+// later pages and "Page x of y" footers are skipped.
+function pdfTableFromLines(lines, aliasLookup) {
+    let headerIdx = -1;
+    let header = null;
+
+    for (let i = 0; i < Math.min(lines.length, 60); i++) {
+        const cells = pdfHeaderCells(lines[i].cells, aliasLookup);
+        if (scoreHeaderRow(cells.map((c) => c.text), aliasLookup) >= 2) {
+            headerIdx = i;
+            header = cells;
+            break;
+        }
+    }
+
+    if (!header) return null;
+
+    const columnFor = (cell) => {
+        const center = cell.x + cell.w / 2;
+        let best = 0;
+        let bestScore = -Infinity;
+        header.forEach((h, i) => {
+            const overlap = Math.min(cell.x + cell.w, h.x + h.w) - Math.max(cell.x, h.x);
+            const score = overlap > 0 ? overlap : -Math.abs(center - (h.x + h.w / 2));
+            if (score > bestScore) {
+                bestScore = score;
+                best = i;
+            }
+        });
+        return best;
+    };
+
+    const place = (line) => {
+        const cells = new Array(header.length).fill("");
+        line.cells.forEach((cell) => {
+            const idx = columnFor(cell);
+            cells[idx] = joinFragments(cells[idx], cell.text);
+        });
+        return cells;
+    };
+
+    let next = headerIdx + 1;
+
+    // Wrapped header ("Employee" / "ID"): following text-only lines that
+    // improve the header are merged into it.
+    for (let k = 0; k < 2 && next < lines.length; k++) {
+        const texts = lines[next].cells.map((c) => c.text);
+        if (texts.some((t) => /\d/.test(t))) break;
+        const placed = place(lines[next]);
+        const merged = header.map((h, i) => (placed[i] ? `${h.text} ${placed[i]}` : h.text));
+        if (scoreHeaderRow(merged, aliasLookup) >= scoreHeaderRow(header.map((h) => h.text), aliasLookup)) {
+            header = header.map((h, i) => ({ ...h, text: merged[i] }));
+            next += 1;
+        } else {
+            break;
+        }
+    }
+
+    const headerTexts = header.map((h) => h.text);
+    const rows = [{ cells: headerTexts, rowNumber: 1 }];
+    let rowNumber = 1;
+    let lastRow = null;
+
+    for (let i = next; i < lines.length; i++) {
+        const texts = lines[i].cells.map((c) => c.text);
+        const joinedText = texts.join(" ");
+        if (/^page\s*\d+(\s*(of|\/)\s*\d+)?$/i.test(joinedText)) continue;
+
+        const headerLike = pdfHeaderCells(lines[i].cells, aliasLookup);
+        if (scoreHeaderRow(headerLike.map((c) => c.text), aliasLookup) >= Math.max(2, Math.ceil(header.length / 2))) {
+            lastRow = null;
+            continue; // header repeated on a new page
+        }
+
+        const cells = place(lines[i]);
+
+        // Continuation of a wrapped row: first column empty and the line
+        // only fills a few columns of the row above.
+        const filled = cells.filter(Boolean).length;
+        const lineHeight = Math.max(...lines[i].cells.map((c) => c.h || 10));
+        const closeBelow = lastRow && lastRow.page === lines[i].page && Math.abs(lastRow.y - lines[i].y) <= lineHeight * 1.6;
+        if (
+            lastRow &&
+            !cells[0] &&
+            lastRow.page === lines[i].page &&
+            (closeBelow || filled <= Math.max(1, Math.floor(header.length / 2)))
+        ) {
+            cells.forEach((value, idx) => {
+                if (value) lastRow.cells[idx] = joinFragments(lastRow.cells[idx], value);
+            });
+            lastRow.y = lines[i].y;
+            continue;
+        }
+
+        rowNumber += 1;
+        lastRow = { cells, rowNumber, page: lines[i].page, y: lines[i].y };
+        rows.push(lastRow);
+    }
+
+    return { name: null, rows: rows.map(({ cells, rowNumber: n }) => ({ cells, rowNumber: n })) };
+}
+
+async function parsePdf(filePath, aliasLookup) {
+    if (!pdfParse) {
+        const error = new Error("PDF bulk upload requires the 'pdf-parse' package. Run `npm install pdf-parse` in the server folder.");
+        error.code = "PDF_PARSE_NOT_INSTALLED";
+        throw error;
+    }
+
+    let pdf;
+    try {
+        pdf = await readPdfItems(fs.readFileSync(filePath));
+    } catch (error) {
+        const e = new Error(`This PDF could not be opened (${error.message}). Open it and save / print it again as PDF, or upload the original Excel/CSV file.`);
+        e.status = 400;
+        throw e;
+    }
+
+    const totalItems = pdf.pages.reduce((n, p) => n + p.items.length, 0);
+    if (!totalItems && !String(pdf.text || "").trim()) {
+        const error = new Error("No text could be read from this PDF. It looks like a scanned image — upload a photo (JPG/PNG) of the page so it can be read with OCR, or upload the original Excel/CSV.");
+        error.status = 400;
+        throw error;
+    }
+
+    // 1. Positional table (best for PDFs exported from Excel / printed tables)
+    const lines = pdfLines(pdf.pages);
+    const table = pdfTableFromLines(lines, aliasLookup);
+    if (table) {
+        const result = await tableToRows(table, aliasLookup);
+        if (result.rows.length) return { rows: result.rows, plan: result.plan, warnings: [] };
+    }
+
+    // 2. Text fallbacks ("Field: value" blocks, email lines)
+    const text = lines.map((l) => l.cells.map((c) => c.text).join("\t")).join("\n");
+    const { rows, plan, mode } = await parseTextToRows(text, aliasLookup);
+    const warnings = [];
+    if (mode === "fields") warnings.push("No table was found in this PDF, so each 'Field: value' block was read as one record.");
+    if (mode === "line") warnings.push("No table header was found in this PDF, so rows were rebuilt from the email addresses in the text. Please review the result.");
+    return { rows, plan, warnings };
+}
+
+// ==========================================================
+// PHOTO (OCR)
+// ==========================================================
+
+const MAX_OCR_DIMENSION = 2200;
+
+async function parsePhoto(filePath, aliasLookup) {
+    if (!Tesseract || !sharp) {
+        const error = new Error("Photo bulk upload requires the 'sharp' and 'tesseract.js' packages. Run `npm install sharp tesseract.js` in the server folder.");
+        error.code = "OCR_NOT_INSTALLED";
         throw error;
     }
 
     const resizedPath = `${filePath}.ocr.jpg`;
-
     await sharp(filePath)
-        .rotate() // respect EXIF orientation from phone cameras
-        .resize({
-            width: MAX_OCR_DIMENSION,
-            height: MAX_OCR_DIMENSION,
-            fit: "inside",
-            withoutEnlargement: true
-        })
-        // Mild sharpening + grayscale measurably improves OCR accuracy
-        // on photographed printed/handwritten lists.
+        .rotate()
+        .resize({ width: MAX_OCR_DIMENSION, height: MAX_OCR_DIMENSION, fit: "inside", withoutEnlargement: true })
         .sharpen()
         .grayscale()
         .jpeg({ quality: 85 })
         .toFile(resizedPath);
 
-    return resizedPath;
-}
-
-async function parsePhoto(filePath, aliasLookup) {
-    if (!Tesseract) {
-        const error = new Error(
-            "Photo bulk upload requires the 'tesseract.js' package. Run `npm install tesseract.js` in the server folder."
-        );
-        error.code = "TESSERACT_NOT_INSTALLED";
-        throw error;
-    }
-
-    const resizedPath = await resizeForOcr(filePath);
-
     try {
         const { data } = await Tesseract.recognize(resizedPath, "eng");
-        const { rows, mode } = parseTextToRows(data.text || "", aliasLookup);
-
+        const { rows, plan, mode } = await parseTextToRows(data.text || "", aliasLookup);
         return {
             rows,
+            plan,
             warnings: [
-                "This file was a photo, so rows were extracted with OCR (automatic text recognition) after the image was resized for accuracy. OCR can misread characters — please review the imported rows and the skipped-row list below carefully.",
-                ...(mode === "line"
-                    ? [
-                        "No table structure was recognised in the photo, so only what could be reconstructed per line was used. Any column that couldn't be read will cause a row to be skipped unless it already matches an existing record."
-                    ]
-                    : [])
+                "This file was a photo, so rows were read with OCR. OCR can misread characters — please review the failed-row list carefully.",
+                ...(mode !== "table" ? ["No table structure was recognised in the photo; only what could be reconstructed per line was used."] : [])
             ]
         };
     } finally {
@@ -647,26 +1137,106 @@ async function parsePhoto(filePath, aliasLookup) {
 }
 
 // ==========================================================
+// JSON
+// ==========================================================
+
+async function parseJson(filePath, aliasLookup) {
+    let data;
+    try {
+        data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    } catch {
+        const error = new Error("This JSON file is not valid JSON.");
+        error.status = 400;
+        throw error;
+    }
+
+    const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.rows) ? data.rows : [];
+    const headers = [...new Set(list.flatMap((item) => Object.keys(item || {})))];
+    const table = {
+        name: null,
+        rows: [
+            { cells: headers, rowNumber: 1 },
+            ...list.map((item, i) => ({ cells: headers.map((h) => item?.[h] ?? ""), rowNumber: i + 2 }))
+        ]
+    };
+    const result = await tableToRows(table, aliasLookup);
+    return { rows: result.rows, plan: result.plan, warnings: [] };
+}
+
+// ==========================================================
 // FORMAT DETECTION
 // ==========================================================
 
-const SPREADSHEET_EXTENSIONS = [".csv", ".xlsx", ".xls"];
+const CSV_EXTENSIONS = [".csv", ".tsv", ".txt"];
+const WORKBOOK_EXTENSIONS = [".xlsx", ".xlsm", ".xlsb", ".xls", ".ods"];
+const WORD_EXTENSIONS = [".docx", ".doc"];
 const PDF_EXTENSIONS = [".pdf"];
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 const VIDEO_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv", ".webm"];
 
-function detectSourceType(originalName, mimetype) {
-    const ext = path.extname(originalName || "").toLowerCase();
+function detectSourceType(originalName, mimetype, filePath) {
+    const ext = path.extname(originalName || filePath || "").toLowerCase();
 
-    if (SPREADSHEET_EXTENSIONS.includes(ext)) return "spreadsheet";
+    if (CSV_EXTENSIONS.includes(ext)) return "csv";
+    if (WORKBOOK_EXTENSIONS.includes(ext)) return "spreadsheet";
+    if (ext === ".docx") return "docx";
+    if (ext === ".doc") return "doc";
+    if (ext === ".json") return "json";
     if (PDF_EXTENSIONS.includes(ext) || mimetype === "application/pdf") return "pdf";
     if (IMAGE_EXTENSIONS.includes(ext) || /^image\//.test(mimetype || "")) return "photo";
     if (VIDEO_EXTENSIONS.includes(ext) || /^video\//.test(mimetype || "")) return "video";
 
-    // Fall back to mimetype alone if the extension was stripped/renamed.
-    if (/spreadsheet|excel|csv/.test(mimetype || "")) return "spreadsheet";
+    if (/wordprocessingml/.test(mimetype || "")) return "docx";
+    if (/msword/.test(mimetype || "")) return "doc";
+    if (/spreadsheet|excel/.test(mimetype || "")) return "spreadsheet";
+    if (/csv|text\/plain/.test(mimetype || "")) return "csv";
+
+    // Last resort: sniff the file signature.
+    try {
+        const fd = fs.openSync(filePath, "r");
+        const head = Buffer.alloc(8);
+        fs.readSync(fd, head, 0, 8, 0);
+        fs.closeSync(fd);
+        if (head.subarray(0, 4).toString("latin1") === "%PDF") return "pdf";
+        if (head[0] === 0x50 && head[1] === 0x4b) return "spreadsheet";
+        if (head[0] === 0xd0 && head[1] === 0xcf) return "spreadsheet";
+    } catch {
+        // ignore
+    }
 
     return null;
+}
+
+// Public label used in reports ("Excel", "CSV", "Word", ...).
+function sourceLabel(sourceType) {
+    return {
+        csv: "CSV",
+        spreadsheet: "Excel",
+        docx: "Word",
+        doc: "Word",
+        pdf: "PDF",
+        photo: "Photo",
+        json: "JSON"
+    }[sourceType] || "File";
+}
+
+function headerReport(plan, columnAliases) {
+    const list = (plan || []).filter(Boolean);
+    const matchedTargets = new Set(list.filter((p) => p.target).map((p) => p.target));
+    const expected = Object.keys(columnAliases || {});
+
+    return {
+        columns: list.map((p) => ({
+            source: p.source,
+            target: p.target,
+            status: p.status,
+            sheet: p.sheet || null
+        })),
+        matched: list.filter((p) => p.target).map((p) => p.target),
+        extra: [...new Set(list.filter((p) => !p.target).map((p) => p.source))],
+        corrected: list.filter((p) => p.status === "corrected").map((p) => ({ source: p.source, target: p.target })),
+        notFound: expected.filter((name) => !matchedTargets.has(name))
+    };
 }
 
 // ==========================================================
@@ -674,77 +1244,126 @@ function detectSourceType(originalName, mimetype) {
 // ==========================================================
 
 async function parseBulkFile(filePath, originalName, mimetype, columnAliases = DEFAULT_COLUMN_ALIASES, onProgress) {
-    const sourceType = detectSourceType(originalName, mimetype);
+    const sourceType = detectSourceType(originalName, mimetype, filePath);
 
     if (!sourceType) {
-        const error = new Error(
-            "Unsupported file type. Upload a CSV, Excel (.xlsx/.xls), PDF, or photo (.jpg/.png/.webp)."
-        );
+        const error = new Error("Unsupported file type. Upload Excel (.xlsx/.xls), CSV, Word (.docx/.doc), PDF, or a photo of the list.");
         error.code = "UNSUPPORTED_BULK_FILE_TYPE";
         error.status = 400;
         throw error;
     }
 
-    // Video is accepted by the upload layer (so it is never bounced by the
-    // file picker or multer), but there is no reliable way to turn a video
-    // into table rows. Say so plainly instead of pretending to import 0
-    // rows silently, or crashing.
     if (sourceType === "video") {
-        const error = new Error(
-            "This is a video file. Bulk row import needs a CSV, Excel (.xlsx/.xls), PDF, or photo of the list — a video can't be converted into rows. Attach the video to an individual record instead."
-        );
+        const error = new Error("This is a video file. Bulk row import needs Excel, CSV, Word, PDF or a photo of the list — a video can't be converted into rows.");
         error.code = "VIDEO_NOT_ROW_SOURCE";
         error.status = 400;
         throw error;
     }
 
-    const aliasLookup = buildAliasLookup(columnAliases);
+    const aliases = columnAliases || DEFAULT_COLUMN_ALIASES;
+    const aliasLookup = buildAliasLookup(aliases);
 
-    if (sourceType === "spreadsheet") {
-        // Match on the extension of the file actually saved to disk (the
-        // multer storage filename mirrors the upload's original
-        // extension — see middleware/bulkFileUpload.js), the same way the
-        // old readWorkbook() picked its parsing path.
-        const ext = path.extname(filePath).toLowerCase();
+    let result;
 
-        if (ext === ".csv") {
-            const { rows, warnings } = await parseCsvStream(filePath, aliasLookup, onProgress);
-            return { rows, sourceType, warnings };
-        }
-
-        const rows = await parseSpreadsheetYielding(filePath, aliasLookup, onProgress);
-        const warnings = [];
-
-        if (ext === ".xlsx") {
+    try {
+        if (sourceType === "csv") {
+            result = await parseCsvStream(filePath, aliasLookup, onProgress);
+        } else if (sourceType === "spreadsheet") {
+            result = await parseWorkbook(filePath, aliasLookup, onProgress);
             try {
                 const { size } = fs.statSync(filePath);
                 if (size > LARGE_XLSX_WARNING_BYTES) {
-                    warnings.push(
-                        `This Excel file is ${(size / (1024 * 1024)).toFixed(1)} MB. Very large .xlsx files take longer to import than the equivalent CSV and can't be read as incrementally — for the fastest, most reliable import of a very large file, save it as CSV and upload that instead.`
+                    result.warnings.push(
+                        `This Excel file is ${(size / (1024 * 1024)).toFixed(1)} MB. For very large files CSV imports faster.`
                     );
                 }
             } catch {
-                // best-effort only — never fail the import over a stat() call
+                // best effort
             }
+        } else if (sourceType === "docx") {
+            const xml = readDocxXml(filePath);
+            const tables = docxTables(xml);
+            if (tables.length) {
+                const evaluated = [];
+                for (const table of tables) {
+                    evaluated.push({ name: table.name, result: await tableToRows(table, aliasLookup) });
+                }
+                const picked = pickTables(evaluated);
+                const multi = picked.length > 1;
+                const rows = [];
+                const plan = [];
+                picked.forEach((t) => {
+                    t.result.rows.forEach((row) => {
+                        row.__sheet = multi ? t.name : null;
+                        rows.push(row);
+                    });
+                    plan.push(...t.result.plan.filter(Boolean).map((p) => ({ ...p, sheet: multi ? t.name : null })));
+                });
+                result = { rows, plan, warnings: [] };
+            }
+            if (!result || !result.rows.length) {
+                const parsed = await parseTextToRows(docxText(xml), aliasLookup);
+                result = {
+                    rows: parsed.rows,
+                    plan: parsed.plan,
+                    warnings: parsed.mode === "fields"
+                        ? ["No table was found in this Word document, so each 'Field: value' block was read as one record."]
+                        : []
+                };
+            }
+        } else if (sourceType === "doc") {
+            const text = readDocText(filePath);
+            const table = docTextToTable(text);
+            if (table) {
+                const tableResult = await tableToRows(table, aliasLookup);
+                result = { rows: tableResult.rows, plan: tableResult.plan, warnings: [] };
+            }
+            if (!result || !result.rows.length) {
+                const parsed = await parseTextToRows(text.replace(/\x07/g, "\t"), aliasLookup);
+                result = { rows: parsed.rows, plan: parsed.plan, warnings: [] };
+            }
+            result.warnings.push("Old Word (.doc) files are read on a best-effort basis. If anything looks wrong, save the document as .docx or Excel and upload again.");
+        } else if (sourceType === "pdf") {
+            result = await parsePdf(filePath, aliasLookup);
+        } else if (sourceType === "json") {
+            result = await parseJson(filePath, aliasLookup);
+        } else {
+            result = await parsePhoto(filePath, aliasLookup);
         }
-
-        return { rows, sourceType, warnings };
+    } catch (error) {
+        if (!error.status && !error.code) {
+            error.status = 400;
+            error.message = `This ${sourceLabel(sourceType)} file could not be read: ${error.message}. If it is password-protected or damaged, open it, save a fresh copy and upload again.`;
+        }
+        throw error;
     }
 
-    if (sourceType === "pdf") {
-        const { rows, warnings } = await parsePdf(filePath, aliasLookup);
-        return { rows, sourceType, warnings };
-    }
-
-    // photo
-    const { rows, warnings } = await parsePhoto(filePath, aliasLookup);
-    return { rows, sourceType, warnings };
+    return {
+        rows: result.rows || [],
+        sourceType: sourceType === "csv" ? "spreadsheet" : sourceType,
+        sourceFormat: sourceType,
+        sourceLabel: sourceLabel(sourceType),
+        warnings: result.warnings || [],
+        headers: headerReport(result.plan, aliases)
+    };
 }
 
 module.exports = {
     parseBulkFile,
-    parseTextToRows, // exported for unit testing — now takes (text, aliasLookup)
+    parseTextToRows,
     buildAliasLookup,
+    canonicalHeaderFor,
+    normalizeKey,
+    detectSourceType,
+    sourceLabel,
     DEFAULT_COLUMN_ALIASES,
-    EXPECTED_COLUMNS: Object.keys(DEFAULT_COLUMN_ALIASES) // kept for backward compatibility
+    EXPECTED_COLUMNS: Object.keys(DEFAULT_COLUMN_ALIASES),
+    SUPPORTED_EXTENSIONS: [
+        ...CSV_EXTENSIONS,
+        ...WORKBOOK_EXTENSIONS,
+        ...WORD_EXTENSIONS,
+        ...PDF_EXTENSIONS,
+        ".json",
+        ...IMAGE_EXTENSIONS
+    ]
 };

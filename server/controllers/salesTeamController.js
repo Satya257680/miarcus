@@ -5,6 +5,16 @@ const XLSX = require("xlsx");
 
 const SalesTeam = require("../models/salesTeamModel");
 
+const {
+  runBulkUpload,
+  parseDate,
+  formatDmy,
+  saveExtraData,
+  cleanExtras,
+  call: bulkCall,
+  sql: bulkSql,
+} = require("../utils/bulkUploadEngine");
+
 const notificationService = require("../services/notificationService");
 const { sendGenericEmail } = require("../services/emailService");
 
@@ -514,6 +524,94 @@ exports.getVisitPlans = (
 };
 
 /* =========================================================
+   VISIT PLAN BODY (DATE RANGE + PER-STORE DATES)
+
+   A plan always has a date range:
+     visit_date = From date, end_date = To date
+   (single day: From = To). Every planned store has its own
+   visit date inside that range:
+     planned_stores: [{ store_id, visit_date }]
+   planned_store_ids (old clients) is still accepted — those
+   stores get the From date.
+========================================================= */
+
+const normalizePlanBody = (
+  body = {},
+  fallback = {}
+) => {
+  const weekOff =
+    body.week_off === true ||
+    body.week_off === 1 ||
+    ["true", "yes", "1"].includes(
+      String(body.week_off ?? "").trim().toLowerCase()
+    );
+
+  const fromDate =
+    parseDate(body.visit_date || body.from_date) ||
+    parseDate(fallback.visit_date);
+
+  if (!fromDate) {
+    return { error: "From date is required." };
+  }
+
+  const toDate =
+    parseDate(body.end_date || body.to_date) ||
+    (body.end_date || body.to_date ? null : fromDate);
+
+  if (!toDate) {
+    return { error: "To date is not a valid date." };
+  }
+
+  if (toDate < fromDate) {
+    return { error: "To date cannot be before the From date." };
+  }
+
+  let plannedStores = [];
+
+  if (!weekOff) {
+    const source =
+      Array.isArray(body.planned_stores) && body.planned_stores.length
+        ? body.planned_stores
+        : (Array.isArray(body.planned_store_ids) ? body.planned_store_ids : []).map(
+            (id) => ({ store_id: id, visit_date: fromDate })
+          );
+
+    const seen = new Set();
+
+    for (const item of source) {
+      const storeId = Number(item?.store_id ?? item?.id ?? item);
+
+      if (!storeId || seen.has(storeId)) {
+        continue;
+      }
+
+      seen.add(storeId);
+
+      const visitDate =
+        parseDate(item?.visit_date) || fromDate;
+
+      if (visitDate < fromDate || visitDate > toDate) {
+        return {
+          error: `Visit date ${formatDmy(visitDate)} for one of the stores is outside the plan range ${formatDmy(fromDate)} - ${formatDmy(toDate)}.`,
+        };
+      }
+
+      plannedStores.push({
+        store_id: storeId,
+        visit_date: visitDate,
+      });
+    }
+  }
+
+  return {
+    weekOff,
+    fromDate,
+    toDate,
+    plannedStores,
+  };
+};
+
+/* =========================================================
    CREATE VISIT PLAN
 ========================================================= */
 
@@ -527,41 +625,32 @@ exports.createVisitPlan = (
   const admin =
     isAdmin(req.user);
 
+  if (!body.employee_id) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Employee is required.",
+    });
+  }
+
+  const plan =
+    normalizePlanBody(body);
+
+  if (plan.error) {
+    return res.status(400).json({
+      success: false,
+      message: plan.error,
+    });
+  }
+
   if (
-    !body.employee_id ||
-    !body.visit_date
+    !plan.weekOff &&
+    !plan.plannedStores.length
   ) {
     return res.status(400).json({
       success: false,
       message:
-        "Employee and date are required.",
-    });
-  }
-
-  const weekOff =
-    body.week_off === true ||
-    body.week_off === 1 ||
-    String(body.week_off || "").toLowerCase() === "true" ||
-    String(body.week_off || "").toLowerCase() === "yes";
-
-  const endDate =
-    weekOff
-      ? String(body.end_date || "").trim()
-      : String(body.visit_date);
-
-  if (weekOff && !endDate) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "Leave To date is required when Week off / Leave is selected.",
-    });
-  }
-
-  if (weekOff && endDate < String(body.visit_date)) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "Leave To date cannot be before the From date.",
+        "Please select at least one planned store.",
     });
   }
 
@@ -592,11 +681,14 @@ exports.createVisitPlan = (
     employee_id:
       Number(body.employee_id),
 
+    visit_date:
+      plan.fromDate,
+
     end_date:
-      endDate,
+      plan.toDate,
 
     week_off:
-      weekOff,
+      plan.weekOff,
 
     approval_status:
       "Pending",
@@ -604,12 +696,11 @@ exports.createVisitPlan = (
     created_by:
       req.user.id,
 
+    planned_stores:
+      plan.plannedStores,
+
     planned_store_ids:
-      Array.isArray(
-        body.planned_store_ids
-      )
-        ? body.planned_store_ids
-        : [],
+      plan.plannedStores.map((s) => s.store_id),
   };
 
   SalesTeam.createVisitPlan(
@@ -697,42 +788,33 @@ exports.updateVisitPlan = (
         });
       }
 
+      const plan =
+        normalizePlanBody(req.body || {}, row);
+
+      if (plan.error) {
+        return res.status(400).json({
+          success: false,
+          message: plan.error,
+        });
+      }
+
+      if (
+        !plan.weekOff &&
+        !plan.plannedStores.length
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please select at least one planned store.",
+        });
+      }
+
       /*
         Do not allow frontend to preserve
         Approved/Rejected status.
 
         Model resets edited plans to Pending.
       */
-      const updateWeekOff =
-        req.body.week_off === true ||
-        req.body.week_off === 1 ||
-        String(req.body.week_off || "").toLowerCase() === "true" ||
-        String(req.body.week_off || "").toLowerCase() === "yes";
-
-      const updateVisitDate =
-        String(req.body.visit_date || row.visit_date);
-
-      const updateEndDate =
-        updateWeekOff
-          ? String(req.body.end_date || "").trim()
-          : updateVisitDate;
-
-      if (updateWeekOff && !updateEndDate) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Leave To date is required when Week off / Leave is selected.",
-        });
-      }
-
-      if (updateWeekOff && updateEndDate < updateVisitDate) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Leave To date cannot be before the From date.",
-        });
-      }
-
       const payload = {
         ...req.body,
 
@@ -742,16 +824,17 @@ exports.updateVisitPlan = (
               row.employee_id
           ),
 
-        end_date: updateEndDate,
+        visit_date: plan.fromDate,
 
-        week_off: updateWeekOff,
+        end_date: plan.toDate,
+
+        week_off: plan.weekOff,
+
+        planned_stores:
+          plan.plannedStores,
 
         planned_store_ids:
-          Array.isArray(
-            req.body.planned_store_ids
-          )
-            ? req.body.planned_store_ids
-            : [],
+          plan.plannedStores.map((s) => s.store_id),
 
         updated_by:
           req.user.id,
@@ -913,215 +996,384 @@ exports.deleteAllVisitPlans = (
 };
 
 /* =========================================================
-   IMPORT VISIT PLANS
+   IMPORT VISIT PLANS  (global bulk-upload engine)
+
+   One row = one store visit:
+     Employee ID / Employee Name, From Date, To Date,
+     Store Code / Store Name, City, Visit Date,
+     Reason to Travel, Remarks, Week Off  (+ any extra columns)
+
+   - Rows with the same employee, From/To dates, reason and week-off
+     flag are grouped into ONE visit plan (Pending).
+   - Each row is validated on its own; a bad row never stops the
+     other rows. Every problem is reported with its Excel row number,
+     column, value and reason.
+   - Extra columns (Transport Mode, Travel Cost, ...) are saved with
+     the store visit and the plan, and shown in the Visit Planner.
 ========================================================= */
+
+const cleanKey = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+const looseKey = (value) =>
+  cleanKey(value).replace(/[^a-z0-9]/g, "");
 
 exports.importVisitPlans = (
   req,
   res
-) => {
-  if (!req.file) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "CSV, XLSX or XLS file is required.",
-    });
-  }
+) =>
+  runBulkUpload({
+    req,
+    res,
+    module: "visit-plans",
 
-  let rows;
+    /* ---------- load lookups once ---------- */
+    prepare: async (ctx) => {
+      const [users, stores] = await Promise.all([
+        bulkSql(
+          `SELECT id, employee_id, name, email, status FROM users`
+        ),
+        bulkSql(
+          `SELECT id, store_name, store_code, city, status FROM stores`
+        ),
+      ]);
 
-  try {
-    rows =
-      readSpreadsheetRows(
-        req.file.path
-      );
-  } catch (error) {
-    fs.unlink(
-      req.file.path,
-      () => {}
-    );
+      const userById = new Map();
+      const userByCode = new Map();
+      const usersByName = new Map();
 
-    return res.status(400).json({
-      success: false,
-      message:
-        "Unable to read the uploaded file.",
-    });
-  }
-
-  fs.unlink(
-    req.file.path,
-    () => {}
-  );
-
-  if (!rows.length) {
-    return res.json({
-      success: true,
-      imported: 0,
-    });
-  }
-
-  let remaining =
-    rows.length;
-
-  let failed = false;
-
-  let imported = 0;
-
-  const importedPlanIds = [];
-
-  rows.forEach(
-    (row) => {
-      const employeeId =
-        row.employee_id ||
-        row["Employee ID"] ||
-        row.employeeId;
-
-      const date =
-        row.visit_date ||
-        row.Date ||
-        row.date;
-
-      const valid =
-        employeeId &&
-        date &&
-        (
-          isAdmin(req.user) ||
-          Number(employeeId) ===
-            Number(req.user.id)
-        );
-
-      if (!valid) {
-        failed = true;
-
-        remaining -= 1;
-
-        if (!remaining) {
-          return res.status(400).json({
-            success: false,
-            imported,
-            message:
-              "One or more rows have an invalid employee or date.",
-          });
+      users.forEach((u) => {
+        userById.set(String(u.id), u);
+        if (u.employee_id !== null && u.employee_id !== undefined && String(u.employee_id).trim()) {
+          userByCode.set(cleanKey(u.employee_id), u);
         }
+        const nameKey = looseKey(u.name);
+        if (nameKey) {
+          usersByName.set(nameKey, [...(usersByName.get(nameKey) || []), u]);
+        }
+      });
 
-        return;
+      const storeByCode = new Map();
+      const storeById = new Map();
+      const storesByName = new Map();
+
+      stores.forEach((st) => {
+        storeById.set(String(st.id), st);
+        if (st.store_code !== null && st.store_code !== undefined && String(st.store_code).trim()) {
+          storeByCode.set(cleanKey(st.store_code), st);
+        }
+        const nameKey = looseKey(st.store_name);
+        if (nameKey) {
+          storesByName.set(nameKey, [...(storesByName.get(nameKey) || []), st]);
+        }
+      });
+
+      ctx.data = {
+        ...ctx.data,
+        userById,
+        userByCode,
+        usersByName,
+        storeByCode,
+        storeById,
+        storesByName,
+        plans: new Map(),
+        createdPlans: new Map(),
+        admin: isAdmin(req.user),
+      };
+    },
+
+    /* ---------- validate one row (collects every problem) ---------- */
+    validateRow: async (row, ctx) => {
+      const d = ctx.data;
+      const resolved = {};
+      ctx.resolved = resolved;
+
+      // Employee
+      const empId = ctx.text("Employee ID");
+      const empName = ctx.text("Employee Name");
+      let employee = null;
+
+      if (empId) {
+        employee =
+          d.userByCode.get(cleanKey(empId)) ||
+          (/^\d+$/.test(empId) ? d.userById.get(empId) : null);
+
+        if (!employee) {
+          ctx.fail("Employee ID", empId, "Employee does not exist.");
+        }
+      } else if (empName) {
+        const matches = d.usersByName.get(looseKey(empName)) || [];
+        if (matches.length === 1) {
+          employee = matches[0];
+        } else if (matches.length > 1) {
+          ctx.fail("Employee Name", empName, `More than one employee is named "${empName}". Add the Employee ID column.`);
+        } else {
+          ctx.fail("Employee Name", empName, "Employee does not exist.");
+        }
       }
 
-      const weekOffValue =
-        row.week_off ||
-        row["Week Off"] ||
-        "";
+      if (employee && String(employee.status || "Active").toLowerCase() === "inactive") {
+        ctx.fail(empId ? "Employee ID" : "Employee Name", empId || empName, "Employee is inactive.");
+        employee = null;
+      }
 
-      const endDateValue =
-        row.end_date ||
-        row["End Date"] ||
-        row.to_date ||
-        row["To Date"] ||
-        date;
+      if (employee && !d.admin && Number(employee.id) !== Number(req.user.id)) {
+        ctx.fail(empId ? "Employee ID" : "Employee Name", empId || empName, "You can only upload your own visit plans.");
+        employee = null;
+      }
 
-      const weekOff =
-        String(
-          weekOffValue
-        )
-          .trim()
-          .toLowerCase() ===
-          "true" ||
-        String(
-          weekOffValue
-        ).trim() === "1" ||
-        String(
-          weekOffValue
-        )
-          .trim()
-          .toLowerCase() ===
-          "yes";
+      resolved.employee = employee;
 
-      /*
-        Every imported visit is Pending.
-      */
-      SalesTeam.createVisitPlan(
-        {
-          employee_id:
-            Number(employeeId),
+      // Week off
+      const weekOff = ctx.yesNo("Week Off", false);
+      resolved.weekOff = weekOff;
 
-          visit_date:
-            date,
+      // Dates
+      const visitDate = ctx.date("Visit Date");
+      const fromInput = ctx.date("From Date");
+      const toInput = ctx.date("To Date");
 
-          end_date:
-            weekOff ? endDateValue : date,
+      const fromDate = fromInput || visitDate;
+      let toDate = toInput || fromDate;
 
-          week_off:
-            weekOff,
+      if (fromDate && toDate && toDate < fromDate) {
+        ctx.fail("To Date", ctx.cell("To Date"), `To Date (${formatDmy(toDate)}) is before From Date (${formatDmy(fromDate)}).`);
+        toDate = null;
+      }
 
-          city:
-            row.city ||
-            row.City ||
-            "",
+      const storeVisitDate = visitDate || fromDate;
 
-          reason_to_travel:
-            row.reason_to_travel ||
-            row["Reason to Travel"] ||
-            "",
+      if (
+        !weekOff &&
+        storeVisitDate &&
+        fromDate &&
+        toDate &&
+        (storeVisitDate < fromDate || storeVisitDate > toDate)
+      ) {
+        ctx.fail(
+          "Visit Date",
+          ctx.cell("Visit Date"),
+          `Visit Date ${formatDmy(storeVisitDate)} is outside the plan range ${formatDmy(fromDate)} - ${formatDmy(toDate)}.`
+        );
+      }
 
-          planned_store_ids:
-            [],
+      resolved.fromDate = fromDate;
+      resolved.toDate = toDate;
+      resolved.visitDate = storeVisitDate;
 
-          approval_status:
-            "Pending",
+      // Store
+      if (!weekOff) {
+        const code = ctx.text("Store Code");
+        const name = ctx.text("Store Name");
+        let store = null;
 
-          created_by:
-            req.user.id,
-        },
+        if (!code && !name) {
+          ctx.fail("Store Code / Store Name", "", "Store Code or Store Name is required (not needed only when Week Off is Yes).");
+        } else if (code) {
+          store = d.storeByCode.get(cleanKey(code)) || null;
 
-        (
-          err,
-          id
-        ) => {
-          if (err) {
-            failed = true;
-          } else {
-            imported += 1;
+          if (!store) {
+            ctx.fail("Store Code", code, "Store code does not exist in the database.");
+          }
+        } else {
+          // "MRPL - AMAYRA KHARAR (CP67)" -> try the code in brackets first
+          const bracket = name.match(/\(([^)]+)\)\s*$/);
+          if (bracket) store = d.storeByCode.get(cleanKey(bracket[1]));
 
-            importedPlanIds.push(
-              id
-            );
+          let ambiguous = false;
 
-            /*
-              Notify approvers after each
-              successful import.
-            */
-            notifyPendingApprovers(
-              Number(employeeId),
-              id
-            );
+          if (!store) {
+            const matches =
+              d.storesByName.get(looseKey(name)) ||
+              d.storesByName.get(looseKey(name.replace(/\([^)]*\)\s*$/, ""))) ||
+              [];
+            if (matches.length === 1) store = matches[0];
+            else if (matches.length > 1) {
+              ambiguous = true;
+              ctx.fail("Store Name", name, `More than one store is named "${name}". Add the Store Code column.`);
+            }
           }
 
-          remaining -= 1;
-
-          if (!remaining) {
-            return res
-              .status(
-                failed
-                  ? 500
-                  : 200
-              )
-              .json({
-                success:
-                  !failed,
-
-                imported,
-
-                message:
-                  failed
-                    ? "Some visit plans could not be imported."
-                    : "Visit plans imported and submitted for approval.",
-              });
+          if (!store && !ambiguous) {
+            ctx.fail("Store Name", name, "Store name does not exist in the database.");
           }
         }
+
+        if (store && String(store.status || "Active").toLowerCase() === "inactive") {
+          ctx.fail(code ? "Store Code" : "Store Name", code || name, "Store is inactive.");
+          store = null;
+        }
+
+        resolved.store = store;
+      }
+
+      const reason = ctx.text("Reason to Travel");
+      if (reason.length > 2000) {
+        ctx.fail("Reason to Travel", `${reason.slice(0, 40)}…`, "Reason to Travel is too long (max 2000 characters).");
+      }
+      resolved.reason = reason;
+      resolved.city = ctx.text("City") || resolved.store?.city || "";
+      resolved.remarks = ctx.text("Remarks");
+    },
+
+    duplicateKey: (row, ctx) => {
+      const r = ctx.resolved || {};
+      if (!r.employee) return null;
+      return r.weekOff
+        ? {
+            key: `${r.employee.id}|week-off|${r.fromDate}|${r.toDate}`,
+            column: "Week Off",
+            value: `${r.employee.name} · ${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}`,
+          }
+        : {
+            key: `${r.employee.id}|${r.store?.id}|${r.fromDate}|${r.toDate}|${cleanKey(r.reason)}`,
+            column: ctx.text("Store Code") ? "Store Code" : "Store Name",
+            value: `${r.employee.name} · ${r.store?.store_name} · ${formatDmy(r.visitDate)}`,
+          };
+    },
+
+    /* ---------- save one valid row ---------- */
+    processRow: async (row, ctx) => {
+      const r = ctx.resolved;
+      const d = ctx.data;
+      const groupKey = [
+        r.employee.id,
+        r.fromDate,
+        r.toDate,
+        r.weekOff ? 1 : 0,
+        cleanKey(r.reason),
+      ].join("|");
+
+      let plan = d.plans.get(groupKey);
+
+      if (!plan) {
+        // Re-use an existing PENDING plan with exactly the same details.
+        const existing = await bulkSql(
+          `
+          SELECT id
+          FROM sales_visit_plans
+          WHERE employee_id = ?
+            AND visit_date = ?
+            AND COALESCE(end_date, visit_date) = ?
+            AND week_off = ?
+            AND LOWER(TRIM(COALESCE(reason_to_travel, ''))) = ?
+            AND approval_status = 'Pending'
+          ORDER BY id DESC
+          LIMIT 1
+          `,
+          [r.employee.id, r.fromDate, r.toDate, r.weekOff ? 1 : 0, cleanKey(r.reason)]
+        );
+
+        if (existing.length) {
+          const storeRows = await bulkSql(
+            `SELECT store_id FROM sales_visit_plan_stores WHERE plan_id = ? AND store_kind = 'planned'`,
+            [existing[0].id]
+          );
+          plan = {
+            id: existing[0].id,
+            existing: true,
+            stores: new Set(storeRows.map((x) => Number(x.store_id))),
+          };
+        } else {
+          const id = await bulkCall(SalesTeam.createVisitPlan, {
+            employee_id: Number(r.employee.id),
+            visit_date: r.fromDate,
+            end_date: r.toDate,
+            week_off: r.weekOff,
+            city: r.city,
+            reason_to_travel: r.reason,
+            planned_store_ids: [],
+            approval_status: "Pending",
+            created_by: req.user.id,
+          });
+
+          plan = { id, existing: false, stores: new Set() };
+          d.createdPlans.set(id, Number(r.employee.id));
+        }
+
+        d.plans.set(groupKey, plan);
+      }
+
+      if (r.remarks) {
+        await bulkSql(
+          `
+          UPDATE sales_visit_plans
+          SET remarks = CASE
+            WHEN remarks IS NULL OR TRIM(remarks) = '' THEN ?
+            WHEN LOCATE(?, remarks) > 0 THEN remarks
+            ELSE CONCAT(remarks, ' | ', ?)
+          END
+          WHERE id = ?
+          `,
+          [r.remarks, r.remarks, r.remarks, plan.id]
+        );
+      }
+
+      // Week off rows have no store.
+      if (r.weekOff) {
+        if (plan.existing) {
+          ctx.duplicate(
+            "Week Off",
+            `${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}`,
+            "A week off for this employee and these dates already exists."
+          );
+          return { skipped: true };
+        }
+
+        if (Object.keys(cleanExtras(ctx.extra)).length) {
+          await saveExtraData("sales_visit_plans", plan.id, ctx.extra, { mode: "append" });
+        }
+
+        return { id: null };
+      }
+
+      if (plan.stores.has(Number(r.store.id))) {
+        ctx.duplicate(
+          ctx.text("Store Code") ? "Store Code" : "Store Name",
+          ctx.text("Store Code") || ctx.text("Store Name"),
+          `${r.store.store_name} is already in this employee's plan for ${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}.`
+        );
+        return { skipped: true };
+      }
+
+      const result = await bulkSql(
+        `
+        INSERT INTO sales_visit_plan_stores
+          (plan_id, store_id, store_kind, visit_date)
+        VALUES (?, ?, 'planned', ?)
+        `,
+        [plan.id, r.store.id, r.visitDate]
       );
-    }
-  );
-};
+
+      plan.stores.add(Number(r.store.id));
+
+      // Extra columns: kept on the store visit AND on the plan so the
+      // Visit Planner table can show them as columns.
+      if (Object.keys(cleanExtras(ctx.extra)).length) {
+        await saveExtraData("sales_visit_plans", plan.id, ctx.extra, { mode: "append" });
+      }
+
+      return {
+        id: result.insertId,
+        table: "sales_visit_plan_stores",
+      };
+    },
+
+    /* ---------- after all rows ---------- */
+    finalize: async (ctx) => {
+      ctx.data.createdPlans.forEach((employeeId, planId) => {
+        notifyPendingApprovers(employeeId, planId);
+      });
+
+      if (ctx.data.createdPlans.size) {
+        ctx.report.warn(
+          `${ctx.data.createdPlans.size} visit plan(s) created and submitted for approval (Pending).`
+        );
+      }
+    },
+  });
 
 /* =========================================================
    EXPORT VISIT PLANS
@@ -1799,131 +2051,104 @@ exports.uploadSalesReview = (
   req,
   res
 ) => {
-  if (!req.file) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "CSV, XLSX or XLS file is required.",
-    });
-  }
+  const NUMERIC = [
+    ["Target", "target"],
+    ["MTD", "mtd"],
+    ["MRP Sale", "mrp_sale"],
+    ["Last Month Sale", "last_month_sale"],
+    ["LYSM", "lysm"],
+    ["Projection", "projection"],
+    ["Projection For Remaining Days", "projection_remaining"],
+    ["Projection (by selected week)", "projection_selected_week"],
+    ["Discount Amount (MRP)", "discount_amount"],
+    ["Discount %", "discount_percent"],
+    ["UPT", "upt"],
+    ["ABV", "abv"],
+    ["ASP", "asp"],
+    ["Bill Count", "bill_count"],
+    ["Qty Sold", "qty_sold"],
+  ];
 
-  const uploadedPath =
-    req.file.path;
+  const toNumber = (value) => {
+    if (value === undefined || value === null || String(value).trim() === "") return 0;
+    if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
+    let text = String(value).trim();
+    const negative = text.startsWith("(") && text.endsWith(")");
+    text = text.replace(/^\((.*)\)$/, "$1").replace(/[,\s₹$€£]/g, "").replace(/%$/, "");
+    if (text === "" || text === "-") return 0;
+    const n = Number(text);
+    return Number.isFinite(n) ? (negative ? -n : n) : NaN;
+  };
 
-  let rows;
+  return runBulkUpload({
+    req,
+    res,
+    module: "sales-review",
 
-  try {
-    rows =
-      readSpreadsheetRows(
-        uploadedPath
-      );
-  } catch (error) {
-    fs.unlink(
-      uploadedPath,
-      () => {}
-    );
+    validateRow: (row, ctx) => {
+      const values = {};
 
-    console.error(
-      "Sales Review spreadsheet read failed:",
-      error
-    );
-
-    return res.status(400).json({
-      success: false,
-      message:
-        "Unable to read the uploaded file. Please upload a valid CSV, XLSX or XLS file.",
-    });
-  }
-
-  /*
-    The file is no longer needed after XLSX has parsed it.
-  */
-  fs.unlink(
-    uploadedPath,
-    () => {}
-  );
-
-  if (
-    !Array.isArray(rows) ||
-    !rows.length
-  ) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "The uploaded Sales Review file is empty.",
-      imported: 0,
-    });
-  }
-
-  SalesTeam.importReviewRows(
-    rows,
-    req.user?.id,
-    (
-      err,
-      result
-    ) => {
-      if (err) {
-        console.error(
-          "Sales Review import failed:",
-          {
-            message:
-              err.message,
-            code:
-              err.code,
-            sqlMessage:
-              err.sqlMessage,
-            sqlState:
-              err.sqlState,
-            errno:
-              err.errno,
-            details:
-              err.details,
-          }
-        );
-
-        /*
-          Give the frontend a useful validation message for
-          invalid rows, while keeping the actual SQL error
-          in the Render server logs.
-        */
-        if (
-          err.code ===
-          "SALES_REVIEW_INVALID_ROWS"
-        ) {
-          return res.status(400).json({
-            success: false,
-            message:
-              err.message,
-            details:
-              err.details || [],
-          });
+      NUMERIC.forEach(([column, field]) => {
+        const raw = ctx.cell(column);
+        const n = toNumber(raw);
+        if (Number.isNaN(n)) {
+          ctx.fail(column, raw, `${column} must be a number.`);
+        } else {
+          values[field] = field === "bill_count" ? Math.trunc(n) : n;
         }
+      });
 
-        return res.status(500).json({
-          success: false,
-          message:
-            "Unable to import Sales Review file. Please check the backend database/schema and Render logs.",
-        });
+      const yearRaw = ctx.cell("Year");
+      let year = null;
+      if (yearRaw instanceof Date) year = yearRaw.getFullYear();
+      else if (String(yearRaw ?? "").trim()) {
+        year = Math.trunc(toNumber(yearRaw));
+        if (!Number.isFinite(year) || year < 1900 || year > 2200) {
+          ctx.fail("Year", yearRaw, "Year must be a 4-digit year, e.g. 2026.");
+          year = null;
+        }
       }
 
-      return res.json({
-        success: true,
+      const storeIdRaw = ctx.text("Store ID");
+      const storeId = /^\d+$/.test(storeIdRaw) ? Number(storeIdRaw) : null;
 
-        imported:
-          Number(
-            result?.imported ||
-              result?.affectedRows ||
-              0
-          ),
+      ctx.values = {
+        ...values,
+        store_id: storeId,
+        store_name: ctx.text("Store Name").slice(0, 255),
+        year,
+        month: ctx.text("Month").slice(0, 40) || null,
+        week: ctx.text("Week").slice(0, 40) || null,
+        reports_to: ctx.text("Reports To").slice(0, 255) || null,
+        asm: ctx.text("ASM").slice(0, 255) || null,
+        remarks: ctx.text("Remarks") || null,
+      };
+    },
 
-        skipped:
-          Number(
-            result?.skipped || 0
-          ),
-
-        warnings:
-          result?.errors || [],
-      });
-    }
-  );
+    processRow: async (row, ctx) => {
+      const v = ctx.values;
+      const result = await bulkSql(
+        `
+        INSERT INTO sales_review_records
+        (
+          store_id, store_name, year, month, week,
+          target, mtd, mrp_sale, last_month_sale, lysm,
+          projection, projection_remaining, projection_selected_week,
+          discount_amount, discount_percent, upt, abv, asp,
+          bill_count, qty_sold, reports_to, asm, remarks, created_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          v.store_id, v.store_name, v.year, v.month, v.week,
+          v.target || 0, v.mtd || 0, v.mrp_sale || 0, v.last_month_sale || 0, v.lysm || 0,
+          v.projection || 0, v.projection_remaining || 0, v.projection_selected_week || 0,
+          v.discount_amount || 0, v.discount_percent || 0, v.upt || 0, v.abv || 0, v.asp || 0,
+          v.bill_count || 0, v.qty_sold || 0, v.reports_to, v.asm, v.remarks,
+          Number(req.user?.id) || null,
+        ]
+      );
+      return { id: result.insertId };
+    },
+  });
 };

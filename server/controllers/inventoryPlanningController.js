@@ -1,5 +1,5 @@
 const { readDeleteScope } = require("../utils/deleteScope");
-const XLSX=require("xlsx");const fs=require("fs");const Inventory=require("../models/inventoryPlanningModel");const {logActivity}=require("../utils/activityLogger");
+const XLSX=require("xlsx");const fs=require("fs");const Inventory=require("../models/inventoryPlanningModel");const {logActivity}=require("../utils/activityLogger");const {runBulkUpload}=require("../utils/bulkUploadEngine");
 const norm=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");
 const aliases={store_name:["storename","store","outlet","shop"],store_id:["storeid"],sale_year:["year","saleyear","fiscalyear"],sale_month:["month","salemonth","period"],category:["category","categoryname","productcategory"],sales_amount:["sales","salesamount","revenue","netsales"],units_sold:["units","unitssold","quantity","qty","salesunits"],discount_percent:["discount","discountpercent","discountpercentage"]};
 function parseFile(path){const wb=XLSX.readFile(path,{cellDates:true});const sh=wb.Sheets[wb.SheetNames[0]];const raw=XLSX.utils.sheet_to_json(sh,{defval:""});if(!raw.length)throw new Error("The uploaded file is empty.");const headers=Object.keys(raw[0]);const map={};for(const [key,list] of Object.entries(aliases)){const idx=headers.map(norm).findIndex(h=>list.includes(h));map[key]=idx>=0?headers[idx]:null;}const required=["store_name","sale_year","sale_month","category","sales_amount","units_sold"];const missing=required.filter(k=>!map[k]);if(missing.length)throw new Error(`Missing required columns: ${missing.join(", ")}.`);return raw.map((row,i)=>{const d={store_id:map.store_id?Number(row[map.store_id])||null:null,store_name:String(row[map.store_name]||"").trim(),sale_year:Number(row[map.sale_year]),sale_month:Inventory.normalizeMonth(row[map.sale_month]),category:String(row[map.category]||"").trim(),sales_amount:Inventory.normalizeNumber(row[map.sales_amount]),units_sold:Inventory.normalizeNumber(row[map.units_sold]),discount_percent:map.discount_percent?Inventory.normalizeNumber(row[map.discount_percent]):0};if(!d.store_name||!d.category||!Number.isInteger(d.sale_year)||!d.sale_month)throw new Error(`Invalid data on row ${i+2}. Store, year, month and category are required.`);return d;});}
@@ -18,7 +18,22 @@ exports.deleteAllSales=async(req,res)=>{try{
   }
   await Inventory.deleteAllSales();res.json({success:true,message:"All ERP historical sales data deleted successfully."});}catch(e){res.status(500).json({success:false,message:"Unable to delete ERP historical sales data."});}};
 exports.exportSales=async(req,res)=>{try{res.json({success:true,data:await Inventory.exportSales()});}catch(e){res.status(500).json({success:false,message:"Unable to export ERP sales data."});}};
-exports.bulkUploadSales=async(req,res)=>{if(!req.file)return res.status(400).json({success:false,message:"Please select a CSV or Excel file."});try{const rows=parseFile(req.file.path);const inserted=await Inventory.bulkInsertSales(rows,req.user.id);res.status(201).json({success:true,inserted,message:`${inserted} historical sales records imported successfully.`});}catch(e){console.error(e);res.status(400).json({success:false,message:e.message||"Bulk upload failed."});}finally{fs.unlink(req.file.path,()=>{});}};
+// Bulk upload (global bulk-upload engine): any format, every row on its
+// own with exact row / column / value / reason; extra columns kept.
+exports.bulkUploadSales=(req,res)=>runBulkUpload({
+  req,res,module:"erp-sales",
+  validateRow:(row,ctx)=>{
+    const yearRaw=ctx.cell("Year");const year=Number(String(yearRaw??"").trim());
+    if(String(yearRaw??"").trim()&&(!Number.isInteger(year)||year<1900||year>2200))ctx.fail("Year",yearRaw,"Year must be a 4-digit year, e.g. 2025.");
+    const monthRaw=ctx.text("Month");const month=monthRaw?Inventory.normalizeMonth(monthRaw):null;
+    if(monthRaw&&!Inventory.MONTHS.includes(month))ctx.fail("Month",monthRaw,"Month must be a month name (January) or number (1-12).");
+    const sales=ctx.number("Sales Amount");const units=ctx.number("Units Sold",{min:0});const discount=ctx.number("Discount %",{min:0});
+    const storeIdRaw=ctx.text("Store ID");
+    ctx.values={store_id:/^\d+$/.test(storeIdRaw)?Number(storeIdRaw):null,store_name:ctx.text("Store Name"),sale_year:year,sale_month:month,category:ctx.text("Category"),sales_amount:sales,units_sold:units,discount_percent:discount||0,created_by:req.user.id};
+  },
+  processRow:async(row,ctx)=>({id:await Inventory.createSale(ctx.values)}),
+  finalize:async(ctx)=>{if(ctx.report.uploaded)logActivity({activity_type:"Inventory Planning",reference_id:0,title:"ERP Sales Imported",description:`${ctx.report.uploaded} historical sales records imported`,module_name:"Inventory Planning",status:"Closed",priority:"Medium",created_by:req.user.id,assigned_to:null});}
+});
 exports.getOptions=async(req,res)=>{try{res.json({success:true,data:await Inventory.getOptions()});}catch(e){res.status(500).json({success:false,message:"Unable to load inventory planning options."});}};
 exports.analyze=async(req,res)=>{try{res.json({success:true,data:await Inventory.analyze(req.body||{})});}catch(e){res.status(400).json({success:false,message:e.message||"Unable to analyze inventory data."});}};
 exports.savePlan=async(req,res)=>{try{const b=req.body||{};if(!b.planningMonth||!b.planningYear||!Array.isArray(b.storeIds)||!b.storeIds.length)return res.status(400).json({success:false,message:"Planning month, year and at least one store are required."});const id=await Inventory.savePlan(b,req.user.id);logActivity({activity_type:"Inventory Planning",reference_id:id,title:"Inventory Plan Saved",description:`Inventory plan saved for ${b.planningMonth} ${b.planningYear}`,module_name:"Inventory Planning",status:"Open",priority:"Medium",created_by:req.user.id,assigned_to:null});res.status(201).json({success:true,id,message:"Inventory plan saved successfully."});}catch(e){console.error(e);res.status(500).json({success:false,message:"Unable to save inventory plan."});}};

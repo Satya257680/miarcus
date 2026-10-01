@@ -4,7 +4,7 @@ const Department = require("../models/departmentModel");
 const { logActivity } = require("../utils/activityLogger");
 
 const fs = require("fs");
-const { parseBulkFile } = require("../utils/bulkFileParser");
+const { runBulkUpload, call: bulkCall } = require("../utils/bulkUploadEngine");
 
 // ======================================================
 // BULK UPLOAD — COLUMN NAMES THIS MODULE UNDERSTANDS
@@ -777,549 +777,89 @@ exports.exportDepartments = (req, res) => {
 };
 
 // ======================================================
-// BULK UPLOAD DEPARTMENTS
+// BULK UPLOAD DEPARTMENTS  (global bulk-upload engine)
+// ======================================================
+//
+// Existing department (same name) -> updated; new name -> created.
+// Every row on its own: a bad row is reported (row / column / value /
+// reason) and the other rows are still saved. Extra columns are kept
+// with the department (bulk_extra_data).
 // ======================================================
 
-exports.bulkUploadDepartments = async (req, res) => {
-
-    try {
-
-        if (!req.file) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "Please upload a file."
-
-            });
-
-        }
-
-        // ======================================
-        // Read File
-        // ======================================
-        //
-        // Accepts CSV, Excel, PDF, or a photo — see
-        // utils/bulkFileParser.js. It also auto-detects which
-        // row actually holds the headers, so a sheet with a
-        // title row above the real table (like this file's
-        // "DEPARTMENT MASTER LIST" banner) no longer gets
-        // rejected as empty.
-        // ======================================
-
-        let rows, sourceType, parseWarnings;
-
-        try {
-
-            const parsed = await parseBulkFile(
-                req.file.path,
-                req.file.originalname,
-                req.file.mimetype,
-                DEPARTMENT_COLUMN_ALIASES
-            );
-
-            rows = parsed.rows;
-            sourceType = parsed.sourceType;
-            parseWarnings = parsed.warnings;
-
-        } catch (parseErr) {
-
-            fs.unlinkSync(req.file.path);
-
-            return res.status(parseErr.status || 400).json({
-
-                success: false,
-
-                message: parseErr.message || "Could not read this file."
-
-            });
-        }
-
-        if (!rows.length) {
-
-            fs.unlinkSync(req.file.path);
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    sourceType === "spreadsheet"
-                        ? "No department rows were found. Make sure the file has a 'Department Name' column."
-                        : "No department rows could be read from this file. PDFs/photos need a clear table with a 'Department Name' column header."
-
-            });
-
-        }
-
-        // ======================================
-        // Prepare Data
-        // ======================================
-
-        const departments = rows.map((row) => ({
-
-            department_name:
-                String(row["Department Name"] || "").trim(),
-
-            description:
-                String(row["Description"] || "").trim(),
-
-            status:
-                String(row["Status"] || "Active").trim() || "Active",
-
-            employee_id:
-                String(row["Employee ID"] || "").trim()
-
-        }));
-
-        // ======================================
-        // Remove Empty Rows
-        // ======================================
-
-        const validDepartments = departments.filter(
-
-            (item) => item.department_name.trim() !== ""
-
-        );
-
-        if (!validDepartments.length) {
-
-            fs.unlinkSync(req.file.path);
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "No valid departments found."
-
-            });
-
-        }
-
-        // ======================================
-        // INSERT DEPARTMENTS ONE BY ONE
-        // ======================================
-
-        let currentIndex = 0;
-
-        const processDepartment = () => {
-
-            // -----------------------------
-            // Finished
-            // -----------------------------
-
-            if (currentIndex >= validDepartments.length) {
-
-                fs.unlinkSync(req.file.path);
-
-                logActivity({
-
-                    activity_type: "Department",
-
-                    reference_id: 0,
-
-                    title: "Bulk Upload",
-
-                    description:
-                        `${validDepartments.length} departments uploaded`,
-
-                    module_name: "Departments",
-
-                    status: "Closed",
-
-                    priority: "Medium",
-
-                    created_by: req.user.id,
-
-                    assigned_to: null
-
-                });
-
-                return res.status(200).json({
-
-                    success: true,
-
-                    message:
-                        parseWarnings && parseWarnings.length
-                            ? `${validDepartments.length} departments uploaded successfully. ${parseWarnings.join(" ")}`
-                            : `${validDepartments.length} departments uploaded successfully.`,
-
-                    sourceType,
-
-                    warnings: parseWarnings
-
-                });
-
+exports.bulkUploadDepartments = (req, res) =>
+    runBulkUpload({
+        req,
+        res,
+        module: "departments",
+
+        validateRow: async (row, ctx) => {
+            const status = ctx.text("Status");
+            if (status && !["active", "inactive"].includes(status.toLowerCase())) {
+                ctx.fail("Status", status, "Status must be Active or Inactive.");
             }
 
-            const department = validDepartments[currentIndex];
-
-            // -----------------------------
-            // CHECK IF DEPARTMENT EXISTS
-            // -----------------------------
-
-            Department.checkDepartmentExists(
-
-                department.department_name,
-
-                (err, existing) => {
-
-                    if (err) {
-
-                        fs.unlinkSync(req.file.path);
-
-                        return res.status(500).json({
-
-                            success: false,
-
-                            message: err.message
-
-                        });
-
-                    }
-
-                    if (existing.length === 0) {
-
-    // ======================================
-    // CREATE NEW DEPARTMENT
-    // ======================================
-
-    Department.createDepartment(
-
-        {
-
-            department_name:
-                department.department_name,
-
-            description:
-                department.description,
-
-            status:
-                department.status
-
+            const employeeId = ctx.text("Employee ID");
+            ctx.employee = null;
+            if (employeeId) {
+                const users = await bulkCall(Department.getUserByEmployeeId, employeeId);
+                if (!users.length) {
+                    ctx.fail("Employee ID", employeeId, "Employee does not exist.");
+                } else {
+                    ctx.employee = users[0];
+                }
+            }
         },
 
-        (err, result) => {
+        duplicateKey: (row, ctx) => ({
+            key: ctx.text("Department Name").toLowerCase(),
+            column: "Department Name",
+            value: ctx.text("Department Name")
+        }),
 
-            if (err) {
+        processRow: async (row, ctx) => {
+            const department = {
+                department_name: ctx.text("Department Name"),
+                description: ctx.text("Description"),
+                status: ctx.text("Status") ? (ctx.text("Status").toLowerCase() === "inactive" ? "Inactive" : "Active") : "Active"
+            };
 
-                fs.unlinkSync(req.file.path);
+            const existing = await bulkCall(Department.checkDepartmentExists, department.department_name);
+            let departmentId;
+            let updated = false;
 
-                return res.status(500).json({
-
-                    success: false,
-
-                    message: err.message
-
-                });
-
+            if (existing.length) {
+                departmentId = existing[0].id;
+                await bulkCall(Department.updateDepartment, departmentId, department);
+                updated = true;
+            } else {
+                const result = await bulkCall(Department.createDepartment, department);
+                departmentId = result.insertId;
             }
 
-            const departmentId = result.insertId;
-
-            // ======================================
-            // NO EMPLOYEE PROVIDED
-            // ======================================
-
-            if (!department.employee_id) {
-
-                currentIndex++;
-
-                return processDepartment();
-
+            if (ctx.employee) {
+                if (updated) await bulkCall(Department.removeAssignedUsers, departmentId);
+                await bulkCall(Department.assignUsers, departmentId, [ctx.employee.id]);
             }
 
-            console.log("Employee ID from Excel:", department.employee_id);
-            
+            return { id: departmentId, updated };
+        },
 
-          // ======================================
-// FIND USER BY EMPLOYEE ID
-// ======================================
-
-console.log("=================================");
-console.log("Department:", department.department_name);
-console.log("Employee ID From Excel:", department.employee_id);
-
-Department.getUserByEmployeeId(
-
-    department.employee_id,
-
-    (err, users) => {
-
-        console.log("Users Found:", users);
-
-        if (err) {
-
-            console.error("Lookup Error:", err);
-
-            fs.unlinkSync(req.file.path);
-
-            return res.status(500).json({
-
-                success: false,
-
-                message: err.message
-
+        finalize: async (ctx) => {
+            if (!ctx.report.uploaded) return;
+            logActivity({
+                activity_type: "Department",
+                reference_id: 0,
+                title: "Bulk Upload",
+                description: `${ctx.report.created} department(s) created, ${ctx.report.updated} updated`,
+                module_name: "Departments",
+                status: "Closed",
+                priority: "Medium",
+                created_by: req.user.id,
+                assigned_to: null
             });
-
         }
+    });
 
-        // Employee ID not found
-
-        if (users.length === 0) {
-
-            console.log("No user found for Employee ID:", department.employee_id);
-
-            currentIndex++;
-
-            return processDepartment();
-
-        }
-
-        console.log("Assigning User ID:", users[0].id);
-
-        
-
-                    // ======================================
-                    // ASSIGN USER TO DEPARTMENT
-                    // ======================================
-
-                    Department.assignUsers(
-
-                        departmentId,
-
-                        [
-
-                            users[0].id
-
-                        ],
-
-                        (err) => {
-
-                            if (err) {
-
-                                fs.unlinkSync(req.file.path);
-
-                                return res.status(500).json({
-
-                                    success: false,
-
-                                    message: err.message
-
-                                });
-
-                            }
-
-                            currentIndex++;
-
-                            processDepartment();
-
-                        }
-
-                    );
-
-                }
-
-            );
-
-        }
-
-    );
-
-}
-                    // ======================================
-                    // UPDATE EXISTING DEPARTMENT
-                    // ======================================
-
-                    else {
-
-                        const departmentId = existing[0].id;
-
-                        Department.updateDepartment(
-
-                            departmentId,
-
-                            {
-
-                                department_name:
-                                    department.department_name,
-
-                                description:
-                                    department.description,
-
-                                status:
-                                    department.status
-
-                            },
-
-                            (err) => {
-
-                                if (err) {
-
-                                    fs.unlinkSync(req.file.path);
-
-                                    return res.status(500).json({
-
-                                        success: false,
-
-                                        message: err.message
-
-                                    });
-
-                                }
-
-                                // ----------------------------------
-                                // No Employee ID in Excel
-                                // ----------------------------------
-
-                                if (!department.employee_id) {
-
-                                    currentIndex++;
-
-                                    return processDepartment();
-
-                                }
-
-                                // ----------------------------------
-                                // Find User
-                                // ----------------------------------
-
-                                Department.getUserByEmployeeId(
-
-                                    department.employee_id,
-
-                                    (err, users) => {
-
-                                        if (err) {
-
-                                            fs.unlinkSync(req.file.path);
-
-                                            return res.status(500).json({
-
-                                                success: false,
-
-                                                message: err.message
-
-                                            });
-
-                                        }
-
-                                        if (users.length === 0) {
-
-                                            currentIndex++;
-
-                                            return processDepartment();
-
-                                        }
-
-                                        // ----------------------------------
-                                        // Remove Previous Mapping
-                                        // ----------------------------------
-
-                                        Department.removeAssignedUsers(
-
-                                            departmentId,
-
-                                            (err) => {
-
-                                                if (err) {
-
-                                                    fs.unlinkSync(req.file.path);
-
-                                                    return res.status(500).json({
-
-                                                        success: false,
-
-                                                        message: err.message
-
-                                                    });
-
-                                                }
-
-                                                // ----------------------------------
-                                                // Assign New Employee
-                                                // ----------------------------------
-
-                                                Department.assignUsers(
-
-                                                    departmentId,
-
-                                                    [
-
-                                                        users[0].id
-
-                                                    ],
-
-                                                    (err) => {
-
-                                                        if (err) {
-
-                                                            fs.unlinkSync(req.file.path);
-
-                                                            return res.status(500).json({
-
-                                                                success: false,
-
-                                                                message: err.message
-
-                                                            });
-
-                                                        }
-
-                                                        currentIndex++;
-
-                                                        processDepartment();
-
-                                                    }
-
-                                                );
-
-                                            }
-
-                                        );
-
-                                    }
-
-                                );
-
-                            }
-
-                        );
-
-                    }
-
-                }
-
-            );
-
-        };
-
-        processDepartment();
-
-    } catch (err) {
-
-        console.error(err);
-
-        if (req.file && fs.existsSync(req.file.path)) {
-
-            fs.unlinkSync(req.file.path);
-
-        }
-
-        return res.status(500).json({
-
-            success: false,
-
-            message: "Bulk upload failed.",
-
-            error: err.message
-
-        });
-
-    }
-
-};
 // ======================================================
 // DELETE ALL DEPARTMENTS
 // ======================================================

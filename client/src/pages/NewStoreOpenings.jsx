@@ -2031,6 +2031,8 @@ function NewStoreOpenings() {
             ================================================== */}
 
             <BulkUploadModal
+    moduleKey="new-store-openings"
+    uploadUrl={"/api/new-store-openings/bulk-upload"}
 
                 isOpen={showBulkModal}
 
@@ -2051,9 +2053,6 @@ function NewStoreOpenings() {
                     await fetchNewStoreOpenings();
 
                 }}
-
-                acceptedFile=".csv,.xlsx,.xls"
-
                 sampleFile="/api/new-store-openings/sample"
 
             />

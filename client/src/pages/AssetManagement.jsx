@@ -633,12 +633,13 @@ export default function AssetManagement({ type = "marketing" }) {
             />
 
             <BulkUploadModal
+                moduleKey={isMarketing ? "assets-marketing" : "assets-legal"}
+                uploadUrl={`/api/assets/${type}/import`}
                 isOpen={showBulkModal}
                 onClose={() => setShowBulkModal(false)}
                 title={`Bulk Upload ${isMarketing ? "Marketing Assets" : "Legal Assets"}`}
                 uploadFunction={handleBulkUpload}
                 onSuccess={load}
-                acceptedFile=".csv,.xlsx,.xls"
                 sampleFile={`${API_BASE_URL}/api/assets/${type}/sample`}
             />
 

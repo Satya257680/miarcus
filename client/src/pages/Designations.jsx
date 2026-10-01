@@ -1033,6 +1033,8 @@ const columns = [
       ========================================== */}
 
       <BulkUploadModal
+    moduleKey="designations"
+    uploadUrl={"/api/designations/bulk-upload"}
 
         isOpen={showBulkModal}
 
@@ -1052,11 +1054,7 @@ const columns = [
 
         uploadFunction={handleBulkUpload}
 
-        title="Bulk Upload Designations"
-
-        acceptedFile=".xlsx,.xls,.csv"
-
-        sampleFile="/samples/designation_sample.xlsx"
+        title="Bulk Upload Designations"sampleFile="/samples/designation_sample.xlsx"
 
       />
 

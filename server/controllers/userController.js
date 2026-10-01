@@ -26,7 +26,12 @@ const {
 
 const { getAppUrl } = require("../config/appUrl");
 const db = require("../config/db");
-const { parseBulkFile } = require("../utils/bulkFileParser");
+const {
+    runBulkUpload,
+    isEmail,
+    call: bulkCall,
+    sql: bulkSql
+} = require("../utils/bulkUploadEngine");
 
 // ==========================================================
 // EMAIL DELIVERY HELPER
@@ -671,792 +676,155 @@ const createUser = (
 
 
 // ==========================================================
-// BULK UPLOAD USERS
+// BULK UPLOAD USERS  (global bulk-upload engine)
+// ==========================================================
+//
+// Every row is validated and saved on its own. A row that fails
+// (invalid email, duplicate email / Employee ID, unknown department or
+// designation, ...) is reported with its Excel row number, column,
+// value and reason — the remaining rows are still imported. Extra
+// columns are saved with the user (bulk_extra_data).
 // ==========================================================
 
-const bulkUploadUsers = async (
-    req,
-    res
-) => {
+const bulkUploadUsers = async (req, res) => {
+    let emailsSent = 0;
+    let emailsFailed = 0;
+    const emailFailures = [];
 
-    console.time(
-        "Total Upload"
-    );
+    const lower = (v) => String(v ?? "").trim().toLowerCase();
 
+    const body = await runBulkUpload({
+        req,
+        res,
+        respond: false,
+        module: "users",
 
-    try {
+        prepare: async (ctx) => {
+            const [departments, designations, users] = await Promise.all([
+                bulkSql("SELECT id, department_name FROM departments"),
+                bulkSql("SELECT id, designation_name, department_id FROM designations"),
+                bulkSql("SELECT email, employee_id FROM users")
+            ]);
 
-        // --------------------------------------------------
-        // Check File
-        // --------------------------------------------------
+            ctx.data.departments = new Map(departments.map((d) => [lower(d.department_name), d]));
+            ctx.data.designations = designations;
+            ctx.data.emails = new Set(users.map((u) => lower(u.email)).filter(Boolean));
+            ctx.data.codes = new Set(users.map((u) => lower(u.employee_id)).filter(Boolean));
+        },
 
-        if (!req.file) {
+        validateRow: (row, ctx) => {
+            const d = ctx.data;
+            const email = ctx.text("Email");
+            const code = ctx.text("Employee ID");
 
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "No file uploaded"
-
-            });
-        }
-
-
-        // --------------------------------------------------
-        // Read File
-        // --------------------------------------------------
-        //
-        // Accepts CSV, Excel, PDF, or a photo — see
-        // utils/bulkFileParser.js. Whatever format it was,
-        // this always comes back as plain row objects keyed
-        // by the same column names ("Employee ID", "Name",
-        // "Email", ...), so nothing below this point needs to
-        // know or care which format the admin actually
-        // uploaded.
-        // --------------------------------------------------
-
-        let users, sourceType, parseWarnings;
-
-        try {
-
-            const parsed =
-                await parseBulkFile(
-                    req.file.path,
-                    req.file.originalname,
-                    req.file.mimetype
-                );
-
-            users = parsed.rows;
-            sourceType = parsed.sourceType;
-            parseWarnings = parsed.warnings;
-
-        } catch (parseErr) {
-
-            if (fs.existsSync(req.file.path)) {
-                fs.unlinkSync(req.file.path);
+            if (email && !isEmail(email)) {
+                ctx.fail("Email", email, "Invalid email address.");
+            } else if (email && d.emails.has(lower(email))) {
+                ctx.duplicate("Email", email, `Email ${email} already exists in the database.`);
             }
 
-            return res.status(parseErr.status || 400).json({
+            if (code && d.codes.has(lower(code))) {
+                ctx.duplicate("Employee ID", code, `Employee ID ${code} already exists in the database.`);
+            }
 
-                success: false,
+            const departmentName = ctx.text("Department");
+            const department = departmentName ? d.departments.get(lower(departmentName)) : null;
+            if (departmentName && !department) {
+                ctx.fail("Department", departmentName, "Department does not exist. Create it in Departments first.");
+            }
 
-                message:
-                    parseErr.message ||
-                    "Could not read this file."
-
-            });
-        }
-
-
-        // --------------------------------------------------
-        // Remove Empty Rows
-        // --------------------------------------------------
-
-        const filteredUsers =
-            users.filter(
-                (user) => {
-
-                    return (
-
-                        String(
-                            user["Employee ID"] ||
-                            ""
-                        ).trim() !== ""
-
-                        ||
-
-                        String(
-                            user["Name"] ||
-                            ""
-                        ).trim() !== ""
-
-                        ||
-
-                        String(
-                            user["Email"] ||
-                            ""
-                        ).trim() !== ""
-                    );
+            const designationName = ctx.text("Designation");
+            let designation = null;
+            if (designationName) {
+                const matches = d.designations.filter((x) => lower(x.designation_name) === lower(designationName));
+                designation =
+                    (department && matches.find((x) => Number(x.department_id) === Number(department.id))) ||
+                    matches[0] ||
+                    null;
+                if (!designation) {
+                    ctx.fail("Designation", designationName, "Designation does not exist. Create it in Designations first.");
                 }
-            );
+            }
 
+            const status = ctx.text("Status");
+            if (status && !["active", "inactive"].includes(lower(status))) {
+                ctx.fail("Status", status, "Status must be Active or Inactive.");
+            }
 
-        if (
-            filteredUsers.length === 0
-        ) {
+            ctx.resolved = { department, designation, email, code };
+        },
 
-            fs.unlinkSync(
-                req.file.path
-            );
+        duplicateKey: (row, ctx) => ({
+            key: lower(ctx.resolved?.email) || lower(ctx.resolved?.code),
+            column: "Email",
+            value: ctx.resolved?.email || ctx.resolved?.code
+        }),
 
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "No valid users found."
-
-            });
-        }
-
-
-        // --------------------------------------------------
-        // Counters
-        // --------------------------------------------------
-
-        let imported = 0;
-
-        let skipped = 0;
-
-        let emailsSent = 0;
-
-        let emailsFailed = 0;
-
-        const errors = [];
-
-        const emailFailures = [];
-
-
-        // --------------------------------------------------
-        // Loop Users
-        // --------------------------------------------------
-
-        for (
-            const row
-            of filteredUsers
-        ) {
+        processRow: async (row, ctx) => {
+            const r = ctx.resolved;
 
             const user = {
-
-                employeeId:
-                    row["Employee ID"],
-
-                fullName:
-                    row["Name"],
-
-                email:
-                    row["Email"],
-
-                callContact:
-                    row["Call Contact"],
-
-                whatsappContact:
-                    row["WhatsApp Contact"],
-
-                department_id:
-                    null,
-
-                designation_id:
-                    null,
-
-                reportsTo:
-                    row["Reports To"],
-
-                active:
-                    (
-                        row["Status"] ||
-                        "Active"
-                    ) === "Active",
-
-                stores:
-                    [],
-
-                // ----------------------------------------------
-                // IMPORTANT:
-                // Bulk imported users have no module access
-                // by default.
-                //
-                // Quiz is explicitly included.
-                // ----------------------------------------------
-
-                permissions:
-                    normalizePermissions(
-                        {},
-                        false
-                    ),
-
-                administrator:
-                    false
+                employeeId: r.code,
+                fullName: ctx.text("Name"),
+                email: r.email,
+                callContact: ctx.text("Call Contact"),
+                whatsappContact: ctx.text("WhatsApp Contact"),
+                department_id: r.department.id,
+                designation_id: r.designation.id,
+                reportsTo: ctx.text("Reports To"),
+                active: lower(ctx.text("Status") || "Active") !== "inactive",
+                stores: [],
+                // Bulk imported users have no module access by default
+                // (Quiz is explicitly included by normalizePermissions).
+                permissions: normalizePermissions({}, false),
+                administrator: false
             };
 
+            const addResult = await bulkCall(User.addUser, user);
+            const userId = addResult.insertId;
+
+            const token = crypto.randomBytes(32).toString("hex");
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            await bulkCall(User.saveActivationToken, userId, token, expiresAt);
+
+            const activationLink = `${getAppUrl()}/activate-account/${token}`;
 
             try {
-
-                // --------------------------------------------------
-                // Validate Email Format
-                // --------------------------------------------------
-                //
-                // A malformed address (missing "@", no domain, etc.)
-                // used to sail straight through to the department/
-                // designation checks below and either get skipped for
-                // an unrelated reason or, worse, reach the DB insert
-                // and activation-email step with an address that could
-                // never receive mail. Catching it here up front gives
-                // the admin the real, specific reason immediately.
-                // --------------------------------------------------
-
-                const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-                const emailValue = String(user.email || "").trim();
-
-                if (!EMAIL_REGEX.test(emailValue)) {
-
-                    skipped++;
-
-                    errors.push(
-                        `${emailValue || user.employeeId || "row"} - Invalid or missing email address`
-                    );
-
-                    continue;
-                }
-
-                user.email = emailValue;
-
-
-                // --------------------------------------------------
-                // Check Email
-                // --------------------------------------------------
-
-                const emailExists =
-                    await new Promise(
-                        (
-                            resolve,
-                            reject
-                        ) => {
-
-                            User.checkEmailExists(
-
-                                user.email,
-
-                                (
-                                    err,
-                                    result
-                                ) => {
-
-                                    if (err) {
-
-                                        return reject(
-                                            err
-                                        );
-                                    }
-
-                                    resolve(
-                                        result
-                                    );
-                                }
-                            );
-                        }
-                    );
-
-
-                if (
-                    emailExists &&
-                    emailExists.length > 0
-                ) {
-
-                    skipped++;
-
-                    errors.push(
-                        `${user.email} - Email already exists`
-                    );
-
-                    continue;
-                }
-
-
-                // --------------------------------------------------
-                // Check Employee ID
-                // --------------------------------------------------
-
-                const empExists =
-                    await new Promise(
-                        (
-                            resolve,
-                            reject
-                        ) => {
-
-                            User.checkEmployeeIdExists(
-
-                                user.employeeId,
-
-                                (
-                                    err,
-                                    result
-                                ) => {
-
-                                    if (err) {
-
-                                        return reject(
-                                            err
-                                        );
-                                    }
-
-                                    resolve(
-                                        result
-                                    );
-                                }
-                            );
-                        }
-                    );
-
-
-                if (
-                    empExists &&
-                    empExists.length > 0
-                ) {
-
-                    skipped++;
-
-                    errors.push(
-                        `${user.employeeId} - Employee ID already exists`
-                    );
-
-                    continue;
-                }
-
-
-                // --------------------------------------------------
-                // Get Department
-                // --------------------------------------------------
-
-                const department =
-                    await new Promise(
-                        (
-                            resolve,
-                            reject
-                        ) => {
-
-                            User.getDepartmentIdByName(
-
-                                row["Department"],
-
-                                (
-                                    err,
-                                    result
-                                ) => {
-
-                                    if (err) {
-
-                                        return reject(
-                                            err
-                                        );
-                                    }
-
-                                    resolve(
-                                        result
-                                    );
-                                }
-                            );
-                        }
-                    );
-
-
-                // --------------------------------------------------
-                // Get Designation
-                // --------------------------------------------------
-
-                const designation =
-                    await new Promise(
-                        (
-                            resolve,
-                            reject
-                        ) => {
-
-                            User.getDesignationIdByName(
-
-                                row["Designation"],
-
-                                (
-                                    err,
-                                    result
-                                ) => {
-
-                                    if (err) {
-
-                                        return reject(
-                                            err
-                                        );
-                                    }
-
-                                    resolve(
-                                        result
-                                    );
-                                }
-                            );
-                        }
-                    );
-
-
-                // --------------------------------------------------
-                // Validate Department
-                // --------------------------------------------------
-
-                if (
-                    !department ||
-                    !department.length
-                ) {
-
-                    skipped++;
-
-                    errors.push(
-                        `Department not found: ${row["Department"]}`
-                    );
-
-                    continue;
-                }
-
-
-                // --------------------------------------------------
-                // Validate Designation
-                // --------------------------------------------------
-
-                if (
-                    !designation ||
-                    !designation.length
-                ) {
-
-                    skipped++;
-
-                    errors.push(
-                        `Designation not found: ${row["Designation"]}`
-                    );
-
-                    continue;
-                }
-
-
-                user.department_id =
-                    department[0].id;
-
-
-                user.designation_id =
-                    designation[0].id;
-
-
-                // --------------------------------------------------
-                // Add User
-                // --------------------------------------------------
-
-                const addResult =
-                    await new Promise(
-                        (
-                            resolve,
-                            reject
-                        ) => {
-
-                            User.addUser(
-
-                                user,
-
-                                (
-                                    err,
-                                    result
-                                ) => {
-
-                                    if (err) {
-
-                                        return reject(
-                                            err
-                                        );
-                                    }
-
-                                    resolve(
-                                        result
-                                    );
-                                }
-                            );
-                        }
-                    );
-
-
-                console.log(
-                    "Inserted User:",
-                    addResult
-                );
-
-
-                const userId =
-                    addResult.insertId;
-
-
-                console.log(
-                    "New User ID:",
-                    userId
-                );
-
-
-                // --------------------------------------------------
-                // Create Activation Token
-                // --------------------------------------------------
-
-                const token =
-                    crypto
-                        .randomBytes(32)
-                        .toString("hex");
-
-
-                const expiresAt =
-                    new Date(
-                        Date.now() +
-                        24 *
-                        60 *
-                        60 *
-                        1000
-                    );
-
-
-                await new Promise(
-                    (
-                        resolve,
-                        reject
-                    ) => {
-
-                        User.saveActivationToken(
-
-                            userId,
-
-                            token,
-
-                            expiresAt,
-
-                            (err) => {
-
-                                if (err) {
-
-                                    return reject(
-                                        err
-                                    );
-                                }
-
-                                resolve();
-                            }
-                        );
-                    }
-                );
-
-
-                // --------------------------------------------------
-                // Activation Link
-                // --------------------------------------------------
-
-                const activationLink =
-                    `${getAppUrl()}/activate-account/${token}`;
-
-
-                // --------------------------------------------------
-                // Send Email
-                // --------------------------------------------------
-                //
-                // Previously this fired the invitation email into the
-                // queue without awaiting or checking the result, so
-                // `emailsSent` was incremented unconditionally right
-                // here — it reported "sent" even when the send later
-                // failed (bad address, mail provider error, etc.), and
-                // any failure only ever reached the server console,
-                // never the admin running the bulk upload. Awaiting the
-                // queued job (the queue itself still sends one email at
-                // a time) lets us report the real outcome per user.
-                // --------------------------------------------------
-
-                try {
-
-                    await addToQueue(
-
-                        () => sendInvitationEmail(
-
-                            user,
-
-                            activationLink
-
-                        )
-                    );
-
-                    console.log(
-                        `Invitation email sent to ${user.email}`
-                    );
-
-                    emailsSent++;
-
-                } catch (emailErr) {
-
-                    console.error(
-                        `Invitation email FAILED for ${user.email}:`,
-                        emailErr?.message || emailErr
-                    );
-
-                    emailsFailed++;
-
-                    emailFailures.push(
-                        `${user.email} - ${emailErr?.message || "Invitation email failed to send"}`
-                    );
-                }
-
-
-                // --------------------------------------------------
-                // Activity Log
-                // --------------------------------------------------
-
-                logActivity({
-
-                    activity_type:
-                        "User",
-
-                    reference_id:
-                        userId,
-
-                    title:
-                        "User Created",
-
-                    description:
-                        `${user.fullName} was added`,
-
-                    module_name:
-                        "Users",
-
-                    status:
-                        "Open",
-
-                    priority:
-                        "Medium",
-
-                    created_by:
-                        req.user.id,
-
-                    assigned_to:
-                        userId
-
-                });
-
-
-                imported++;
-
-            } catch (err) {
-
-                console.log(err);
-
-                skipped++;
-
-                errors.push(
-                    `${user.email || user.employeeId} - ${err.message}`
-                );
+                await addToQueue(() => sendInvitationEmail(user, activationLink));
+                emailsSent += 1;
+            } catch (emailErr) {
+                emailsFailed += 1;
+                emailFailures.push(`${user.email} - ${emailErr?.message || "Invitation email failed to send"}`);
+                ctx.note("Email", user.email, `User created, but the invitation email could not be sent (${emailErr?.message || "mail error"}).`);
             }
+
+            logActivity({
+                activity_type: "User",
+                reference_id: userId,
+                title: "User Created",
+                description: `${user.fullName} was added`,
+                module_name: "Users",
+                status: "Open",
+                priority: "Medium",
+                created_by: req.user.id,
+                assigned_to: userId
+            });
+
+            return { id: userId };
         }
+    });
 
-
-        // --------------------------------------------------
-        // Delete Temporary File
-        // --------------------------------------------------
-
-        if (
-            fs.existsSync(
-                req.file.path
-            )
-        ) {
-
-            fs.unlinkSync(
-                req.file.path
-            );
-        }
-
-
-        console.timeEnd(
-            "Total Upload"
-        );
-
-
-        // --------------------------------------------------
-        // Build An Honest Summary Message
-        // --------------------------------------------------
-        //
-        // Previously this always replied with `success: true` and the
-        // static message "Bulk Upload Completed", even when every row
-        // was skipped and zero users were created — the admin saw a
-        // cheerful confirmation while nothing actually happened and no
-        // emails went out. The message and `success` flag now reflect
-        // what really occurred, and the skip reasons (department not
-        // found, invalid email, duplicate, etc.) are surfaced directly
-        // in the alert instead of only in the server console.
-        // --------------------------------------------------
-
-        const summaryParts = [];
-
-        if (imported > 0) {
-            summaryParts.push(`${imported} user${imported === 1 ? "" : "s"} imported`);
-        }
-
-        if (emailsSent > 0) {
-            summaryParts.push(`${emailsSent} invitation email${emailsSent === 1 ? "" : "s"} sent`);
-        }
-
-        if (emailsFailed > 0) {
-            summaryParts.push(`${emailsFailed} invitation email${emailsFailed === 1 ? "" : "s"} failed to send`);
-        }
-
-        if (skipped > 0) {
-            summaryParts.push(`${skipped} row${skipped === 1 ? "" : "s"} skipped`);
-        }
-
-        const reasonPreview = errors.length
-            ? ` Reason${errors.length === 1 ? "" : "s"}: ${errors.slice(0, 5).join("; ")}${errors.length > 5 ? ` (+${errors.length - 5} more — see details)` : ""}`
-            : "";
-
-        const message = imported > 0
-            ? `${summaryParts.join(", ")}.${reasonPreview}`
-            : `No users were imported.${reasonPreview || " Check the file and try again."}`;
-
-        return res.json({
-
-            success: imported > 0,
-
-            message,
-
-            sourceType,
-
-            imported,
-
-            skipped,
-
-            emailsSent,
-
-            emailsFailed,
-
-            errors,
-
-            emailFailures,
-
-            warnings:
-                parseWarnings
-
-        });
-
-    } catch (err) {
-
-        console.log(err);
-
-
-        if (
-            req.file &&
-            fs.existsSync(
-                req.file.path
-            )
-        ) {
-
-            fs.unlinkSync(
-                req.file.path
-            );
-        }
-
-
-        return res.status(500).json({
-
-            success: false,
-
-            message:
-                "Upload Error"
-
-        });
+    if (body.completed) {
+        if (emailsSent) body.message += ` ${emailsSent} invitation email${emailsSent === 1 ? "" : "s"} sent.`;
+        if (emailsFailed) body.message += ` ${emailsFailed} invitation email${emailsFailed === 1 ? "" : "s"} failed.`;
     }
+
+    return res.status(body.completed ? 200 : 400).json({
+        ...body,
+        emailsSent,
+        emailsFailed,
+        emailFailures
+    });
 };
 
 

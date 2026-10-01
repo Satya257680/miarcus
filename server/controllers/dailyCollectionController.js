@@ -3,6 +3,7 @@ const DailyCollection = require("../models/dailyCollectionModel");
 const emailService = require("../services/emailService");
 const DailyCollectionEmail = require("../utils/emailTemplates/dailyCollectionEmail");
 const XLSX = require("xlsx");
+const { runBulkUpload, rowError } = require("../utils/bulkUploadEngine");
 const fs = require("fs");
 
 const actorId = (req) => Number(req.user?.id || req.user?.user_id || 0);
@@ -457,56 +458,82 @@ const deleteAllDailyCollections = async (req, res) => {
     }
 };
 
+// Bulk upload (global bulk-upload engine): any format, every row on its
+// own. Unknown store, invalid date / amount, store not assigned to the
+// user, etc. are reported with row / column / value / reason while all
+// valid rows are saved. Extra columns are kept with the report.
 const bulkUploadDailyCollections = async (req, res) => {
-    if (!req.file) return res.status(400).json({ success: false, message: "Please select a CSV or Excel file." });
+    const admin = isAdmin(req);
 
-    try {
-        const rows = parseImportRows(req.file.path);
-        const admin = isAdmin(req);
-        const scope = admin ? null : await DailyCollection.getStoreScopeForUser(actorId(req));
-        const scopeIds = new Set((scope || []).map((store) => Number(store.id)));
-        const imported = [];
+    return runBulkUpload({
+        req,
+        res,
+        module: "daily-collections",
 
-        for (const row of rows) {
-            const store = await DailyCollection.getStoreByIdentifier({
-                storeId: row.storeId,
-                storeCode: row.storeCode,
-                storeName: row.storeName
+        prepare: async (ctx) => {
+            const scope = admin ? null : await DailyCollection.getStoreScopeForUser(actorId(req));
+            ctx.data.scopeIds = new Set((scope || []).map((store) => Number(store.id)));
+        },
+
+        validateRow: async (row, ctx) => {
+            const reportDate = ctx.date("Report Date");
+            const amounts = {};
+            [["UPI Amount", "upiAmount"], ["Cash Amount", "cashAmount"], ["Bank Transfer Amount", "bankTransferAmount"], ["Card Amount", "cardAmount"]].forEach(([column, key]) => {
+                const value = ctx.number(column, { min: 0 });
+                amounts[key] = value === null ? 0 : value;
             });
-            if (!store) throw new Error(`Store not found or inactive on row ${row.rowNumber}.`);
-            if (!admin && !scopeIds.has(Number(store.id))) {
-                throw new Error(`Row ${row.rowNumber}: you are not assigned to ${store.store_name}.`);
+
+            const storeIdRaw = ctx.text("Store ID");
+            const storeCode = ctx.text("Store Code");
+            const storeName = ctx.text("Store Name");
+            let store = null;
+
+            if (storeIdRaw || storeCode || storeName) {
+                store = await DailyCollection.getStoreByIdentifier({
+                    storeId: /^\d+$/.test(storeIdRaw) ? Number(storeIdRaw) : null,
+                    storeCode,
+                    storeName
+                });
+                const column = storeCode ? "Store Code" : storeName ? "Store Name" : "Store ID";
+                const value = storeCode || storeName || storeIdRaw;
+                if (!store) {
+                    ctx.fail(column, value, "Store does not exist or is inactive.");
+                } else if (!admin && !ctx.data.scopeIds.has(Number(store.id))) {
+                    ctx.fail(column, value, `You are not assigned to ${store.store_name}.`);
+                    store = null;
+                }
             }
 
-            await DailyCollection.ensureDueRows(row.reportDate);
-            const report = await DailyCollection.getReportForStoreDate(store.id, row.reportDate);
-            if (!report) throw new Error(`Daily Collection report could not be created for ${store.store_name} on row ${row.rowNumber}.`);
+            ctx.values = { reportDate, store, ...amounts, notes: ctx.text("Notes") };
+        },
 
+        duplicateKey: (row, ctx) => ({
+            key: `${ctx.values?.store?.id}|${ctx.values?.reportDate}`,
+            column: "Report Date",
+            value: `${ctx.values?.store?.store_name || ""} · ${ctx.cell("Report Date")}`
+        }),
+
+        processRow: async (row, ctx) => {
+            const v = ctx.values;
+            await DailyCollection.ensureDueRows(v.reportDate);
+            const report = await DailyCollection.getReportForStoreDate(v.store.id, v.reportDate);
+            if (!report) {
+                throw rowError("Report Date", ctx.cell("Report Date"), `Daily Collection report could not be created for ${v.store.store_name} on this date.`);
+            }
             const saved = await DailyCollection.submitReport({
                 reportId: report.id,
-                storeId: store.id,
-                reportDate: row.reportDate,
+                storeId: v.store.id,
+                reportDate: v.reportDate,
                 submittedBy: actorId(req),
-                upiAmount: row.upiAmount,
-                cashAmount: row.cashAmount,
-                bankTransferAmount: row.bankTransferAmount,
-                cardAmount: row.cardAmount,
-                notes: row.notes
+                upiAmount: v.upiAmount,
+                cashAmount: v.cashAmount,
+                bankTransferAmount: v.bankTransferAmount,
+                cardAmount: v.cardAmount,
+                notes: v.notes
             });
-            imported.push(saved.reportId);
+            return { id: saved?.reportId || report.id };
         }
-
-        res.status(201).json({
-            success: true,
-            imported: imported.length,
-            message: `${imported.length} Daily Collection record(s) imported successfully.`
-        });
-    } catch (error) {
-        console.error("Daily collection bulk upload error:", error);
-        res.status(400).json({ success: false, message: error.message || "Bulk upload failed." });
-    } finally {
-        fs.unlink(req.file.path, () => {});
-    }
+    });
 };
 
 const getBlockedDailyCollections = async (req, res) => {

@@ -1,4 +1,5 @@
 const { readDeleteScope } = require("../utils/deleteScope");
+const { runBulkUpload, sql: bulkSql } = require("../utils/bulkUploadEngine");
 const XLSX = require("xlsx");
 const fs = require("fs/promises");
 const { Parser } = require("json2csv");
@@ -1401,145 +1402,77 @@ exports.bulk = async (
   req,
   res
 ) => {
-  try {
-    let rows = req.body?.rows;
-
-    /* -----------------------------------------
-       Multipart file
-    ----------------------------------------- */
-
-    if (
-      !Array.isArray(rows) &&
-      req.file
-    ) {
-      const workbook =
-        XLSX.readFile(
-          req.file.path
-        );
-
-      const firstSheetName =
-        workbook.SheetNames?.[0];
-
-      if (!firstSheetName) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Uploaded file does not contain a worksheet.",
-        });
-      }
-
-      rows =
-        XLSX.utils.sheet_to_json(
-          workbook.Sheets[
-            firstSheetName
-          ],
-          {
-            defval: "",
-          }
-        );
-
-      /*
-       * The bulk-upload multer stores the temporary spreadsheet
-       * in server/uploads. Remove it after parsing so spreadsheets
-       * do not accumulate in the public upload directory.
-       */
-      if (req.file?.path) {
-        try {
-          await fs.unlink(
-            req.file.path
-          );
-        } catch (cleanupError) {
-          console.warn(
-            "Collection Tracking bulk temp-file cleanup:",
-            cleanupError.message
-          );
-        }
-      }
-    }
-
-    if (!Array.isArray(rows)) {
-      rows = [];
-    }
-
-    if (!rows.length) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "No product rows were found in the uploaded file.",
-      });
-    }
-
+  /*
+    JSON rows (old API) are still accepted as-is.
+  */
+  if (Array.isArray(req.body?.rows) && !req.file) {
+    const rows = req.body.rows;
     let created = 0;
-    let failed = 0;
     const errors = [];
-
-    for (
-      let index = 0;
-      index < rows.length;
-      index += 1
-    ) {
-      const row =
-        rows[index] || {};
-
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index] || {};
       try {
-        const productCode =
-          String(
-            row.product_code ||
-              row.sku ||
-              row.SKU ||
-              `SKU-${Date.now()}-${index}`
-          ).trim();
-
-        const productName =
-          String(
-            row.product_name ||
-              row["Product Name"] ||
-              ""
-          ).trim();
-
         await Model.createProduct({
-          productCode,
-          productName,
-          createdBy:
-            req.user?.id ??
-            req.user?.user_id ??
-            req.user?.userId,
+          productCode: String(row.product_code || row.sku || row.SKU || `SKU-${Date.now()}-${index}`).trim(),
+          productName: String(row.product_name || row["Product Name"] || "").trim(),
+          createdBy: req.user?.id ?? req.user?.user_id ?? req.user?.userId,
           data: row,
         });
-
         created += 1;
       } catch (error) {
-        failed += 1;
-
-        errors.push({
-          row: index + 2,
-          message:
-            error.message,
-        });
+        errors.push({ row: index + 1, message: error.message });
       }
     }
-
-    return res.json({
-      success: true,
-      created,
-      failed,
-      total: rows.length,
-      errors,
-      message: `${created} product(s) imported successfully.`,
-    });
-  } catch (error) {
-    console.error(
-      "Collection Tracking bulk:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Bulk upload failed.",
-      error: error.message,
-    });
+    return res.json({ success: true, created, failed: errors.length, total: rows.length, errors });
   }
+
+  /*
+    File upload (global bulk-upload engine): any format, every row on its
+    own, exact row / column / value / reason for failures. EVERY column
+    of the file (with its exact header) is stored as the product's
+    Designer stage data, so nothing is dropped.
+  */
+  return runBulkUpload({
+    req,
+    res,
+    module: "collection-products",
+
+    prepare: async (ctx) => {
+      const rows = await bulkSql("SELECT LOWER(product_code) AS c FROM collection_products");
+      ctx.data.codes = new Set(rows.map((r) => r.c));
+      ctx.data.seq = 0;
+    },
+
+    validateRow: (row, ctx) => {
+      const code = ctx.text("Product Code");
+      if (code && code.length > 80) ctx.fail("Product Code", code, "Product Code is too long (max 80 characters).");
+      if (code && ctx.data.codes.has(code.toLowerCase())) {
+        ctx.duplicate("Product Code", code, `Product Code ${code} already exists in the database.`);
+      }
+    },
+
+    duplicateKey: (row, ctx) =>
+      ctx.text("Product Code")
+        ? { key: ctx.text("Product Code").toLowerCase(), column: "Product Code", value: ctx.text("Product Code") }
+        : null,
+
+    processRow: async (row, ctx) => {
+      ctx.data.seq += 1;
+      const productCode = ctx.text("Product Code") || `SKU-${Date.now()}-${ctx.data.seq}`;
+      const data = {};
+      Object.entries(row.__raw || {}).forEach(([key, value]) => {
+        data[key] = value instanceof Date ? value.toISOString().slice(0, 10) : value;
+      });
+      const product = await Model.createProduct({
+        productCode,
+        productName: ctx.text("Product Name"),
+        createdBy: req.user?.id ?? req.user?.user_id ?? req.user?.userId,
+        data,
+      });
+      // Every column is already stored in the stage data.
+      return { id: product?.id, extra: {} };
+    },
+  });
 };
 
 /* =========================================================

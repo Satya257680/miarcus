@@ -2,6 +2,7 @@ const { readDeleteScope } = require("../utils/deleteScope");
 const NSORule = require("../models/nsoRuleModel");
 
 const XLSX = require("xlsx");
+const { runBulkUpload, call: bulkCall, sql: bulkSql, parseYesNo, pickAllowed } = require("../utils/bulkUploadEngine");
 
 
 // ======================================================
@@ -515,311 +516,95 @@ exports.createRule = (req, res) => {
 
 };
 // ======================================================
-// BULK UPLOAD RULES
+// BULK UPLOAD RULES  (global bulk-upload engine)
 // ACTIVITY + AUDIT
+// Each rule is saved on its own (no all-or-nothing transaction): a
+// bad row is reported with row / column / value / reason and the
+// remaining rules are still created.
 // ======================================================
 
-exports.bulkUploadRules = (req, res) => {
-
-    if (!req.file) {
-
-        return res.status(400).json({
-
-            success: false,
-
-            message: "Please upload a CSV, XLSX or XLS file."
-
-        });
-
-    }
-
-    try {
-
-        const workbook = XLSX.readFile(req.file.path);
-
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        const rows = XLSX.utils.sheet_to_json(sheet);
-
-        const db = require("../config/db");
-
-        db.query(
-
-            "SELECT id, department_name FROM departments",
-
-            (err, departments) => {
-
-                if (err) {
-
-                    console.error(err);
-
-                    return res.status(500).json({
-
-                        success: false,
-
-                        message: err.message
-
-                    });
-
-                }
-
-                // ======================================
-                // DEPARTMENT MAP
-                // ======================================
-
-                const departmentMap = {};
-
-                departments.forEach((dept) => {
-
-                    departmentMap[
-                        dept.department_name
-                            .trim()
-                            .toLowerCase()
-                    ] = dept.id;
-
-                });
-
-                // ======================================
-                // PREPARE RULES
-                // ======================================
-
-                const rules = rows.map((row) => {
-
-                    const departmentNames = String(
-
-                        row["Departments"] || ""
-
-                    )
-
-                        .split(",")
-
-                        .map(name => name.trim())
-
-                        .filter(name => name !== "");
-
-                    const department_ids = departmentNames
-
-                        .map(name =>
-
-                            departmentMap[
-                                name.toLowerCase()
-                            ]
-
-                        )
-
-                        .filter(Boolean);
-
-                    return {
-
-                        trigger_column:
-
-                            String(
-                                row["Trigger Column"] || ""
-                            ).trim(),
-
-                        expected_answer:
-
-                            String(
-                                row["Expected Answer"] || "No"
-                            ).trim(),
-
-                        priority:
-
-                            String(
-                                row["Priority"] || "Medium"
-                            ).trim(),
-
-                        sla_days:
-
-                            Number(
-                                row["SLA Days"]
-                            ) || 3,
-
-                        create_action_point:
-
-                            String(
-
-                                row["Create Action Point"] || ""
-
-                            )
-
-                                .trim()
-
-                                .toLowerCase() === "no"
-
-                                ? 0
-
-                                : 1,
-
-                        mandatory:
-
-                            String(
-
-                                row["Mandatory"] || ""
-
-                            )
-
-                                .trim()
-
-                                .toLowerCase() === "no"
-
-                                ? 0
-
-                                : 1,
-
-                        is_active:
-
-                            String(
-
-                                row["Status"] || ""
-
-                            )
-
-                                .trim()
-
-                                .toLowerCase() === "inactive"
-
-                                ? 0
-
-                                : 1,
-
-                        department_ids
-
-                    };
-
-                });
-
-                // ======================================
-                // SAVE RULES
-                // ======================================
-
-                NSORule.bulkCreateRules(
-
-                    rules,
-
-                    req.user.id,
-
-                    (err) => {
-
-                        if (err) {
-
-                            console.error(err);
-
-                            return res.status(500).json({
-
-                                success: false,
-
-                                message: err.message
-
-                            });
-
-                        }
-
-                        // ======================================
-                        // ACTIVITY CENTER
-                        // ======================================
-
-                        Activity.create({
-
-                            title:
-
-                                "NSO Rules Bulk Uploaded",
-
-                            description:
-
-                                `${rules.length} NSO Rules uploaded`,
-
-                            module_name:
-
-                                "NSO Rules",
-
-                            status:
-
-                                "Open",
-
-                            priority:
-
-                                "Medium",
-
-                            created_by:
-
-                                req.user.id,
-
-                            assigned_to:
-
-                                null
-
-                        }, () => {});
-
-                        // ======================================
-                        // AUDIT TRAIL
-                        // ======================================
-
-                        Audit.create({
-
-                            module_name:
-
-                                "NSO Rules",
-
-                            reference_id:
-
-                                null,
-
-                            action:
-
-                                "BULK_UPLOAD",
-
-                            old_data:
-
-                                null,
-
-                            new_data:
-
-                                rules,
-
-                            changed_by:
-
-                                req.user.id
-
-                        }, () => {});
-
-                        // ======================================
-                        // RESPONSE
-                        // ======================================
-
-                        res.status(200).json({
-
-                            success: true,
-
-                            message: "Rules uploaded successfully."
-
-                        });
-
-                    }
-
-                );
-
+exports.bulkUploadRules = (req, res) =>
+    runBulkUpload({
+        req,
+        res,
+        module: "nso-rules",
+
+        prepare: async (ctx) => {
+            const departments = await bulkSql("SELECT id, department_name FROM departments");
+            ctx.data.departments = new Map(departments.map((d) => [String(d.department_name || "").trim().toLowerCase(), d.id]));
+        },
+
+        validateRow: (row, ctx) => {
+            const priorityRaw = ctx.text("Priority") || "Medium";
+            const priority = pickAllowed(priorityRaw, ["Low", "Medium", "High", "Critical", "Urgent"]);
+            if (!priority) ctx.fail("Priority", priorityRaw, "Priority must be Low, Medium, High or Critical.");
+
+            const sla = ctx.number("SLA Days", { min: 0 });
+
+            const createAp = parseYesNo(ctx.cell("Create Action Point"), true);
+            if (createAp === null) ctx.fail("Create Action Point", ctx.cell("Create Action Point"), "Create Action Point must be Yes or No.");
+
+            const mandatory = parseYesNo(ctx.cell("Mandatory"), true);
+            if (mandatory === null) ctx.fail("Mandatory", ctx.cell("Mandatory"), "Mandatory must be Yes or No.");
+
+            const statusRaw = ctx.text("Status");
+            if (statusRaw && !["active", "inactive", "yes", "no", "1", "0", "true", "false"].includes(statusRaw.toLowerCase())) {
+                ctx.fail("Status", statusRaw, "Status must be Active or Inactive.");
             }
 
-        );
+            const departmentIds = [];
+            ctx.text("Departments").split(/[,;|]/).map((d) => d.trim()).filter(Boolean).forEach((name) => {
+                const id = ctx.data.departments.get(name.toLowerCase());
+                if (id) departmentIds.push(id);
+                else ctx.fail("Departments", name, `Department "${name}" does not exist.`);
+            });
 
-    }
+            ctx.rule = {
+                trigger_column: ctx.text("Trigger Column"),
+                expected_answer: ctx.text("Expected Answer") || "No",
+                priority: priority || "Medium",
+                sla_days: sla === null ? 3 : sla,
+                create_action_point: createAp === false ? 0 : 1,
+                mandatory: mandatory === false ? 0 : 1,
+                is_active: ["inactive", "no", "0", "false"].includes(statusRaw.toLowerCase()) ? 0 : 1,
+                departments: [...new Set(departmentIds)],
+                created_by: req.user.id
+            };
+        },
 
-    catch (err) {
+        duplicateKey: (row, ctx) => ({
+            key: `${ctx.text("Trigger Column").toLowerCase()}|${(ctx.text("Expected Answer") || "No").toLowerCase()}`,
+            column: "Trigger Column",
+            value: ctx.text("Trigger Column")
+        }),
 
-        console.error(err);
+        processRow: async (row, ctx) => {
+            const result = await bulkCall(NSORule.createRuleWithDepartments, ctx.rule);
+            return { id: result.insertId };
+        },
 
-        return res.status(500).json({
+        finalize: async (ctx) => {
+            if (!ctx.report.uploaded) return;
+            Activity.create({
+                title: "NSO Rules Bulk Uploaded",
+                description: `${ctx.report.uploaded} NSO Rules uploaded`,
+                module_name: "NSO Rules",
+                status: "Open",
+                priority: "Medium",
+                created_by: req.user.id,
+                assigned_to: null
+            }, () => {});
+            Audit.create({
+                module_name: "NSO Rules",
+                reference_id: null,
+                action: "BULK_UPLOAD",
+                old_data: null,
+                new_data: { created: ctx.report.uploaded, failed: ctx.report.failed },
+                changed_by: req.user.id
+            }, () => {});
+        }
+    });
 
-            success: false,
-
-            message: "Invalid CSV/XLS/XLSX file."
-
-        });
-
-    }
-
-};
 // ======================================================
 // DELETE RULE
 // ACTIVITY + AUDIT

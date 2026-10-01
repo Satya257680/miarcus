@@ -1,5 +1,5 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import {
     FaPlus,
@@ -25,7 +25,6 @@ import {
     exportListings,
     fetchListingSummary,
     fetchListingTracker,
-    importListings,
     updateListing,
 } from "../services/listingTrackerService";
 import "../styles/pages/ListingTracker.css";
@@ -34,6 +33,7 @@ import "../styles/premium/AdminPagesPremium.css";
 import PremiumHero from "../components/premium/PremiumHero";
 import InsightStrip from "../components/premium/InsightStrip";
 import ExportButton from "../components/common/ExportButton";
+import BulkUploadModal from "../components/common/BulkUploadModal";
 import { exportFromCSV } from "../utils/exportUtils.js";
 
 const EMPTY_FORM = {
@@ -211,8 +211,7 @@ export default function ListingTracker() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
 
-    const [importing, setImporting] = useState(false);
-    const importInputRef = useRef(null);
+    const [showBulkModal, setShowBulkModal] = useState(false);
 
     const permissions = useMemo(getInitialPermissions, []);
 
@@ -457,42 +456,6 @@ export default function ListingTracker() {
         }
     };
 
-    const handleImport = async (event) => {
-        const file = event.target.files?.[0];
-
-        if (!file) return;
-
-        if (!file.name.toLowerCase().endsWith(".csv")) {
-            setError("Please select a CSV file.");
-            event.target.value = "";
-            return;
-        }
-
-        setImporting(true);
-        setError("");
-
-        try {
-            const response = await importListings(file);
-            const imported = Number(response.data?.data?.imported || 0);
-            const skipped = Number(response.data?.data?.skipped || 0);
-
-            window.alert(
-                `Import completed.\nImported: ${imported}\nSkipped: ${skipped}`
-            );
-
-            setPage(1);
-            await loadData({ silent: true });
-        } catch (err) {
-            setError(
-                err.response?.data?.message ||
-                "CSV import failed."
-            );
-        } finally {
-            setImporting(false);
-            event.target.value = "";
-        }
-    };
-
     const handleExport = async (format = "csv") => {
         try {
             const response = await exportListings({
@@ -546,14 +509,6 @@ export default function ListingTracker() {
 
     return (
         <div className="listing-page pp-premium">
-            {importing && (
-                <PremiumLoader
-                    overlay
-                    title="Importing Your Data..."
-                    message="Your CSV is being validated and saved to the product register."
-                    caption="Importing products... please do not close this page."
-                />
-            )}
             <div className="listing-shell">
                 <PremiumHero
                     icon={FaTags}
@@ -659,18 +614,21 @@ export default function ListingTracker() {
                         <>
                             <button
                                 className="listing-btn secondary"
-                                onClick={() => importInputRef.current?.click()}
-                                disabled={importing}
+                                onClick={() => setShowBulkModal(true)}
                             >
                                 <FaUpload />
-                                {importing ? "Importing…" : "Import CSV"}
+                                Bulk Upload
                             </button>
-                            <input
-                                ref={importInputRef}
-                                type="file"
-                                accept=".csv,text/csv"
-                                onChange={handleImport}
-                                hidden
+                            <BulkUploadModal
+                                isOpen={showBulkModal}
+                                onClose={() => setShowBulkModal(false)}
+                                onSuccess={async () => {
+                                    setPage(1);
+                                    await loadData({ silent: true });
+                                }}
+                                title="Listing Tracker"
+                                moduleKey="listing-tracker"
+                                uploadUrl="/api/listing-tracker/import"
                             />
                         </>
                     )}

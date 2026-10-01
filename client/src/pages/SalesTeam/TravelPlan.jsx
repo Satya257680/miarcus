@@ -677,11 +677,12 @@ function TravelPlan() {
       minWidth: "170px",
       render: (row) => {
         const start = formatDate(row.visit_date);
-        const end = row.end_date && row.end_date !== row.visit_date
+        const end = row.end_date && String(row.end_date).slice(0, 10) !== String(row.visit_date).slice(0, 10)
           ? formatDate(row.end_date)
           : null;
 
-        return row.week_off && end ? (
+        // Every plan now has a From -> To range (not only week offs).
+        return end ? (
           <span className="sales-date-range-cell">
             <strong>{start}</strong>
             <span>to</span>
@@ -749,12 +750,27 @@ function TravelPlan() {
       key: "planned_store_names",
       title: "Planned Stores",
       minWidth: "240px",
-      render: (row) => (
-        <span className="sales-wrap-cell">
-          {row.planned_store_names ||
-            "—"}
-        </span>
-      ),
+      render: (row) => {
+        const list = Array.isArray(row.planned_stores) ? row.planned_stores : [];
+        if (!list.length) {
+          return (
+            <span className="sales-wrap-cell">
+              {row.planned_store_names || "—"}
+            </span>
+          );
+        }
+        // Store-wise visit dates of the plan.
+        return (
+          <div className="vp-schedule-cell" title={row.planned_store_schedule || ""}>
+            {list.map((store) => (
+              <span key={store.store_id} className="vp-schedule-chip">
+                <strong>{store.store_name}</strong>
+                {store.visit_date ? <em>{formatDate(store.visit_date)}</em> : null}
+              </span>
+            ))}
+          </div>
+        );
+      },
     },
 
     /* ===================================================

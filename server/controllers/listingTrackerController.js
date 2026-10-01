@@ -2,6 +2,7 @@ const { readDeleteScope } = require("../utils/deleteScope");
 const fs = require("fs");
 const csvParser = require("csv-parser");
 const ListingTracker = require("../models/listingTrackerModel");
+const { runBulkUpload, sql: bulkSql, parseNumber } = require("../utils/bulkUploadEngine");
 
 const normalizeHeader = (value) =>
     String(value || "")
@@ -258,51 +259,64 @@ const removeAll = async (req, res) => {
     }
 };
 
-const importCsv = async (req, res) => {
-    const filePath = req.file?.path;
+// Bulk import (global bulk-upload engine): any format, every row on
+// its own, duplicates (same PPK Code + SKU) reported, extra columns kept.
+const importCsv = (req, res) =>
+    runBulkUpload({
+        req,
+        res,
+        module: "listing-tracker",
 
-    if (!filePath) {
-        return res.status(400).json({
-            success: false,
-            message: "Please upload a CSV file.",
-        });
-    }
+        prepare: async (ctx) => {
+            const rows = await bulkSql("SELECT LOWER(TRIM(ppk_code)) AS p, LOWER(TRIM(sku)) AS s FROM listing_tracker_products");
+            ctx.data.keys = new Set(rows.map((r) => `${r.p}|${r.s}`));
+        },
 
-    try {
-        const rows = [];
+        validateRow: (row, ctx) => {
+            const key = `${ctx.text("PPK Code").toLowerCase()}|${ctx.text("SKU").toLowerCase()}`;
+            if (ctx.text("PPK Code") && ctx.text("SKU") && ctx.data.keys.has(key)) {
+                ctx.duplicate("SKU", ctx.text("SKU"), `PPK Code ${ctx.text("PPK Code")} with SKU ${ctx.text("SKU")} already exists in the database.`);
+            }
+            const mrp = ctx.cell("MRP");
+            if (String(mrp ?? "").trim() && parseNumber(mrp) !== null && Number.isNaN(parseNumber(mrp))) {
+                ctx.fail("MRP", mrp, "MRP must be a number.");
+            }
+            ["Photoshoot", "Product Listed"].forEach((column) => {
+                const value = ctx.text(column).toLowerCase();
+                if (value && !["1", "0", "true", "false", "yes", "no", "y", "n", "done", "complete", "completed", "pending"].includes(value)) {
+                    ctx.fail(column, ctx.text(column), `${column} must be Yes or No.`);
+                }
+            });
+        },
 
-        await new Promise((resolve, reject) => {
-            fs.createReadStream(filePath)
-                .pipe(csvParser())
-                .on("data", (row) => {
-                    rows.push(mapCsvRow(row));
-                })
-                .on("end", resolve)
-                .on("error", reject);
-        });
+        duplicateKey: (row, ctx) => ({
+            key: `${ctx.text("PPK Code").toLowerCase()}|${ctx.text("SKU").toLowerCase()}`,
+            column: "SKU",
+            value: ctx.text("SKU")
+        }),
 
-        const result = await ListingTracker.importRows(
-            rows,
-            req.user?.id
-        );
-
-        return res.json({
-            success: true,
-            message: "CSV import completed.",
-            data: result,
-        });
-    } catch (error) {
-        console.error("Listing Tracker CSV import error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message:
-                "CSV import failed. Check the file headers and try again.",
-        });
-    } finally {
-        fs.promises.unlink(filePath).catch(() => {});
-    }
-};
+        processRow: async (row, ctx) => {
+            const created = await ListingTracker.create(
+                {
+                    ppk_code: ctx.text("PPK Code"),
+                    shopify_handle: ctx.text("Shopify Handle"),
+                    product_name: ctx.text("Product Name"),
+                    category: ctx.text("Category"),
+                    barcode: ctx.text("Barcode"),
+                    sku: ctx.text("SKU"),
+                    mrp: ctx.cell("MRP"),
+                    season: ctx.text("Season"),
+                    collection_name: ctx.text("Collection Name"),
+                    image_link: ctx.text("Image Link"),
+                    photoshoot: ctx.text("Photoshoot"),
+                    product_listed: ctx.text("Product Listed"),
+                    remark: ctx.text("Remark")
+                },
+                req.user?.id
+            );
+            return { id: created?.id };
+        }
+    });
 
 const exportCsv = async (req, res) => {
     try {

@@ -1351,6 +1351,8 @@ function Announcements() {
             {canAdd && (
 
                 <BulkUploadModal
+    moduleKey="announcements"
+    uploadUrl={"/api/announcements/bulk-upload"}
 
                     isOpen={
                         showBulkUpload
@@ -1378,10 +1380,6 @@ function Announcements() {
 
                     title={
                         "Bulk Upload Announcements"
-                    }
-
-                    acceptedFile={
-                        ".csv,.xlsx,.xls"
                     }
 
                     sampleFile={

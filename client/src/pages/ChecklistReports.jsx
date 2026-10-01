@@ -1867,6 +1867,8 @@ const uploadChecklistReport = async (file, assembled) => {
 ====================================================== */}
 
 <BulkUploadModal
+    moduleKey="checklist-reports"
+    uploadUrl={"/api/checklist-reports/bulk-upload"}
 
     isOpen={showBulkUpload}
 
@@ -1890,11 +1892,7 @@ const uploadChecklistReport = async (file, assembled) => {
 
     uploadFunction={uploadChecklistReport}
 
-    title="Bulk Upload Checklist Reports"
-
-    acceptedFile=".csv,.xlsx,.xls"
-
-    sampleFile="/samples/checklist-report-sample.xlsx"
+    title="Bulk Upload Checklist Reports"sampleFile="/samples/checklist-report-sample.xlsx"
 
     // Matches the app-wide 100 GB ceiling (server/middleware/
     // fileSecurity.js). Files bigger than IIS's ~4 GB per-request

@@ -5,7 +5,8 @@ const { Parser } = require("json2csv");
 const ChecklistReport = require("../models/checklistReportModel");
 const Activity = require("../models/activityModel");
 const Audit = require("../models/auditModel");
-const { parseBulkFile } = require("../utils/bulkFileParser");
+const { readUpload, BulkReport, translateDbError, saveExtraData } = require("../utils/bulkUploadEngine");
+const { defineBulkModule, COMMON_GUIDELINES } = require("../config/bulkUploadModules");
 const checklistReportService = require("../services/checklistReportService");
 const { readDeleteScope } = require("../utils/deleteScope");
 
@@ -43,6 +44,32 @@ const CHECKLIST_REPORT_COLUMN_ALIASES = {
     // services/checklistReportService.js.
     "Geo Location": ["geolocation", "geo location", "coordinates", "latlong", "lat long", "gpscoordinates", "gps coordinates"]
 };
+
+defineBulkModule("checklist-reports", {
+    title: "Checklist Reports",
+    table: "checklist_submissions",
+    columns: Object.fromEntries(
+        Object.entries(CHECKLIST_REPORT_COLUMN_ALIASES).map(([name, aliases]) => [
+            name,
+            {
+                aliases,
+                required: ["Store", "Checklist Type"].includes(name) ? true : undefined,
+                sample: {
+                    "Store": "MRPL - HISAR (556)",
+                    "Checklist Type": "Opening Checklist",
+                    "Employee": "Gulshad Muhammad (40310)",
+                    "Department": "Operations",
+                    "Question": "Is the store clean?",
+                    "Answer": "Yes",
+                    "Remarks": "",
+                    "Submission Date": "01/10/2026"
+                }[name] ?? ""
+            }
+        ])
+    ),
+    guidelines: COMMON_GUIDELINES
+});
+
 
 // ======================================================
 // CHECKLIST REPORT CONTROLLER
@@ -428,17 +455,11 @@ exports.bulkUploadChecklistReports = async (req, res) => {
 
             let parsed;
             try {
-                parsed = await parseBulkFile(
-                    uploadedPath,
-                    req.file.originalname,
-                    req.file.mimetype,
-                    CHECKLIST_REPORT_COLUMN_ALIASES,
-                    // Called every ~1000 rows while the file is being read
-                    // (see utils/bulkFileParser.js). Reading a very large
-                    // file is no longer a single blocking call, so the
-                    // status the browser is polling can now actually move
-                    // during this step instead of sitting on "Reading your
-                    // file and preparing the records…" the whole time.
+                parsed = await readUpload(
+                    req.file,
+                    "checklist-reports",
+                    // Called every ~1000 rows while the file is being read,
+                    // so the status the browser polls keeps moving.
                     (rowsReadSoFar) => {
                         updateJob(job.id, {
                             message: `Reading your file… ${rowsReadSoFar.toLocaleString()} row(s) read so far`
@@ -454,7 +475,18 @@ exports.bulkUploadChecklistReports = async (req, res) => {
                 return;
             }
 
-            const { rows, warnings: parseWarnings } = parsed;
+            const report = new BulkReport({
+                module: "checklist-reports",
+                title: "Checklist Reports",
+                fileName: req.file.originalname,
+                sourceLabel: parsed.sourceLabel,
+                headers: parsed.headers,
+                warnings: parsed.warnings,
+                total: parsed.rows.length
+            });
+
+            const { rows } = parsed;
+            const parseWarnings = report.warnings;
 
             updateJob(job.id, {
                 total: rows.length,
@@ -463,8 +495,12 @@ exports.bulkUploadChecklistReports = async (req, res) => {
             });
 
             if (!rows.length) {
+                report.fail({ __row: null }, "", req.file.originalname, "No data rows were found. Make sure the file has a Store and Checklist Type column.");
+                const emptyBody = report.toJSON();
                 finishJob(job.id, {
                     success: false,
+                    report: emptyBody.report,
+                    errorDetails: emptyBody.errorDetails,
                     message: "No recognizable rows were found in this file. Make sure it has a Store and Checklist Type column."
                 });
                 return;
@@ -483,7 +519,7 @@ exports.bulkUploadChecklistReports = async (req, res) => {
 
                 const batchResults = await Promise.all(
                     batch.map(async (row, offset) => {
-                        const rowNumber = start + offset + 2;
+                        const rowNumber = row.__row ?? start + offset + 2;
 
                         // Retry transient DB failures. These are especially
                         // important on very large imports where connection
@@ -520,15 +556,34 @@ exports.bulkUploadChecklistReports = async (req, res) => {
 
                 for (const item of batchResults) {
                     if (item.error) {
+                        const code = item.error.code;
+                        const column =
+                            code === "STORE_NOT_FOUND" ? "Store"
+                                : code === "CHECKLIST_TYPE_NOT_FOUND" ? "Checklist Type"
+                                    : null;
+                        const t = column
+                            ? { column, reason: item.error.message }
+                            : translateDbError(item.error);
+                        report.fail(item.row, t.column, t.column ? item.row[t.column] ?? "" : "", t.reason || "Import failed.");
                         errors.push(
-                            `Row ${item.rowNumber}: ${item.error.message || "Import failed."}`
+                            `Row ${item.rowNumber}${t.column ? ` · ${t.column}` : ""}: ${t.reason || "Import failed."}`
                         );
                         continue;
                     }
 
                     createdCount += 1;
+                    report.ok(item.row, { id: item.result.submissionId });
+
+                    if (item.result.submissionId && Object.keys(item.row.__extra || {}).length) {
+                        try {
+                            await saveExtraData("checklist_submissions", item.result.submissionId, item.row.__extra);
+                        } catch (extraError) {
+                            report.warn(`Row ${item.rowNumber}: saved, but extra columns could not be stored (${extraError.message}).`);
+                        }
+                    }
 
                     if (!item.result.questionMatched && item.row["Question"]) {
+                        report.note(item.row, "Question", item.row["Question"], "Question was not recognized; the submission was still imported.");
                         warnings.push(
                             `Row ${item.rowNumber}: Question "${item.row["Question"]}" was not recognized; the submission was still imported.`
                         );
@@ -546,6 +601,7 @@ exports.bulkUploadChecklistReports = async (req, res) => {
             }
 
             if (!createdCount) {
+                const body = report.toJSON();
                 finishJob(job.id, {
                     success: false,
                     processed: rows.length,
@@ -553,6 +609,8 @@ exports.bulkUploadChecklistReports = async (req, res) => {
                     skipped: errors.length,
                     errors,
                     warnings,
+                    report: body.report,
+                    errorDetails: body.errorDetails,
                     message: "No Checklist Reports were created. See the row-by-row problems below."
                 });
                 return;
@@ -580,6 +638,7 @@ exports.bulkUploadChecklistReports = async (req, res) => {
                 changed_by: req.user.id
             }, () => {});
 
+            const finalBody = report.toJSON();
             finishJob(job.id, {
                 success: true,
                 processed: rows.length,
@@ -587,6 +646,8 @@ exports.bulkUploadChecklistReports = async (req, res) => {
                 skipped: errors.length,
                 errors,
                 warnings,
+                report: finalBody.report,
+                errorDetails: finalBody.errorDetails,
                 message: `Bulk upload completed. ${createdCount.toLocaleString()} Checklist Report(s) created${errors.length ? `, ${errors.length.toLocaleString()} row(s) need review` : ""}.`
             });
 

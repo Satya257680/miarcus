@@ -56,14 +56,42 @@ import { exportFromCSV } from "../../utils/exportUtils.js";
    INITIAL FORM
 ========================================================= */
 
+const pad2 = (n) => String(n).padStart(2, "0");
+
+const ymd = (date) =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+const todayYmd = () => ymd(new Date());
+
+const addDays = (value, days) => {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return ymd(date);
+};
+
+const daysBetween = (from, to) => {
+  if (!from || !to) return 0;
+  const diff = Math.round(
+    (new Date(`${to}T00:00:00`) - new Date(`${from}T00:00:00`)) / 86400000
+  );
+  return diff >= 0 ? diff + 1 : 0;
+};
+
+const dmy = (value) => {
+  if (!value) return "—";
+  const [y, m, d] = String(value).slice(0, 10).split("-");
+  return d && m && y ? `${d}/${m}/${y}` : value;
+};
+
 const makeInitialForm = () => ({
   employee_id: "",
-  visit_date: new Date().toISOString().slice(0, 10),
-  end_date: new Date().toISOString().slice(0, 10),
+  visit_date: todayYmd(),
+  end_date: todayYmd(),
   week_off: false,
   city: "",
   reason_to_travel: "",
   planned_store_ids: [],
+  store_dates: {},
 });
 
 /* =========================================================
@@ -160,6 +188,10 @@ function VisitPlanner() {
   ======================================================= */
 
   const [form, setForm] = useState(makeInitialForm());
+
+  // Add / Edit wizard: "details" -> "dates" (store-wise dates) -> "review"
+  const [step, setStep] = useState("details");
+  const [excludedStores, setExcludedStores] = useState([]);
 
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [storeSearch, setStoreSearch] = useState("");
@@ -418,6 +450,8 @@ function VisitPlanner() {
     }
 
     setForm(next);
+    setStep("details");
+    setExcludedStores([]);
     setEmployeeSearch("");
     setStoreSearch("");
   }, [
@@ -456,23 +490,38 @@ function VisitPlanner() {
   const openEdit = async (row) => {
     setEditing(row);
 
-    const existingStoreIds = Array.isArray(
-      row.planned_store_ids
-    )
-      ? row.planned_store_ids
+    const plannedStores = Array.isArray(row.planned_stores)
+      ? row.planned_stores
       : [];
+
+    const existingStoreIds = plannedStores.length
+      ? plannedStores.map((store) => Number(store.store_id))
+      : Array.isArray(row.planned_store_ids)
+        ? row.planned_store_ids.map(Number)
+        : [];
+
+    const storeDates = {};
+    plannedStores.forEach((store) => {
+      if (store.visit_date) {
+        storeDates[Number(store.store_id)] = String(store.visit_date).slice(0, 10);
+      }
+    });
 
     setForm({
       employee_id: row.employee_id || "",
       visit_date: toInputDate(row.visit_date),
+      end_date: toInputDate(row.end_date || row.visit_date),
       week_off: Boolean(row.week_off),
       city: row.city || "",
       reason_to_travel:
         row.reason_to_travel || "",
       planned_store_ids:
         existingStoreIds,
+      store_dates: storeDates,
     });
 
+    setStep("details");
+    setExcludedStores([]);
     setEmployeeSearch(row.name || "");
     setStoreSearch("");
 
@@ -495,6 +544,7 @@ function VisitPlanner() {
 
     setShowModal(false);
     setEditing(null);
+    setStep("details");
     setEmployeeSearch("");
     setStoreSearch("");
   };
@@ -618,66 +668,172 @@ function VisitPlanner() {
   ]);
 
   /* =========================================================
+     DATE RANGE + STORE-WISE DATES
+  ========================================================= */
+
+  const totalDays = daysBetween(form.visit_date, form.end_date);
+
+  const setRange = (fromDate, toDate) => {
+    setForm((current) => {
+      const nextFrom = fromDate ?? current.visit_date;
+      let nextTo = toDate ?? current.end_date;
+      if (nextFrom && (!nextTo || nextTo < nextFrom)) nextTo = nextFrom;
+
+      // Keep every store date inside the new range.
+      const storeDates = { ...current.store_dates };
+      Object.keys(storeDates).forEach((id) => {
+        if (storeDates[id] < nextFrom || storeDates[id] > nextTo) {
+          delete storeDates[id];
+        }
+      });
+
+      return {
+        ...current,
+        visit_date: nextFrom,
+        end_date: nextTo,
+        store_dates: storeDates,
+      };
+    });
+  };
+
+  const applyPreset = (preset) => {
+    const now = new Date();
+    if (preset === "today") {
+      setRange(todayYmd(), todayYmd());
+    } else if (preset === "week") {
+      const day = (now.getDay() + 6) % 7; // Monday = 0
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - day);
+      setRange(ymd(monday), addDays(ymd(monday), 6));
+    } else if (preset === "month") {
+      setRange(
+        ymd(new Date(now.getFullYear(), now.getMonth(), 1)),
+        ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+      );
+    } else {
+      setRange(todayYmd(), todayYmd());
+    }
+  };
+
+  const storeDateFor = (storeId) =>
+    form.store_dates?.[Number(storeId)] || form.visit_date;
+
+  const setStoreDate = (storeId, value) => {
+    setForm((current) => ({
+      ...current,
+      store_dates: {
+        ...current.store_dates,
+        [Number(storeId)]: value,
+      },
+    }));
+  };
+
+  // Spreads the selected stores over the date range, in order:
+  // store 1 -> From date, store 2 -> next day, ... (wraps around).
+  const autoFillDates = () => {
+    const days = Math.max(1, totalDays);
+    setForm((current) => {
+      const storeDates = { ...current.store_dates };
+      current.planned_store_ids
+        .filter((id) => !excludedStores.includes(Number(id)))
+        .forEach((id, index) => {
+          storeDates[Number(id)] = addDays(current.visit_date, index % days);
+        });
+      return { ...current, store_dates: storeDates };
+    });
+  };
+
+  const includedStoreIds = form.planned_store_ids
+    .map(Number)
+    .filter((id) => !excludedStores.includes(id));
+
+  const storeById = (storeId) =>
+    stores.find((store) => Number(store.id) === Number(storeId)) ||
+    (editing?.planned_stores || []).find(
+      (store) => Number(store.store_id) === Number(storeId)
+    ) ||
+    null;
+
+  const validateDetails = () => {
+    if (!form.employee_id) return "Please select the employee.";
+    if (!form.visit_date || !form.end_date) return "Please select the From and To dates.";
+    if (form.end_date < form.visit_date) return "To date cannot be before the From date.";
+    if (!String(form.reason_to_travel || "").trim()) return "Reason to travel is required.";
+    if (!form.week_off && !form.planned_store_ids.length) return "Please select at least one planned store.";
+    return "";
+  };
+
+  const validateDates = () => {
+    if (form.week_off) return "";
+    if (!includedStoreIds.length) return "Please keep at least one store selected.";
+    const outside = includedStoreIds.find((id) => {
+      const date = storeDateFor(id);
+      return !date || date < form.visit_date || date > form.end_date;
+    });
+    if (outside) {
+      const store = storeById(outside);
+      return `Visit date for ${getStoreName(store) || store?.store_name || "a store"} must be between ${dmy(form.visit_date)} and ${dmy(form.end_date)}.`;
+    }
+    return "";
+  };
+
+  const goToDates = () => {
+    const problem = validateDetails();
+    if (problem) {
+      alert(problem);
+      return;
+    }
+    setExcludedStores([]);
+    setStep(form.week_off ? "review" : "dates");
+  };
+
+  const goToReview = () => {
+    const problem = validateDates();
+    if (problem) {
+      alert(problem);
+      return;
+    }
+    setStep("review");
+  };
+
+  /* =========================================================
      SAVE
   ========================================================= */
 
   const save = async (event) => {
-    event.preventDefault();
+    event?.preventDefault?.();
 
-    if (
-      !form.employee_id ||
-      !form.visit_date
-    ) {
-      alert(
-        "Employee and date are required."
-      );
-
+    if (step !== "review") {
+      if (step === "details") goToDates();
+      else goToReview();
       return;
     }
 
-    if (form.week_off) {
-      if (!form.end_date) {
-        alert("Leave end date is required when Week off is selected.");
-        return;
-      }
-
-      if (form.end_date < form.visit_date) {
-        alert("Leave To date cannot be before the From date.");
-        return;
-      }
-    }
-
-    if (
-      !form.week_off &&
-      form.planned_store_ids.length === 0
-    ) {
-      alert(
-        "Please select at least one planned store."
-      );
-
+    const problem = validateDetails() || validateDates();
+    if (problem) {
+      alert(problem);
       return;
     }
 
     setSaving(true);
 
     try {
+      const plannedStores = form.week_off
+        ? []
+        : includedStoreIds.map((id) => ({
+            store_id: id,
+            visit_date: storeDateFor(id),
+          }));
+
       const payload = {
-        ...form,
-
-        employee_id: Number(
-          form.employee_id
-        ),
-
-        end_date: form.week_off
-          ? form.end_date
-          : form.visit_date,
-
-        planned_store_ids:
-          form.week_off
-            ? []
-            : form.planned_store_ids.map(
-                (id) => Number(id)
-              ),
+        employee_id: Number(form.employee_id),
+        visit_date: form.visit_date,
+        end_date: form.end_date,
+        week_off: form.week_off,
+        city: form.city,
+        reason_to_travel: form.reason_to_travel,
+        planned_stores: plannedStores,
+        planned_store_ids: plannedStores.map((store) => store.store_id),
       };
 
       if (editing) {
@@ -695,6 +851,7 @@ function VisitPlanner() {
        */
       setShowModal(false);
       setEditing(null);
+      setStep("details");
 
       await load();
     } catch (error) {
@@ -890,21 +1047,25 @@ function VisitPlanner() {
       title: "Date / Period",
       render: (row) => {
         const start = formatDate(row.visit_date);
-        const end = row.end_date && row.end_date !== row.visit_date
-          ? formatDate(row.end_date)
-          : null;
+        const endValue = row.end_date || row.visit_date;
+        const end =
+          String(endValue).slice(0, 10) !== String(row.visit_date).slice(0, 10)
+            ? formatDate(endValue)
+            : null;
+        const days = Number(row.total_days || 1);
 
-        return row.week_off && end ? (
+        return end ? (
           <span className="sales-date-range-cell">
             <strong>{start}</strong>
             <span>to</span>
             <strong>{end}</strong>
+            <small className="vp-days-pill">{days} day{days === 1 ? "" : "s"}</small>
           </span>
         ) : (
           start
         );
       },
-      minWidth: "120px",
+      minWidth: "140px",
     },
 
     {
@@ -961,25 +1122,45 @@ function VisitPlanner() {
 
     {
       key: "planned_store_names",
-      title: "Planned",
-      minWidth: "210px",
-      render: (row) =>
-        row.week_off ? (
-          <span className="pp-pill pp-pill--amber">
-            <FaUmbrellaBeach />
-            Week off
-            {row.leave_days > 1
-              ? ` · ${row.leave_days} days`
-              : ""}
-          </span>
-        ) : (
-          <span
-            className="sales-wrap-cell sales-wrap-cell--planned"
-            title={row.planned_store_names || "—"}
-          >
-            {row.planned_store_names || "—"}
-          </span>
-        ),
+      title: "Planned Stores & Dates",
+      minWidth: "260px",
+      render: (row) => {
+        if (row.week_off) {
+          return (
+            <span className="pp-pill pp-pill--amber">
+              <FaUmbrellaBeach />
+              Week off
+              {row.leave_days > 1
+                ? ` · ${row.leave_days} days`
+                : ""}
+            </span>
+          );
+        }
+
+        const list = Array.isArray(row.planned_stores) ? row.planned_stores : [];
+
+        if (!list.length) {
+          return (
+            <span className="sales-wrap-cell sales-wrap-cell--planned" title={row.planned_store_names || "—"}>
+              {row.planned_store_names || "—"}
+            </span>
+          );
+        }
+
+        return (
+          <div className="vp-schedule-cell" title={row.planned_store_schedule || ""}>
+            {list.slice(0, 4).map((store) => (
+              <span key={store.store_id} className="vp-schedule-chip">
+                <strong>{store.store_name}</strong>
+                {store.visit_date ? <em>{dmy(store.visit_date)}</em> : null}
+              </span>
+            ))}
+            {list.length > 4 && (
+              <span className="vp-schedule-more">+{list.length - 4} more</span>
+            )}
+          </div>
+        );
+      },
     },
 
     {
@@ -1285,15 +1466,15 @@ function VisitPlanner() {
       ===================================================== */}
 
       <BulkUploadModal
+    moduleKey="visit-plans"
+    uploadUrl={"/api/sales-team/visit-plans/import"}
         isOpen={showBulkModal}
         onClose={() =>
           setShowBulkModal(false)
         }
         title="Bulk Upload Visit Plans"
         uploadFunction={importFile}
-        onSuccess={load}
-        acceptedFile=".csv,.xlsx,.xls"
-      />
+        onSuccess={load}/>
 
       {/* =====================================================
           ADD / EDIT MODAL
@@ -1304,687 +1485,551 @@ function VisitPlanner() {
           className="sales-modal-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
+            if (event.target === event.currentTarget) {
               closeModal();
             }
           }}
         >
           <form
-            className="sales-form-modal visit-form-modal"
+            className="sales-form-modal visit-form-modal vp-wizard"
             onSubmit={save}
           >
             {/* =================================================
-                MODAL HEADER
+                HEADER
             ================================================= */}
 
             <div className="sales-modal-header">
               <div>
                 <h2>
-                  {editing
-                    ? "Edit Planned Visit"
-                    : "Add Planned Visit"}
+                  {step === "details"
+                    ? editing ? "Edit Planned Visit" : "Add Planned Visit"
+                    : step === "dates"
+                      ? "Select Stores & Dates"
+                      : "Review Visit Plan"}
                 </h2>
-
                 <p>
-                  {editing
-                    ? "Changes will be sent for approval again."
-                    : "New plans are always submitted as Pending."}
+                  {step === "details"
+                    ? editing
+                      ? "Changes will be sent for approval again."
+                      : "New plans are always submitted as Pending."
+                    : step === "dates"
+                      ? `Give every store its own visit date between ${dmy(form.visit_date)} and ${dmy(form.end_date)}.`
+                      : "Check the plan, then submit it for approval."}
                 </p>
               </div>
 
               <button
                 type="button"
                 className="sales-modal-close"
-                onClick={
-                  closeModal
-                }
+                onClick={closeModal}
                 disabled={saving}
               >
                 <FaTimes />
               </button>
             </div>
 
+            <div className="vp-steps">
+              {[
+                ["details", "Plan details"],
+                ["dates", "Stores & dates"],
+                ["review", "Review"],
+              ].map(([key, label], index) => {
+                const order = ["details", "dates", "review"];
+                const state =
+                  order.indexOf(step) > index ? "done" : step === key ? "active" : "";
+                return (
+                  <span key={key} className={`vp-step ${state} ${form.week_off && key === "dates" ? "skipped" : ""}`}>
+                    <b>{state === "done" ? <FaCheckCircle /> : index + 1}</b>
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+
             {/* =================================================
-                MODAL BODY
+                STEP 1 — DETAILS
             ================================================= */}
 
-            <div className="sales-form-grid">
-              {/* =================================================
-                  EMPLOYEE
-              ================================================= */}
-
-              <label className="sales-field sales-field-full">
-                <span>
-                  Employee <b>*</b>
-                </span>
-
-                <select
-                  value={
-                    form.employee_id
-                  }
-                  disabled={
-                    !admin ||
-                    saving
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        employee_id:
-                          event
-                            .target
-                            .value,
-                      })
-                    )
-                  }
-                  required
-                >
-                  <option value="">
-                    Select employee
-                  </option>
-
-                  {filteredEmployees.map(
-                    (employee) => (
-                      <option
-                        key={
-                          employee.id
-                        }
-                        value={
-                          employee.id
-                        }
-                      >
-                        {employee.name}{" "}
-                        {employee.employee_id
-                          ? `(${employee.employee_id})`
-                          : ""}
-                      </option>
-                    )
-                  )}
-                </select>
-
-                {admin && (
-                  <input
-                    className="sales-field-search"
-                    value={
-                      employeeSearch
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setEmployeeSearch(
-                        event.target
-                          .value
-                      )
-                    }
-                    placeholder="Search employee name, ID or email..."
-                    disabled={
-                      saving
-                    }
-                  />
-                )}
-
-                {!filteredEmployees.length && (
-                  <small className="sales-field-help">
-                    No employees found.
-                  </small>
-                )}
-              </label>
-
-              {/* =================================================
-                  DATE / LEAVE RANGE
-              ================================================= */}
-
-              <label className="sales-field">
-                <span>
-                  {form.week_off ? "From date" : "Date"} <b>*</b>
-                </span>
-
-                <input
-                  type="date"
-                  value={form.visit_date}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      visit_date: event.target.value,
-                      end_date:
-                        current.week_off &&
-                        (!current.end_date || current.end_date < event.target.value)
-                          ? event.target.value
-                          : current.end_date,
-                    }))
-                  }
-                  required
-                  disabled={saving}
-                />
-              </label>
-
-              {/* =================================================
-                  WEEK OFF / LEAVE
-              ================================================= */}
-
-              <label className="sales-check-field">
-                <input
-                  type="checkbox"
-                  checked={
-                    form.week_off
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        week_off:
-                          event
-                            .target
-                            .checked,
-
-                        planned_store_ids:
-                          event
-                            .target
-                            .checked
-                            ? []
-                            : current.planned_store_ids,
-                      })
-                    )
-                  }
-                  disabled={
-                    saving
-                  }
-                />
-
-                <span>
-                  Week off / Leave
-                </span>
-              </label>
-
-              {form.week_off && (
-                <label className="sales-field">
+            {step === "details" && (
+              <div className="sales-form-grid">
+                {/* EMPLOYEE */}
+                <label className="sales-field sales-field-full">
                   <span>
-                    To date <b>*</b>
+                    Employee <b>*</b>
                   </span>
 
-                  <input
-                    type="date"
-                    value={form.end_date}
-                    min={form.visit_date}
+                  <select
+                    value={form.employee_id}
+                    disabled={!admin || saving}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        end_date: event.target.value,
+                        employee_id: event.target.value,
                       }))
                     }
                     required
+                  >
+                    <option value="">Select employee</option>
+                    {filteredEmployees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name}{" "}
+                        {employee.employee_id ? `(${employee.employee_id})` : ""}
+                      </option>
+                    ))}
+                  </select>
+
+                  {admin && (
+                    <input
+                      className="sales-field-search"
+                      value={employeeSearch}
+                      onChange={(event) => setEmployeeSearch(event.target.value)}
+                      placeholder="Search employee name, ID or email..."
+                      disabled={saving}
+                    />
+                  )}
+
+                  {!filteredEmployees.length && (
+                    <small className="sales-field-help">No employees found.</small>
+                  )}
+                </label>
+
+                {/* DATE RANGE */}
+                <div className="sales-field sales-field-full">
+                  <span>
+                    Date Range <b>*</b>
+                  </span>
+
+                  <div className="vp-range">
+                    <label className="vp-range-input">
+                      <small>From</small>
+                      <input
+                        type="date"
+                        value={form.visit_date}
+                        onChange={(event) => setRange(event.target.value, undefined)}
+                        required
+                        disabled={saving}
+                      />
+                    </label>
+                    <span className="vp-range-arrow">→</span>
+                    <label className="vp-range-input">
+                      <small>To</small>
+                      <input
+                        type="date"
+                        value={form.end_date}
+                        min={form.visit_date}
+                        onChange={(event) => setRange(undefined, event.target.value)}
+                        required
+                        disabled={saving}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="vp-range-meta">
+                    <strong>
+                      Total Days: {totalDays || "—"}
+                      {totalDays === 1 ? " (single day)" : ""}
+                    </strong>
+                    <div className="vp-presets">
+                      <button type="button" onClick={() => applyPreset("today")} disabled={saving}>Today</button>
+                      <button type="button" onClick={() => applyPreset("week")} disabled={saving}>This Week</button>
+                      <button type="button" onClick={() => applyPreset("month")} disabled={saving}>This Month</button>
+                      <button type="button" onClick={() => applyPreset("clear")} disabled={saving}>Clear</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* WEEK OFF */}
+                <label className="sales-check-field">
+                  <input
+                    type="checkbox"
+                    checked={form.week_off}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        week_off: event.target.checked,
+                        planned_store_ids: event.target.checked ? [] : current.planned_store_ids,
+                      }))
+                    }
                     disabled={saving}
                   />
-
-                  <small className="sales-field-help">
-                    {form.visit_date && form.end_date && form.end_date >= form.visit_date
-                      ? `${Math.floor((new Date(`${form.end_date}T00:00:00`) - new Date(`${form.visit_date}T00:00:00`)) / 86400000) + 1} day${Math.floor((new Date(`${form.end_date}T00:00:00`) - new Date(`${form.visit_date}T00:00:00`)) / 86400000) === 0 ? "" : "s"} leave`
-                      : "Select the last leave day."}
-                  </small>
+                  <span>Week off / Leave</span>
                 </label>
-              )}
 
-              {/* =================================================
-                  CITY
-              ================================================= */}
-
-              <label className="sales-field sales-field-full">
-                <span>
-                  City
-                </span>
-
-                <input
-                  value={
-                    form.city
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        city:
-                          event
-                            .target
-                            .value,
-                      })
-                    )
-                  }
-                  placeholder="Enter city or select a planned store"
-                  disabled={
-                    saving
-                  }
-                />
-              </label>
-
-              {/* =================================================
-                  REASON
-              ================================================= */}
-
-              <label className="sales-field sales-field-full">
-                <span>
-                  Reason to travel
-                </span>
-
-                <textarea
-                  value={
-                    form.reason_to_travel
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        reason_to_travel:
-                          event
-                            .target
-                            .value,
-                      })
-                    )
-                  }
-                  placeholder="Purpose of this visit..."
-                  rows={4}
-                  disabled={
-                    saving
-                  }
-                />
-              </label>
-
-              {/* =================================================
-                  STORES
-              ================================================= */}
-
-              {!form.week_off && (
-                <div className="sales-field sales-field-full">
-                  <div className="sales-store-picker-header">
-                    <div>
-                      <span>
-                        Planned stores{" "}
-                        <b>*</b>
-                      </span>
-
-                      <small className="sales-field-help">
-                        Stores are loaded directly from Store Management.
-                      </small>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="sales-store-refresh-btn"
-                      onClick={
-                        loadLookups
-                      }
-                      disabled={
-                        lookupLoading ||
-                        saving
-                      }
-                    >
-                      <FaSyncAlt
-                        className={
-                          lookupLoading
-                            ? "sales-spin"
-                            : ""
-                        }
-                      />
-
-                      {lookupLoading
-                        ? "Refreshing..."
-                        : "Refresh stores"}
-                    </button>
-                  </div>
-
-                  {/* =============================================
-                      STORE SEARCH
-                  ============================================= */}
-
+                {/* CITY */}
+                <label className="sales-field sales-field-full">
+                  <span>
+                    City <small className="sales-field-help">(Optional)</small>
+                  </span>
                   <input
-                    className="sales-store-search"
-                    value={
-                      storeSearch
+                    value={form.city}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, city: event.target.value }))
                     }
-                    onChange={(
-                      event
-                    ) =>
-                      setStoreSearch(
-                        event.target
-                          .value
-                      )
-                    }
-                    placeholder="Search store name, code, city, state or address..."
-                    disabled={
-                      saving
-                    }
+                    placeholder="Enter city or select a planned store"
+                    disabled={saving}
                   />
+                </label>
 
-                  {/* =============================================
-                      STORE ACTIONS
-                  ============================================= */}
+                {/* REASON */}
+                <label className="sales-field sales-field-full">
+                  <span>
+                    Reason to travel <b>*</b>
+                  </span>
+                  <textarea
+                    value={form.reason_to_travel}
+                    maxLength={200}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        reason_to_travel: event.target.value,
+                      }))
+                    }
+                    placeholder="Purpose of this visit..."
+                    rows={3}
+                    disabled={saving}
+                  />
+                  <small className="vp-counter">{String(form.reason_to_travel || "").length}/200</small>
+                </label>
 
-                  <div className="sales-store-picker-actions">
-                    <span>
-                      {filteredStores.length}{" "}
-                      matching store
-                      {filteredStores.length ===
-                      1
-                        ? ""
-                        : "s"}
-                    </span>
+                {/* STORES */}
+                {!form.week_off && (
+                  <div className="sales-field sales-field-full">
+                    <div className="sales-store-picker-header">
+                      <div>
+                        <span>
+                          Planned stores <b>*</b>
+                        </span>
+                        <small className="sales-field-help">
+                          Select stores now — you assign a date for each store in the next step.
+                        </small>
+                      </div>
 
-                    <div>
                       <button
                         type="button"
-                        onClick={
-                          selectAllFilteredStores
-                        }
-                        disabled={
-                          !filteredStores.length ||
-                          saving
-                        }
+                        className="sales-store-refresh-btn"
+                        onClick={loadLookups}
+                        disabled={lookupLoading || saving}
                       >
-                        Select all
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={
-                          clearFilteredStores
-                        }
-                        disabled={
-                          !filteredStores.length ||
-                          saving
-                        }
-                      >
-                        Clear matching
+                        <FaSyncAlt className={lookupLoading ? "sales-spin" : ""} />
+                        {lookupLoading ? "Refreshing..." : "Refresh stores"}
                       </button>
                     </div>
-                  </div>
 
-                  {/* =============================================
-                      STORE LIST
-                  ============================================= */}
+                    <input
+                      className="sales-store-search"
+                      value={storeSearch}
+                      onChange={(event) => setStoreSearch(event.target.value)}
+                      placeholder="Search store name, code, city, state or address..."
+                      disabled={saving}
+                    />
 
-                  <div className="sales-store-picker">
-                    {lookupLoading ? (
-                      <div className="sales-picker-loading">
-                        <PremiumLoader compact title="Loading stores from Store Management" />
+                    <div className="sales-store-picker-actions">
+                      <span>
+                        {filteredStores.length} matching store
+                        {filteredStores.length === 1 ? "" : "s"}
+                      </span>
+                      <div>
+                        <button type="button" onClick={selectAllFilteredStores} disabled={!filteredStores.length || saving}>
+                          Select all
+                        </button>
+                        <button type="button" onClick={clearFilteredStores} disabled={!filteredStores.length || saving}>
+                          Clear matching
+                        </button>
                       </div>
-                    ) : filteredStores.length ? (
-                      filteredStores.map(
-                        (store) => {
-                          const selected =
-                            form.planned_store_ids.some(
-                              (id) =>
-                                Number(
-                                  id
-                                ) ===
-                                Number(
-                                  store.id
-                                )
-                            );
+                    </div>
 
-                          const storeName =
-                            getStoreName(
-                              store
-                            ) ||
-                            "Unnamed Store";
-
-                          const storeCode =
-                            getStoreCode(
-                              store
-                            );
-
-                          const city =
-                            getStoreCity(
-                              store
-                            );
-
-                          const state =
-                            getStoreState(
-                              store
-                            );
-
-                          const address =
-                            getStoreAddress(
-                              store
-                            );
-
-                          const status =
-                            getStoreStatus(
-                              store
-                            );
+                    <div className="sales-store-picker">
+                      {lookupLoading ? (
+                        <div className="sales-picker-loading">
+                          <PremiumLoader compact title="Loading stores from Store Management" />
+                        </div>
+                      ) : filteredStores.length ? (
+                        filteredStores.map((store) => {
+                          const selected = form.planned_store_ids.some(
+                            (id) => Number(id) === Number(store.id)
+                          );
+                          const storeCode = getStoreCode(store);
+                          const city = getStoreCity(store);
+                          const state = getStoreState(store);
 
                           return (
                             <label
-                              key={
-                                store.id
-                              }
-                              className={`sales-store-option ${
-                                selected
-                                  ? "selected"
-                                  : ""
-                              }`}
+                              key={store.id}
+                              className={`sales-store-option ${selected ? "selected" : ""}`}
                             >
                               <input
                                 type="checkbox"
-                                checked={
-                                  selected
-                                }
-                                onChange={() =>
-                                  toggleStore(
-                                    store.id
-                                  )
-                                }
-                                disabled={
-                                  saving
-                                }
+                                checked={selected}
+                                onChange={() => toggleStore(store.id)}
+                                disabled={saving}
                               />
-
                               <span className="sales-store-option-content">
-                                <strong>
-                                  {
-                                    storeName
-                                  }
-                                </strong>
-
+                                <strong>{getStoreName(store) || "Unnamed Store"}</strong>
                                 <small>
-                                  {storeCode
-                                    ? `Code: ${storeCode}`
-                                    : ""}
-
-                                  {city
-                                    ? ` · ${city}`
-                                    : ""}
-
-                                  {state
-                                    ? ` · ${state}`
-                                    : ""}
+                                  {storeCode ? `Code: ${storeCode}` : ""}
+                                  {city ? ` · ${city}` : ""}
+                                  {state ? ` · ${state}` : ""}
                                 </small>
-
-                                {address && (
-                                  <small className="sales-store-address">
-                                    {address}
-                                  </small>
-                                )}
-
-                                {status && (
-                                  <small className="sales-store-status">
-                                    {status}
-                                  </small>
-                                )}
                               </span>
                             </label>
                           );
-                        }
-                      )
-                    ) : (
-                      <div className="sales-picker-empty">
-                        <strong>
-                          No stores found
-                        </strong>
+                        })
+                      ) : (
+                        <div className="sales-picker-empty">
+                          <strong>No stores found</strong>
+                          <span>Try another search or refresh the Store Management list.</span>
+                        </div>
+                      )}
+                    </div>
 
-                        <span>
-                          Try another search or refresh the Store Management list.
-                        </span>
+                    <div className="sales-selected-summary">
+                      <strong>{form.planned_store_ids.length}</strong> store
+                      {form.planned_store_ids.length === 1 ? "" : "s"} selected
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* =================================================
+                STEP 2 — STORE-WISE DATES
+            ================================================= */}
+
+            {step === "dates" && (
+              <div className="vp-dates">
+                <div className="vp-dates-toolbar">
+                  <label className="vp-select-all">
+                    <input
+                      type="checkbox"
+                      checked={excludedStores.length === 0 && form.planned_store_ids.length > 0}
+                      onChange={(event) =>
+                        setExcludedStores(event.target.checked ? [] : form.planned_store_ids.map(Number))
+                      }
+                    />
+                    Select all ({form.planned_store_ids.length})
+                  </label>
+
+                  <div className="vp-dates-actions">
+                    <span className="vp-range-chip">
+                      {dmy(form.visit_date)} → {dmy(form.end_date)} · {totalDays} day{totalDays === 1 ? "" : "s"}
+                    </span>
+                    <button type="button" className="vp-soft-btn" onClick={autoFillDates}>
+                      <FaSyncAlt /> Auto Fill Dates
+                    </button>
+                  </div>
+                </div>
+
+                <div className="vp-dates-table-wrap">
+                  <table className="vp-dates-table">
+                    <thead>
+                      <tr>
+                        <th />
+                        <th>#</th>
+                        <th>Store Name (Code)</th>
+                        <th>City</th>
+                        <th>Visit Date</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.planned_store_ids.map((storeId, index) => {
+                        const store = storeById(storeId);
+                        const name = getStoreName(store) || store?.store_name || `Store #${storeId}`;
+                        const code = getStoreCode(store) || store?.store_code;
+                        const excluded = excludedStores.includes(Number(storeId));
+                        const date = storeDateFor(storeId);
+                        const invalid = !excluded && (date < form.visit_date || date > form.end_date);
+
+                        return (
+                          <tr key={storeId} className={excluded ? "excluded" : ""}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={!excluded}
+                                onChange={() =>
+                                  setExcludedStores((current) =>
+                                    current.includes(Number(storeId))
+                                      ? current.filter((id) => id !== Number(storeId))
+                                      : [...current, Number(storeId)]
+                                  )
+                                }
+                              />
+                            </td>
+                            <td>{index + 1}</td>
+                            <td>
+                              <strong>{name}</strong>
+                              {code ? <small> ({code})</small> : null}
+                            </td>
+                            <td>{getStoreCity(store) || store?.city || "—"}</td>
+                            <td>
+                              <input
+                                type="date"
+                                className={invalid ? "invalid" : ""}
+                                value={date}
+                                min={form.visit_date}
+                                max={form.end_date}
+                                disabled={excluded}
+                                onChange={(event) => setStoreDate(storeId, event.target.value)}
+                              />
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="vp-remove"
+                                title="Remove store"
+                                onClick={() => toggleStore(storeId)}
+                              >
+                                <FaTimes />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="vp-dates-footer">
+                  <span>
+                    <FaCheckCircle /> Selected Stores: <strong>{includedStoreIds.length}</strong>
+                  </span>
+                  <button type="button" className="vp-soft-btn" onClick={() => setStep("details")}>
+                    <FaPlus /> Add More Stores
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================
+                STEP 3 — REVIEW
+            ================================================= */}
+
+            {step === "review" && (() => {
+              const employee =
+                employees.find((e) => Number(e.id) === Number(form.employee_id)) ||
+                (editing && Number(editing.employee_id) === Number(form.employee_id)
+                  ? { name: editing.name, employee_id: editing.employee_code }
+                  : null);
+
+              const plannedRows = includedStoreIds
+                .map((id) => ({ id, store: storeById(id), date: storeDateFor(id) }))
+                .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+              return (
+                <div className="vp-review">
+                  <div className="vp-review-section">
+                    <h4>Employee Details</h4>
+                    <div className="vp-review-employee">
+                      <span className={`pp-avatar pp-avatar--round ${avatarTone(employee?.name)}`}>
+                        {initials(employee?.name)}
+                      </span>
+                      <div>
+                        <strong>
+                          {employee?.name || "—"}
+                          {employee?.employee_id ? ` (${employee.employee_id})` : ""}
+                        </strong>
+                        <small>{employee?.designation || employee?.department || ""}</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="vp-review-grid">
+                    <div className="vp-review-card">
+                      <small>Date Range</small>
+                      <strong>{dmy(form.visit_date)} → {dmy(form.end_date)}</strong>
+                      <em>Total Days: {totalDays}</em>
+                    </div>
+                    <div className="vp-review-card">
+                      <small>City</small>
+                      <strong>{form.city || "—"}</strong>
+                    </div>
+                    <div className="vp-review-card">
+                      <small>Reason to Travel</small>
+                      <strong>{form.reason_to_travel || "—"}</strong>
+                    </div>
+                    {form.week_off && (
+                      <div className="vp-review-card">
+                        <small>Type</small>
+                        <strong>Week off / Leave</strong>
                       </div>
                     )}
                   </div>
 
-                  {/* =============================================
-                      SELECTED SUMMARY
-                  ============================================= */}
-
-                  <div className="sales-selected-summary">
-                    <strong>
-                      {
-                        form
-                          .planned_store_ids
-                          .length
-                      }
-                    </strong>{" "}
-                    store
-                    {form
-                      .planned_store_ids
-                      .length === 1
-                      ? ""
-                      : "s"}{" "}
-                    selected
-                  </div>
-
-                  {/* =============================================
-                      SELECTED STORE CHIPS
-                  ============================================= */}
-
-                  {form.planned_store_ids
-                    .length > 0 && (
-                    <div className="sales-selected-store-list">
-                      {form.planned_store_ids.map(
-                        (storeId) => {
-                          const selectedStore =
-                            stores.find(
-                              (store) =>
-                                Number(
-                                  store.id
-                                ) ===
-                                Number(
-                                  storeId
-                                )
-                            );
-
-                          if (
-                            !selectedStore
-                          ) {
-                            return (
-                              <span
-                                key={
-                                  storeId
-                                }
-                                className="sales-selected-store-chip"
-                              >
-                                Store #
-                                {
-                                  storeId
-                                }
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    toggleStore(
-                                      storeId
-                                    )
-                                  }
-                                  disabled={
-                                    saving
-                                  }
-                                  aria-label="Remove store"
-                                >
-                                  <FaTimes />
-                                </button>
-                              </span>
-                            );
-                          }
-
-                          return (
-                            <span
-                              key={
-                                storeId
-                              }
-                              className="sales-selected-store-chip"
-                            >
-                              {getStoreName(
-                                selectedStore
-                              ) ||
-                                `Store #${storeId}`}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  toggleStore(
-                                    storeId
-                                  )
-                                }
-                                disabled={
-                                  saving
-                                }
-                                aria-label="Remove store"
-                              >
-                                <FaTimes />
-                              </button>
-                            </span>
-                          );
-                        }
-                      )}
+                  {!form.week_off && (
+                    <div className="vp-review-section">
+                      <h4>Planned Stores ({plannedRows.length})</h4>
+                      <div className="vp-dates-table-wrap">
+                        <table className="vp-dates-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Store Name (Code)</th>
+                              <th>City</th>
+                              <th>Visit Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {plannedRows.map(({ id, store, date }, index) => (
+                              <tr key={id}>
+                                <td>{index + 1}</td>
+                                <td>
+                                  {getStoreName(store) || store?.store_name || `Store #${id}`}
+                                  {getStoreCode(store) || store?.store_code ? ` (${getStoreCode(store) || store?.store_code})` : ""}
+                                </td>
+                                <td>{getStoreCity(store) || store?.city || "—"}</td>
+                                <td>{dmy(date)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* =================================================
-                MODAL ACTIONS
+                ACTIONS
             ================================================= */}
 
             <div className="sales-modal-actions">
-              <button
-                type="button"
-                className="modal-secondary-btn"
-                onClick={
-                  closeModal
-                }
-                disabled={saving}
-              >
-                Cancel
-              </button>
+              {step === "details" ? (
+                <button type="button" className="modal-secondary-btn" onClick={closeModal} disabled={saving}>
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="modal-secondary-btn"
+                  onClick={() => setStep(step === "review" && !form.week_off ? "dates" : "details")}
+                  disabled={saving}
+                >
+                  {step === "review" ? "Edit" : "Back"}
+                </button>
+              )}
 
-              <button
-                type="submit"
-                className="modal-primary-btn"
-                disabled={
-                  saving ||
-                  lookupLoading
-                }
-              >
-                {saving
-                  ? "Saving..."
-                  : editing
-                    ? "Submit Changes for Approval"
-                    : "Submit for Approval"}
-              </button>
+              {step === "details" && (
+                <button type="button" className="modal-primary-btn" onClick={goToDates} disabled={saving || lookupLoading}>
+                  {form.week_off ? "Next: Review" : "Next: Select Stores & Dates"} →
+                </button>
+              )}
+
+              {step === "dates" && (
+                <button type="button" className="modal-primary-btn" onClick={goToReview} disabled={saving}>
+                  Preview &amp; Submit →
+                </button>
+              )}
+
+              {step === "review" && (
+                <button type="submit" className="modal-primary-btn vp-submit" disabled={saving}>
+                  {saving
+                    ? "Saving..."
+                    : editing
+                      ? "Submit Changes for Approval"
+                      : "Submit for Approval"}
+                </button>
+              )}
             </div>
           </form>
         </div>

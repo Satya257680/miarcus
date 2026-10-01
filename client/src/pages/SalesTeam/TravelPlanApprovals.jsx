@@ -614,7 +614,7 @@ function TravelPlanApprovals() {
 
                       <div>
                         <small>Planned stores</small>
-                        <p>{plan.planned_store_names || "No stores selected"}</p>
+                        <p>{plan.planned_store_schedule || plan.planned_store_names || "No stores selected"}</p>
                       </div>
 
                       <div>

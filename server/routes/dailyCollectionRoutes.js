@@ -1,4 +1,8 @@
 const express = require("express");
+
+// Shared "any format" bulk-upload middleware (Excel / CSV / Word / PDF /
+// photo) — see utils/bulkUploadEngine.js.
+const bulkFileUpload = require("../middleware/bulkFileUpload");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -25,7 +29,7 @@ router.put("/email-settings", authMiddleware, adminOnly, controller.updateDailyC
 router.post("/blocked", authMiddleware, adminOnly, controller.blockDailyCollection);
 router.post("/blocked/:controlId/unblock", authMiddleware, adminOnly, controller.unblockDailyCollection);
 
-router.post("/bulk-upload", extendUploadTimeout, authMiddleware, canAddBilling, upload.single("file"), controller.bulkUploadDailyCollections);
+router.post("/bulk-upload", extendUploadTimeout, authMiddleware, canAddBilling, bulkFileUpload.single("file"), controller.bulkUploadDailyCollections);
 router.delete("/delete-all", authMiddleware, adminOnly, controller.deleteAllDailyCollections);
 
 router.post("/", authMiddleware, canAddBilling, controller.submitDailyCollection);

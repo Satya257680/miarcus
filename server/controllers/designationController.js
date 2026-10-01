@@ -2,6 +2,7 @@ const { readDeleteScope } = require("../utils/deleteScope");
 const designationModel = require("../models/designationModel");
 
 const { logActivity } = require("../utils/activityLogger");
+const { runBulkUpload, call: bulkCall, sql: bulkSql } = require("../utils/bulkUploadEngine");
 
 // ======================================================
 // GET ALL DESIGNATIONS
@@ -820,233 +821,93 @@ exports.deleteAllDesignations = (req, res) => {
 
 
 // ======================================================
-// BULK UPLOAD DESIGNATIONS
+// BULK UPLOAD DESIGNATIONS  (global bulk-upload engine)
+// ======================================================
+//
+// Any format (Excel / CSV / Word / PDF / photo). Each row on its own:
+// unknown department, duplicates etc. are reported with the exact row,
+// column, value and reason while every valid row is saved. Extra
+// columns are kept with the designation (bulk_extra_data).
 // ======================================================
 
-exports.bulkUploadDesignations = async (req, res) => {
+exports.bulkUploadDesignations = (req, res) =>
+    runBulkUpload({
+        req,
+        res,
+        module: "designations",
 
-    try {
+        prepare: async (ctx) => {
+            const departments = await bulkSql("SELECT id, department_name FROM departments");
+            ctx.data.byName = new Map(departments.map((d) => [String(d.department_name || "").trim().toLowerCase(), d]));
+            ctx.data.byId = new Map(departments.map((d) => [String(d.id), d]));
+        },
 
-        if (!req.file) {
+        validateRow: async (row, ctx) => {
+            const value = ctx.text("Department");
+            const department =
+                ctx.data.byName.get(value.toLowerCase()) ||
+                (/^\d+$/.test(value) ? ctx.data.byId.get(value) : null);
 
-            return res.status(400).json({
-                success: false,
-                message: "Please upload an Excel or CSV file."
-            });
-
-        }
-
-        const XLSX = require("xlsx");
-        const fs = require("fs");
-
-        const workbook = XLSX.readFile(req.file.path);
-
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        const rows = XLSX.utils.sheet_to_json(sheet);
-
-       // ======================================
-// Get Department ID from Department Name
-// ======================================
-
-
-        console.log("Excel Data:", rows);
-
-        fs.unlinkSync(req.file.path);
-
-        if (rows.length === 0) {
-
-            return res.status(400).json({
-                success: false,
-                message: "Excel file is empty."
-            });
-
-        }
-
-        const newRows = [];
-
-        let skipped = 0;
-
-       for (const row of rows) {
-
-    let department_id =
-        row.department_id ??
-        row.Department_ID ??
-        row["Department ID"];
-
-    if (!department_id && row.department_name) {
-
-        const department = await new Promise((resolve, reject) => {
-
-            designationModel.getDepartmentByName(
-
-                row.department_name.trim(),
-
-                (err, result) => {
-
-                    if (err) return reject(err);
-
-                    resolve(result);
-
-                }
-
-            );
-
-        });
-
-        if (department.length > 0) {
-            department_id = department[0].id;
-        }
-
-    }
-            const designation_name =
-                (
-                    row.designation_name ??
-                    row.Designation ??
-                    row["Designation Name"]
-                )?.trim();
-
-            const description =
-                row.description ??
-                row.Description ??
-                "";
-
-            const status =
-                row.status ??
-                row.Status ??
-                "Active";
-
-            if (!department_id || !designation_name) {
-
-                skipped++;
-                continue;
-
+            if (value && !department) {
+                ctx.fail("Department", value, "Department does not exist. Create it in Departments first.");
+                return;
             }
 
-            const exists = await new Promise((resolve, reject) => {
+            ctx.department = department;
 
-                designationModel.checkDesignationExists(
+            const status = ctx.text("Status");
+            if (status && !["active", "inactive"].includes(status.toLowerCase())) {
+                ctx.fail("Status", status, "Status must be Active or Inactive.");
+            }
 
-                    designation_name,
-
-                    department_id,
-
-                    (err, result) => {
-
-                        if (err) return reject(err);
-
-                        resolve(result);
-
-                    }
-
+            if (department) {
+                const exists = await bulkCall(
+                    designationModel.checkDesignationExists,
+                    ctx.text("Designation Name"),
+                    department.id
                 );
-
-            });
-
-            if (exists.length > 0) {
-
-                skipped++;
-                continue;
-
-            }
-
-            newRows.push({
-
-                department_id,
-
-                designation_name,
-
-                description,
-
-                status
-
-            });
-
-        }
-
-        if (newRows.length === 0) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "No valid new designations found."
-
-            });
-
-        }
-
-        designationModel.bulkInsertDesignations(
-
-            newRows,
-
-            (err) => {
-
-                if (err) {
-
-                    console.error(err);
-
-                    return res.status(500).json({
-
-                        success: false,
-
-                        message: "Bulk upload failed."
-
-                    });
-
+                if (exists.length) {
+                    ctx.duplicate(
+                        "Designation Name",
+                        ctx.text("Designation Name"),
+                        `"${ctx.text("Designation Name")}" already exists in ${department.department_name}.`
+                    );
                 }
-
-                logActivity({
-
-                    activity_type: "Designation",
-
-                    reference_id: 0,
-
-                    title: "Bulk Upload",
-
-                    description: `${newRows.length} designations uploaded`,
-
-                    module_name: "Designations",
-
-                    status: "Closed",
-
-                    priority: "Medium",
-
-                    created_by: req.user.id,
-
-                    assigned_to: null
-
-                });
-
-                return res.status(200).json({
-
-                    success: true,
-
-                    message: `${newRows.length} designation(s) uploaded successfully. ${skipped} row(s) skipped.`
-
-                });
-
             }
+        },
 
-        );
+        duplicateKey: (row, ctx) => ({
+            key: `${ctx.department?.id}|${ctx.text("Designation Name").toLowerCase()}`,
+            column: "Designation Name",
+            value: ctx.text("Designation Name")
+        }),
 
-    }
+        processRow: async (row, ctx) => {
+            const result = await bulkCall(designationModel.createDesignation, {
+                department_id: ctx.department.id,
+                designation_name: ctx.text("Designation Name"),
+                description: ctx.text("Description"),
+                status: ctx.text("Status").toLowerCase() === "inactive" ? "Inactive" : "Active"
+            });
+            return { id: result.insertId };
+        },
 
-    catch (err) {
+        finalize: async (ctx) => {
+            if (!ctx.report.uploaded) return;
+            logActivity({
+                activity_type: "Designation",
+                reference_id: 0,
+                title: "Bulk Upload",
+                description: `${ctx.report.uploaded} designations uploaded`,
+                module_name: "Designations",
+                status: "Closed",
+                priority: "Medium",
+                created_by: req.user.id,
+                assigned_to: null
+            });
+        }
+    });
 
-        console.error(err);
-
-        return res.status(500).json({
-
-            success: false,
-
-            message: err.message
-
-        });
-
-    }
-
-};
 // ======================================================
 // DOWNLOAD SAMPLE FILE
 // ======================================================

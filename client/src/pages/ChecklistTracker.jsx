@@ -4,6 +4,7 @@ import axios, { API_BASE_URL } from "../axiosConfig.js";
 import PremiumHero from "../components/premium/PremiumHero";
 import InsightStrip from "../components/premium/InsightStrip";
 import { exportTableData } from "../utils/exportUtils.js";
+import ExportButton from "../components/common/ExportButton";
 
 import {
     FaStore,
@@ -16,7 +17,6 @@ import {
     FaTimes,
     FaChevronDown,
     FaChevronRight,
-    FaFileExport,
     FaSyncAlt,
     FaCalendarAlt,
     FaClipboardCheck,
@@ -230,7 +230,6 @@ function ChecklistTracker() {
                 : "";
 
     const handleExport = async (format = "xlsx") => {
-        if (!filtered.length) return;
         const headers = [
             "Store",
             "Store Code",
@@ -292,9 +291,7 @@ function ChecklistTracker() {
                         <button type="button" className="ctr-btn ctr-btn-ghost" onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}>
                             <FaSyncAlt className={loading ? "ctr-spin" : ""} /> Refresh
                         </button>
-                        <button type="button" className="ctr-btn ctr-btn-light" onClick={() => handleExport("xlsx")} disabled={!filtered.length}>
-                            <FaFileExport /> Export
-                        </button>
+                        <ExportButton onExport={handleExport} disabled={loading} />
                     </div>
                 }
             />

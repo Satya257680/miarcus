@@ -978,6 +978,8 @@ function ReportsTo() {
             {canAdd && showBulkModal && (
 
                 <BulkUploadModal
+    moduleKey="reports-to"
+    uploadUrl={"/api/reports/bulk-upload"}
 
                     isOpen={showBulkModal}
 
@@ -989,11 +991,7 @@ function ReportsTo() {
 
                     uploadFunction={handleBulkUpload}
 
-                    title="Bulk Upload Managers"
-
-                    acceptedFile=".csv,.xlsx,.xls"
-
-                />
+                    title="Bulk Upload Managers"/>
 
             )}
 

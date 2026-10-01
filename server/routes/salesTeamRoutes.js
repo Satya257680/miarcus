@@ -8,6 +8,10 @@ const controller = require("../controllers/salesTeamController");
 const syncGalleryAttachment = require("../middleware/galleryAttachmentSync");
 const extendUploadTimeout = require("../middleware/extendUploadTimeout");
 
+// Shared "any format" bulk-upload middleware (Excel / CSV / Word / PDF /
+// photo) used by every module's Bulk Upload — see utils/bulkUploadEngine.js.
+const bulkFileUpload = require("../middleware/bulkFileUpload");
+
 const router = express.Router();
 
 /* =====================================================
@@ -117,7 +121,7 @@ router.post(
   extendUploadTimeout,
   authMiddleware,
   permissionMiddleware("Visit Planner", "Add"),
-  upload.single("file"),
+  bulkFileUpload.single("file"),
   controller.importVisitPlans
 );
 
@@ -303,7 +307,7 @@ router.post(
   extendUploadTimeout,
   authMiddleware,
   permissionMiddleware("Sales Review", "Add"),
-  upload.single("file"),
+  bulkFileUpload.single("file"),
   controller.uploadSalesReview
 );
 
@@ -336,7 +340,7 @@ router.use((err, req, res, next) => {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
         success: false,
-        message: "File size cannot exceed 10 MB.",
+        message: "The attachment is too large.",
       });
     }
 

@@ -3,7 +3,8 @@ const fs = require("fs");
 const { Parser } = require("json2csv");
 
 const actionPointService = require("../services/actionPointService");
-const { parseBulkFile } = require("../utils/bulkFileParser");
+const { readUpload, BulkReport, translateDbError, saveExtraData } = require("../utils/bulkUploadEngine");
+const { defineBulkModule, COMMON_GUIDELINES } = require("../config/bulkUploadModules");
 const { readDeleteScope } = require("../utils/deleteScope");
 const checklistReportService = require("../services/checklistReportService");
 const { getDepartmentIdByName } = require("../models/userModel");
@@ -438,6 +439,34 @@ const ACTION_POINT_COLUMN_ALIASES = {
     "State": ["state"]
 };
 
+defineBulkModule("action-points", {
+    title: "Action Points",
+    table: "action_points",
+    columns: Object.fromEntries(
+        Object.entries(ACTION_POINT_COLUMN_ALIASES).map(([name, aliases]) => [
+            name,
+            {
+                aliases,
+                required: name === "Store" ? true : undefined,
+                sample: {
+                    "Store": "MRPL - HISAR (556)",
+                    "Department": "Operations",
+                    "Checklist Type": "Opening Checklist",
+                    "Question": "Is the store clean?",
+                    "Answer": "No",
+                    "Assigned To": "Gulshad Muhammad (40310)",
+                    "Priority": "High",
+                    "SLA Days": "2",
+                    "Status": "Open",
+                    "Remarks": "Floor not cleaned"
+                }[name] ?? ""
+            }
+        ])
+    ),
+    guidelines: COMMON_GUIDELINES
+});
+
+
 // ======================================================
 // GET ALL ACTION POINTS
 // SEARCH + FILTER + PAGINATION
@@ -683,12 +712,7 @@ exports.bulkUploadActionPoints = async (req, res) => {
 
             let parsed;
             try {
-                parsed = await parseBulkFile(
-                    uploadedPath,
-                    req.file.originalname,
-                    req.file.mimetype,
-                    ACTION_POINT_COLUMN_ALIASES
-                );
+                parsed = await readUpload(req.file, "action-points");
             } catch (parseError) {
                 finishJob(job.id, {
                     success: false,
@@ -698,7 +722,18 @@ exports.bulkUploadActionPoints = async (req, res) => {
                 return;
             }
 
-            const { rows, warnings: parseWarnings } = parsed;
+            const report = new BulkReport({
+                module: "action-points",
+                title: "Action Points",
+                fileName: req.file.originalname,
+                sourceLabel: parsed.sourceLabel,
+                headers: parsed.headers,
+                warnings: parsed.warnings,
+                total: parsed.rows.length
+            });
+
+            const { rows } = parsed;
+            const parseWarnings = report.warnings;
 
             updateJob(job.id, {
                 total: rows.length,
@@ -707,8 +742,12 @@ exports.bulkUploadActionPoints = async (req, res) => {
             });
 
             if (!rows.length) {
+                report.fail({ __row: null }, "", req.file.originalname, "No data rows were found. Make sure the file has a Store column.");
+                const emptyBody = report.toJSON();
                 finishJob(job.id, {
                     success: false,
+                    report: emptyBody.report,
+                    errorDetails: emptyBody.errorDetails,
                     message: "No recognizable rows were found in this file. Make sure it has a Store column."
                 });
                 return;
@@ -922,6 +961,8 @@ exports.bulkUploadActionPoints = async (req, res) => {
 
                     return {
                         rowNumber,
+                        row,
+                        recordId: closedResult?.id,
                         movedToReport: { row: rowNumber, submissionId: reportResult.submissionId }
                     };
 
@@ -947,12 +988,14 @@ exports.bulkUploadActionPoints = async (req, res) => {
 
                     return {
                         rowNumber,
+                        row,
+                        recordId: result.id,
                         created: { row: rowNumber, id: result.id }
                     };
                 }
 
             } catch (rowError) {
-                return { rowNumber, error: `Row ${rowNumber}: ${rowError.message}` };
+                return { rowNumber, row, errorObject: rowError, error: `Row ${rowNumber}: ${rowError.message}` };
             }
         };
 
@@ -961,15 +1004,33 @@ exports.bulkUploadActionPoints = async (req, res) => {
                 const batch = rows.slice(start, start + BULK_UPLOAD_CONCURRENCY);
 
                 const batchResults = await Promise.all(
-                    batch.map((row, offset) => processRow(row, start + offset + 2))
+                    batch.map((row, offset) => processRow(row, row.__row ?? start + offset + 2))
                 );
 
                 batchResults.sort((a, b) => a.rowNumber - b.rowNumber);
 
                 for (const result of batchResults) {
-                    if (result.error) errors.push(result.error);
+                    if (result.error) {
+                        const e = result.errorObject || {};
+                        const column =
+                            e.code === "STORE_NOT_FOUND" ? "Store"
+                                : e.code === "CHECKLIST_TYPE_NOT_FOUND" ? "Checklist Type"
+                                    : null;
+                        const t = column ? { column, reason: e.message } : translateDbError(e);
+                        report.fail(result.row || { __row: result.rowNumber }, t.column, t.column && result.row ? result.row[t.column] ?? "" : "", t.reason || e.message || "Import failed.");
+                        errors.push(`Row ${result.rowNumber}${t.column ? ` · ${t.column}` : ""}: ${t.reason || e.message}`);
+                        continue;
+                    }
                     if (result.created) created.push(result.created);
                     if (result.movedToReport) movedToReports.push(result.movedToReport);
+                    report.ok(result.row, { id: result.recordId });
+                    if (result.recordId && Object.keys(result.row?.__extra || {}).length) {
+                        try {
+                            await saveExtraData("action_points", result.recordId, result.row.__extra);
+                        } catch (extraError) {
+                            report.warn(`Row ${result.rowNumber}: saved, but extra columns could not be stored (${extraError.message}).`);
+                        }
+                    }
                 }
 
                 updateJob(job.id, {
@@ -984,7 +1045,10 @@ exports.bulkUploadActionPoints = async (req, res) => {
             }
 
             if (!created.length && !movedToReports.length) {
+                const body = report.toJSON();
                 finishJob(job.id, {
+                    report: body.report,
+                    errorDetails: body.errorDetails,
                     success: false,
                     processed: rows.length,
                     created: 0,
@@ -1008,7 +1072,10 @@ exports.bulkUploadActionPoints = async (req, res) => {
                 messageParts.push(`${errors.length.toLocaleString()} row(s) need review`);
             }
 
+            const finalBody = report.toJSON();
             finishJob(job.id, {
+                report: finalBody.report,
+                errorDetails: finalBody.errorDetails,
                 success: true,
                 processed: rows.length,
                 created: created.length,

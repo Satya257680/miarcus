@@ -1,6 +1,7 @@
 const { readDeleteScope, eachId, cbToPromise, sendFilteredResult } = require("../utils/deleteScope");
 const Question = require("../models/questionModel");
 const { logActivity } = require("../utils/activityLogger");
+const { runBulkUpload } = require("../utils/bulkUploadEngine");
 const db = require("../config/db");
 
 const XLSX = require("xlsx");
@@ -801,1268 +802,170 @@ const getRowRawValue = (row, keys) => {
 };
 
 // ======================================================
-// BULK UPLOAD
+// BULK UPLOAD  (global bulk-upload engine)
+//
+// Existing question (same checklist type + text) -> updated,
+// otherwise created. Every row on its own; problems are reported with
+// the exact Excel row / column / value / reason. Extra columns are
+// kept with the question (bulk_extra_data).
 // ======================================================
 
-exports.bulkUploadQuestions = async (req, res) => {
+exports.bulkUploadQuestions = (req, res) =>
+    runBulkUpload({
+        req,
+        res,
+        module: "questions",
 
-    console.log("");
-    console.log("==========================================");
-    console.log("QUESTION BULK UPLOAD STARTED");
-    console.log("==========================================");
+        prepare: async (ctx) => {
+            const [types, departments] = await Promise.all([
+                db.query("SELECT id, checklist_name FROM checklist_types"),
+                db.query("SELECT id, department_name FROM departments")
+            ]);
+            ctx.data.typeByName = new Map(types.map((t) => [cleanValue(t.checklist_name).toLowerCase(), t.id]));
+            ctx.data.typeById = new Set(types.map((t) => String(t.id)));
+            ctx.data.deptByName = new Map(departments.map((d) => [cleanValue(d.department_name).toLowerCase(), d.id]));
+            ctx.data.deptById = new Set(departments.map((d) => String(d.id)));
+        },
 
-    try {
+        validateRow: (row, ctx) => {
+            const typeValue = ctx.text("Checklist Type");
+            let checklistTypeId = ctx.data.typeByName.get(typeValue.toLowerCase()) || null;
+            if (!checklistTypeId && /^\d+$/.test(typeValue) && ctx.data.typeById.has(typeValue)) {
+                checklistTypeId = Number(typeValue);
+            }
+            if (typeValue && !checklistTypeId) {
+                ctx.fail("Checklist Type", typeValue, "Checklist Type does not exist. Create it in Checklist Types first.");
+            }
+            ctx.checklistTypeId = checklistTypeId;
 
-        // ==================================================
-        // FILE VALIDATION
-        // ==================================================
-
-        if (!req.file) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Please upload a CSV, XLSX or XLS file."
-            });
-        }
-
-        console.log(
-            "File:",
-            req.file.originalname
-        );
-
-        console.log(
-            "Size:",
-            req.file.size
-        );
-
-        // ==================================================
-        // READ FILE
-        // ==================================================
-
-        const extension = path
-            .extname(req.file.originalname)
-            .toLowerCase();
-
-        let rows = [];
-
-        // ==================================================
-        // CSV
-        // ==================================================
-
-        if (extension === ".csv") {
-
-            rows = await new Promise(
-                (resolve, reject) => {
-
-                    const parsedRows = [];
-
-                    Readable
-                        .from(req.file.buffer)
-                        .pipe(
-                            csv({
-                                mapHeaders: ({
-                                    header
-                                }) => {
-
-                                    return normalizeHeader(
-                                        header
-                                    );
-                                }
-                            })
-                        )
-                        .on(
-                            "data",
-                            (row) => {
-
-                                parsedRows.push(
-                                    row
-                                );
-                            }
-                        )
-                        .on(
-                            "end",
-                            () => {
-
-                                resolve(
-                                    parsedRows
-                                );
-                            }
-                        )
-                        .on(
-                            "error",
-                            (error) => {
-
-                                reject(error);
-                            }
-                        );
-                }
-            );
-        }
-
-        // ==================================================
-        // EXCEL
-        // ==================================================
-
-        else if (
-            extension === ".xlsx" ||
-            extension === ".xls"
-        ) {
-
-            const workbook = XLSX.read(
-                req.file.buffer,
-                {
-                    type: "buffer"
-                }
-            );
-
-            if (
-                !workbook.SheetNames ||
-                workbook.SheetNames.length === 0
-            ) {
-
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "Excel file does not contain a worksheet."
-                });
+            const sequence = ctx.text("Sequence");
+            if (sequence && Number.isNaN(Number(sequence))) {
+                ctx.fail("Sequence", sequence, "Sequence must be a number.");
             }
 
-            const sheet =
-                workbook.Sheets[
-                    workbook.SheetNames[0]
-                ];
+            const required = ctx.cell("Answer Required");
+            if (!isEmptyValue(required) && !["yes", "no", "true", "false", "1", "0", "y", "n", "required", "optional"].includes(cleanValue(required).toLowerCase())) {
+                ctx.fail("Answer Required", required, "Answer Required must be Yes or No.");
+            }
 
-            rows = XLSX.utils.sheet_to_json(
-                sheet,
-                {
-                    defval: ""
+            const photoRaw = ctx.text("Photo Requirement").toLowerCase();
+            const PHOTO = {
+                required: "Required", yes: "Required", y: "Required", true: "Required", 1: "Required", mandatory: "Required", "photo required": "Required",
+                "required on no": "Required on No", "required if no": "Required on No", "on no": "Required on No",
+                optional: "Optional",
+                none: "None", "no photo": "None", "not required": "None", no: "None"
+            };
+            ctx.photoRequirement = photoRaw ? PHOTO[photoRaw] : undefined;
+            if (photoRaw && !ctx.photoRequirement && !["-", ""].includes(photoRaw)) {
+                // Only an explicit Photo column is validated; "Remarks" text is free form.
+                const header = (ctx.headers.columns || []).find((c) => c.target === "Photo Requirement");
+                if (header && !/remark/i.test(header.source)) {
+                    ctx.fail("Photo Requirement", ctx.text("Photo Requirement"), "Use Required, Optional, Required on No or None.");
                 }
+            }
+        },
+
+        duplicateKey: (row, ctx) => ({
+            key: `${ctx.checklistTypeId}|${ctx.text("Question").toLowerCase()}`,
+            column: "Question",
+            value: ctx.text("Question")
+        }),
+
+        processRow: async (row, ctx) => {
+            const questionText = ctx.text("Question");
+            const checklistTypeId = ctx.checklistTypeId;
+
+            const duplicateRows = await db.query(
+                `SELECT id FROM questions WHERE checklist_type_id = ? AND LOWER(TRIM(question)) = LOWER(TRIM(?)) LIMIT 1`,
+                [checklistTypeId, questionText]
             );
-        }
+            const existingQuestionId = duplicateRows.length ? duplicateRows[0].id : null;
 
-        // ==================================================
-        // INVALID FILE
-        // ==================================================
+            const sequenceRaw = ctx.text("Sequence");
+            const sequenceNo = sequenceRaw === "" ? null : Number(sequenceRaw);
 
-        else {
+            const slaRaw = ctx.cell("SLA Value");
+            let slaValue = null;
+            if (!isEmptyValue(slaRaw)) {
+                slaValue = Number.isNaN(Number(slaRaw)) ? cleanValue(slaRaw) : Number(slaRaw);
+            }
 
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Only CSV, XLSX and XLS files are supported."
-            });
-        }
+            const values = [
+                checklistTypeId,
+                questionText,
+                sequenceNo,
+                ctx.text("Answer Type"),
+                slaValue,
+                ctx.text("SLA Unit") || null,
+                isTrueValue(ctx.cell("Answer Required")) ? 1 : 0,
+                "Active"
+            ];
 
-        console.log(
-            "Rows found:",
-            rows.length
-        );
+            let questionId;
+            if (existingQuestionId) {
+                await db.query(
+                    `UPDATE questions SET checklist_type_id = ?, question = ?, sequence_no = ?, answer_type = ?, sla_value = ?, sla_unit = ?, answer_required = ?, status = ? WHERE id = ?`,
+                    [...values, existingQuestionId]
+                );
+                questionId = existingQuestionId;
+            } else {
+                const insertResult = await db.query(
+                    `INSERT INTO questions (checklist_type_id, question, sequence_no, answer_type, sla_value, sla_unit, answer_required, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    values
+                );
+                questionId = insertResult.insertId;
+            }
 
-        // ==================================================
-        // EMPTY FILE
-        // ==================================================
+            let photoRequirement = ctx.photoRequirement;
+            if (!photoRequirement && require("../config/checklistPhotoRules").isPhotoRequiredQuestion(questionText)) {
+                photoRequirement = "Required";
+            }
+            if (photoRequirement) {
+                await new Promise((resolve) =>
+                    Question.setPhotoRequirement(questionId, photoRequirement, (photoErr) => {
+                        if (photoErr) console.error("bulk setPhotoRequirement error:", photoErr);
+                        resolve();
+                    })
+                );
+            }
 
-        if (!rows.length) {
+            // Department links — a missing department never drops the question,
+            // it is reported as a note on that row.
+            if (existingQuestionId) {
+                await db.query(`DELETE FROM question_departments WHERE question_id = ?`, [questionId]);
+            }
 
-            return res.status(400).json({
-                success: false,
-                message:
-                    "The uploaded file contains no data."
-            });
-        }
-
-        console.log(
-            "CSV/Excel Headers:",
-            Object.keys(rows[0])
-        );
-
-        // ==================================================
-        // NORMALIZE HEADERS
-        // ==================================================
-
-        const normalizedRows =
-            rows.map(
-                (originalRow) => {
-
-                    const normalizedRow = {};
-
-                    Object.keys(
-                        originalRow
-                    ).forEach(
-                        (key) => {
-
-                            const normalizedKey =
-                                cleanValue(key)
-                                    .replace(
-                                        /^\uFEFF/,
-                                        ""
-                                    )
-                                    .replace(
-                                        /[\s_-]+(.)?/g,
-                                        (
-                                            _,
-                                            char
-                                        ) =>
-                                            char
-                                                ? char.toUpperCase()
-                                                : ""
-                                    );
-
-                            normalizedRow[key] =
-                                originalRow[key];
-
-                            normalizedRow[
-                                normalizedKey
-                            ] =
-                                originalRow[key];
-                        }
-                    );
-
-                    return normalizedRow;
+            const departmentValues = ctx.text("Department").split(/[,;|]/).map((v) => v.trim()).filter(Boolean);
+            for (const value of departmentValues) {
+                const departmentId =
+                    ctx.data.deptByName.get(value.toLowerCase()) ||
+                    (/^\d+$/.test(value) && ctx.data.deptById.has(value) ? Number(value) : null);
+                if (departmentId) {
+                    await db.query(`INSERT INTO question_departments (question_id, department_id) VALUES (?, ?)`, [questionId, departmentId]);
+                } else {
+                    ctx.note("Department", value, `Department "${value}" does not exist — the question was saved without it.`);
                 }
-            );
-
-        // ==================================================
-        // COUNTERS
-        // ==================================================
-
-        let insertedCount = 0;
-        let updatedCount = 0;
-        let skippedCount = 0;
-
-        const skippedRows = [];
-
-        // ==================================================
-        // PROCESS EVERY ROW
-        // ==================================================
-
-        for (
-            let index = 0;
-            index < normalizedRows.length;
-            index++
-        ) {
-
-            const row =
-                normalizedRows[index];
-
-            const excelRowNumber =
-                index + 2;
+            }
 
             try {
-
-                // ==================================================
-                // READ CSV VALUES
-                // ==================================================
-
-                const checklistTypeName =
-                    getRowValue(
-                        row,
-                        [
-                            "checklistTypeName",
-                            "checklist_type_name",
-                            "ChecklistTypeName",
-                            "Checklist Type Name",
-                            "checklistName",
-                            "checklist_name"
-                        ]
-                    );
-
-                const questionText =
-                    getRowValue(
-                        row,
-                        [
-                            "questionText",
-                            "question_text",
-                            "QuestionText",
-                            "Question",
-                            "question"
-                        ]
-                    );
-
-                const answerType =
-                    getRowValue(
-                        row,
-                        [
-                            "answerType",
-                            "answer_type",
-                            "AnswerType",
-                            "Answer Type"
-                        ]
-                    );
-
-                const answerRequiredRaw =
-                    getRowRawValue(
-                        row,
-                        [
-                            "answerRequired",
-                            "answer_required",
-                            "AnswerRequired",
-                            "Answer Required"
-                        ]
-                    );
-
-                const slaValueRaw =
-                    getRowRawValue(
-                        row,
-                        [
-                            "slaValue",
-                            "sla_value",
-                            "SlaValue",
-                            "SLA Value"
-                        ]
-                    );
-
-                const slaUnit =
-                    getRowValue(
-                        row,
-                        [
-                            "slaUnit",
-                            "sla_unit",
-                            "SlaUnit",
-                            "SLA Unit"
-                        ]
-                    );
-
-                const sequenceRaw =
-                    getRowRawValue(
-                        row,
-                        [
-                            "sequence",
-                            "sequenceNo",
-                            "sequence_no",
-                            "Sequence"
-                        ]
-                    );
-
-                const questionDepartmentName =
-                    getRowValue(
-                        row,
-                        [
-                            "questionDepartmentName",
-                            "question_department_name",
-                            "QuestionDepartmentName",
-                            "departmentName",
-                            "department_name"
-                        ]
-                    );
-
-                // ==================================================
-                // OPTIONAL RULE FIELDS
-                // ==================================================
-
-                const commentRuleType =
-                    getRowValue(
-                        row,
-                        [
-                            "commentRuleType",
-                            "comment_rule_type"
-                        ]
-                    );
-
-                const attachmentRuleType =
-                    getRowValue(
-                        row,
-                        [
-                            "attachmentRuleType",
-                            "attachment_rule_type"
-                        ]
-                    );
-
-                const actionPointRuleType =
-                    getRowValue(
-                        row,
-                        [
-                            "actionPointRuleType",
-                            "action_point_rule_type"
-                        ]
-                    );
-
-                const actionPointComparisonValue =
-                    getRowValue(
-                        row,
-                        [
-                            "actionPointComparisonValue",
-                            "action_point_comparison_value"
-                        ]
-                    );
-
-                const allowDuplicateActionPoints =
-                    getRowValue(
-                        row,
-                        [
-                            "allowDuplicateActionPoints",
-                            "allow_duplicate_action_points"
-                        ]
-                    );
-
-                const actionDepartments =
-                    getRowValue(
-                        row,
-                        [
-                            "actionDepartments",
-                            "action_departments"
-                        ]
-                    );
-
-                const linkedChecklistTypeName =
-                    getRowValue(
-                        row,
-                        [
-                            "linkedChecklistTypeName",
-                            "linked_checklist_type_name"
-                        ]
-                    );
-
-                const linkedQuestionText =
-                    getRowValue(
-                        row,
-                        [
-                            "linkedQuestionText",
-                            "linked_question_text"
-                        ]
-                    );
-
-                const comparisonType =
-                    getRowValue(
-                        row,
-                        [
-                            "comparisonType",
-                            "comparison_type"
-                        ]
-                    );
-
-                const linkedQuestionDateOffset =
-                    getRowValue(
-                        row,
-                        [
-                            "linkedQuestionDateOffset",
-                            "linked_question_date_offset"
-                        ]
-                    );
-
-                // ==================================================
-                // UNUSED OPTIONAL FIELDS
-                // ==================================================
-
-                void commentRuleType;
-                void attachmentRuleType;
-                void actionPointRuleType;
-                void actionPointComparisonValue;
-                void allowDuplicateActionPoints;
-                void actionDepartments;
-                void linkedChecklistTypeName;
-                void linkedQuestionText;
-                void comparisonType;
-                void linkedQuestionDateOffset;
-
-                // ==================================================
-                // REQUIRED VALIDATION
-                // ==================================================
-
-                if (!checklistTypeName) {
-
-                    skippedCount++;
-
-                    skippedRows.push({
-                        rowNumber:
-                            excelRowNumber,
-
-                        checklistType:
-                            "",
-
-                        question:
-                            questionText,
-
-                        reason:
-                            "checklistTypeName is missing."
-                    });
-
-                    continue;
-                }
-
-                if (!questionText) {
-
-                    skippedCount++;
-
-                    skippedRows.push({
-                        rowNumber:
-                            excelRowNumber,
-
-                        checklistType:
-                            checklistTypeName,
-
-                        question:
-                            "",
-
-                        reason:
-                            "questionText is missing."
-                    });
-
-                    continue;
-                }
-
-                if (!answerType) {
-
-                    skippedCount++;
-
-                    skippedRows.push({
-                        rowNumber:
-                            excelRowNumber,
-
-                        checklistType:
-                            checklistTypeName,
-
-                        question:
-                            questionText,
-
-                        reason:
-                            "answerType is missing."
-                    });
-
-                    continue;
-                }
-
-                // ==================================================
-                // FIND CHECKLIST TYPE
-                //
-                // Actual DB column:
-                // checklist_types.checklist_name
-                // ==================================================
-
-                let checklistRows = [];
-
-                // --------------------------------------------------
-                // CHECKLIST TYPE BY ID
-                // --------------------------------------------------
-
-                if (
-                    /^\d+$/.test(
-                        checklistTypeName
-                    )
-                ) {
-
-                    const rowsById = await db.query(
-                        `
-                        SELECT id
-                        FROM checklist_types
-                        WHERE id = ?
-                        LIMIT 1
-                        `,
-                        [
-                            Number(
-                                checklistTypeName
-                            )
-                        ]
-                    );
-
-                    checklistRows =
-                        rowsById;
-                }
-
-                // --------------------------------------------------
-                // CHECKLIST TYPE BY NAME
-                // --------------------------------------------------
-
-                if (
-                    !checklistRows.length
-                ) {
-
-                    const rowsByName = await db.query(
-                        `
-                        SELECT id
-                        FROM checklist_types
-                        WHERE LOWER(
-                            TRIM(checklist_name)
-                        )
-                        =
-                        LOWER(
-                            TRIM(?)
-                        )
-                        LIMIT 1
-                        `,
-                        [
-                            checklistTypeName
-                        ]
-                    );
-
-                    checklistRows =
-                        rowsByName;
-                }
-
-                // --------------------------------------------------
-                // CHECKLIST TYPE NOT FOUND
-                // --------------------------------------------------
-
-                if (
-                    !checklistRows.length
-                ) {
-
-                    skippedCount++;
-
-                    skippedRows.push({
-                        rowNumber:
-                            excelRowNumber,
-
-                        checklistType:
-                            checklistTypeName,
-
-                        question:
-                            questionText,
-
-                        reason:
-                            `Checklist Type "${checklistTypeName}" was not found in checklist_types.checklist_name.`
-                    });
-
-                    continue;
-                }
-
-                const checklistTypeId =
-                    checklistRows[0].id;
-
-                // ==================================================
-                // FIND EXISTING QUESTION
-                //
-                // IMPORTANT:
-                // Existing questions are UPDATED.
-                // They are NOT skipped.
-                // ==================================================
-
-                const duplicateRows = await db.query(
-                    `
-                    SELECT id
-                    FROM questions
-                    WHERE checklist_type_id = ?
-                    AND LOWER(
-                        TRIM(question)
-                    )
-                    =
-                    LOWER(
-                        TRIM(?)
-                    )
-                    LIMIT 1
-                    `,
-                    [
-                        checklistTypeId,
-                        questionText
-                    ]
-                );
-
-                const existingQuestionId =
-                    duplicateRows.length
-                        ? duplicateRows[0].id
-                        : null;
-
-                // ==================================================
-                // SEQUENCE
-                // ==================================================
-
-                let sequenceNo = null;
-
-                if (
-                    !isEmptyValue(
-                        sequenceRaw
-                    )
-                ) {
-
-                    const parsedSequence =
-                        Number(
-                            sequenceRaw
-                        );
-
-                    if (
-                        !Number.isNaN(
-                            parsedSequence
-                        )
-                    ) {
-
-                        sequenceNo =
-                            parsedSequence;
-                    }
-                }
-
-                // ==================================================
-                // SLA
-                // ==================================================
-
-                let slaValue = null;
-
-                if (
-                    !isEmptyValue(
-                        slaValueRaw
-                    )
-                ) {
-
-                    const parsedSla =
-                        Number(
-                            slaValueRaw
-                        );
-
-                    if (
-                        !Number.isNaN(
-                            parsedSla
-                        )
-                    ) {
-
-                        slaValue =
-                            parsedSla;
-
-                    } else {
-
-                        slaValue =
-                            cleanValue(
-                                slaValueRaw
-                            );
-                    }
-                }
-
-                // ==================================================
-                // ANSWER REQUIRED
-                // ==================================================
-
-                const answerRequired =
-                    isTrueValue(
-                        answerRequiredRaw
-                    )
-                        ? 1
-                        : 0;
-
-                const status =
-                    "Active";
-
-                // ==================================================
-                // INSERT OR UPDATE
-                // ==================================================
-
-                let questionId;
-
-                // ==================================================
-                // UPDATE EXISTING QUESTION
-                // ==================================================
-
-                if (
-                    existingQuestionId
-                ) {
-
-                    await db.query(
-                        `
-                        UPDATE questions
-                        SET
-                            checklist_type_id = ?,
-                            question = ?,
-                            sequence_no = ?,
-                            answer_type = ?,
-                            sla_value = ?,
-                            sla_unit = ?,
-                            answer_required = ?,
-                            status = ?
-                        WHERE id = ?
-                        `,
-                        [
-                            checklistTypeId,
-                            questionText,
-                            sequenceNo,
-                            answerType,
-                            slaValue,
-                            slaUnit || null,
-                            answerRequired,
-                            status,
-                            existingQuestionId
-                        ]
-                    );
-
-                    questionId =
-                        existingQuestionId;
-
-                }
-
-                // ==================================================
-                // INSERT NEW QUESTION
-                // ==================================================
-
-                else {
-
-                    const insertResult = await db.query(
-                        `
-                        INSERT INTO questions
-                        (
-                            checklist_type_id,
-                            question,
-                            sequence_no,
-                            answer_type,
-                            sla_value,
-                            sla_unit,
-                            answer_required,
-                            status
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        `,
-                        [
-                            checklistTypeId,
-                            questionText,
-                            sequenceNo,
-                            answerType,
-                            slaValue,
-                            slaUnit || null,
-                            answerRequired,
-                            status
-                        ]
-                    );
-
-                    questionId =
-                        insertResult.insertId;
-                }
-
-                // ==================================================
-                // PHOTO EVIDENCE
-                //
-                // Column "Photo Evidence" / "Photo Required" /
-                // "Remarks" = Required | Optional | Required on No | None
-                // (the Opening / Closing checklist sheets mark photo
-                // questions with Remarks = "Required"). Questions in
-                // config/checklistPhotoRules.js are Required by default.
-                // ==================================================
-
-                const photoRaw = cleanValue(
-                    getRowValue(
-                        row,
-                        [
-                            "photoRequirement",
-                            "photo_requirement",
-                            "Photo Requirement",
-                            "photoEvidence",
-                            "Photo Evidence",
-                            "photoRequired",
-                            "Photo Required",
-                            "photo",
-                            "Photo",
-                            "remarks",
-                            "Remarks"
-                        ]
-                    )
-                ).toLowerCase();
-
-                let photoRequirement;
-
-                if (["required", "yes", "y", "true", "1", "mandatory", "photo required"].includes(photoRaw)) {
-                    photoRequirement = "Required";
-                } else if (["required on no", "required if no", "on no"].includes(photoRaw)) {
-                    photoRequirement = "Required on No";
-                } else if (photoRaw === "optional") {
-                    photoRequirement = "Optional";
-                } else if (["none", "no photo", "not required"].includes(photoRaw)) {
-                    photoRequirement = "None";
-                } else if (
-                    require("../config/checklistPhotoRules")
-                        .isPhotoRequiredQuestion(questionText)
-                ) {
-                    photoRequirement = "Required";
-                }
-
-                if (photoRequirement) {
-                    await new Promise((resolve) =>
-                        Question.setPhotoRequirement(
-                            questionId,
-                            photoRequirement,
-                            (photoErr) => {
-                                if (photoErr) console.error("bulk setPhotoRequirement error:", photoErr);
-                                resolve();
-                            }
-                        )
-                    );
-                }
-
-                // ==================================================
-                // DEPARTMENT LINKS
-                //
-                // Department can be:
-                // 1. Department ID
-                // 2. Department name
-                //
-                // Missing department does NOT skip question.
-                // ==================================================
-
-                const missingDepartments =
-                    [];
-
-                // ==================================================
-                // REMOVE OLD LINKS
-                // ==================================================
-
-                if (
-                    existingQuestionId
-                ) {
-
-                    await db.query(
-                        `
-                        DELETE FROM question_departments
-                        WHERE question_id = ?
-                        `,
-                        [
-                            questionId
-                        ]
-                    );
-                }
-
-                // ==================================================
-                // ADD NEW DEPARTMENT LINKS
-                // ==================================================
-
-                if (
-                    questionDepartmentName
-                ) {
-
-                    const departmentValues =
-                        questionDepartmentName
-                            .split(",")
-                            .map(
-                                (item) =>
-                                    item.trim()
-                            )
-                            .filter(
-                                Boolean
-                            );
-
-                    for (
-                        const departmentValue
-                        of departmentValues
-                    ) {
-
-                        let departmentRows =
-                            [];
-
-                        // ==================================================
-                        // DEPARTMENT BY ID
-                        // ==================================================
-
-                        if (
-                            /^\d+$/.test(
-                                departmentValue
-                            )
-                        ) {
-
-                            const rowsById = await db.query(
-                                `
-                                SELECT id
-                                FROM departments
-                                WHERE id = ?
-                                LIMIT 1
-                                `,
-                                [
-                                    Number(
-                                        departmentValue
-                                    )
-                                ]
-                            );
-
-                            departmentRows =
-                                rowsById;
-                        }
-
-                        // ==================================================
-                        // DEPARTMENT BY NAME
-                        // ==================================================
-
-                        if (
-                            !departmentRows.length
-                        ) {
-
-                            const rowsByName = await db.query(
-                                `
-                                SELECT id
-                                FROM departments
-                                WHERE LOWER(
-                                    TRIM(department_name)
-                                )
-                                =
-                                LOWER(
-                                    TRIM(?)
-                                )
-                                LIMIT 1
-                                `,
-                                [
-                                    departmentValue
-                                ]
-                            );
-
-                            departmentRows =
-                                rowsByName;
-                        }
-
-                        // ==================================================
-                        // DEPARTMENT FOUND
-                        // ==================================================
-
-                        if (
-                            departmentRows.length
-                        ) {
-
-                            await db.query(
-                                `
-                                INSERT INTO question_departments
-                                (
-                                    question_id,
-                                    department_id
-                                )
-                                VALUES (?, ?)
-                                `,
-                                [
-                                    questionId,
-                                    departmentRows[0].id
-                                ]
-                            );
-                        }
-
-                        // ==================================================
-                        // DEPARTMENT NOT FOUND
-                        // ==================================================
-
-                        else {
-
-                            missingDepartments.push(
-                                departmentValue
-                            );
-                        }
-                    }
-                }
-
-                // ==================================================
-                // LOG MISSING DEPARTMENTS
-                // ==================================================
-
-                if (
-                    missingDepartments.length
-                ) {
-
-                    console.warn(
-                        `Row ${excelRowNumber}: Question ${questionId} inserted/updated, but department(s) not found:`,
-                        missingDepartments
-                    );
-                }
-
-                // ==================================================
-                // ACTIVITY LOG
-                // ==================================================
-
-                try {
-
-                    logActivity({
-                        activity_type:
-                            "Question",
-
-                        reference_id:
-                            questionId,
-
-                        title:
-                            existingQuestionId
-                                ? "Question Updated"
-                                : "Question Created",
-
-                        description:
-                            existingQuestionId
-                                ? `${questionText} question was updated through bulk upload`
-                                : `${questionText} question was created through bulk upload`,
-
-                        module_name:
-                            "Questions",
-
-                        status:
-                            "Open",
-
-                        priority:
-                            "Medium",
-
-                        created_by:
-                            req.user?.id ||
-                            null,
-
-                        assigned_to:
-                            null
-                    });
-
-                }
-                catch (logError) {
-
-                    console.error(
-                        "Activity log error:",
-                        logError
-                    );
-                }
-
-                // ==================================================
-                // SUCCESS COUNTERS
-                // ==================================================
-
-                if (
-                    existingQuestionId
-                ) {
-
-                    updatedCount++;
-
-                }
-                else {
-
-                    insertedCount++;
-                }
-
-            }
-            catch (rowError) {
-
-                console.error(
-                    `Error processing row ${excelRowNumber}:`,
-                    rowError?.stack || rowError
-                );
-
-                skippedCount++;
-
-                skippedRows.push({
-                    rowNumber:
-                        excelRowNumber,
-
-                    checklistType:
-                        cleanValue(
-                            getRowValue(
-                                row,
-                                [
-                                    "checklistTypeName",
-                                    "checklist_type_name",
-                                    "checklistName",
-                                    "checklist_name"
-                                ]
-                            )
-                        ),
-
-                    question:
-                        cleanValue(
-                            getRowValue(
-                                row,
-                                [
-                                    "questionText",
-                                    "question_text",
-                                    "Question",
-                                    "question"
-                                ]
-                            )
-                        ),
-
-                    reason:
-                        rowError.message ||
-                        "Unknown row processing error."
+                logActivity({
+                    activity_type: "Question",
+                    reference_id: questionId,
+                    title: existingQuestionId ? "Question Updated" : "Question Created",
+                    description: `${questionText} question was ${existingQuestionId ? "updated" : "created"} through bulk upload`,
+                    module_name: "Questions",
+                    status: "Open",
+                    priority: "Medium",
+                    created_by: req.user?.id || null,
+                    assigned_to: null
                 });
+            } catch (logError) {
+                console.error("Activity log error:", logError);
             }
+
+            return { id: questionId, updated: Boolean(existingQuestionId) };
         }
-
-        // ==================================================
-        // FINAL RESPONSE
-        // ==================================================
-
-        console.log("");
-
-        console.log(
-            "=========================================="
-        );
-
-        console.log(
-            "QUESTION BULK UPLOAD FINISHED"
-        );
-
-        console.log(
-            "Total:",
-            rows.length
-        );
-
-        console.log(
-            "Inserted:",
-            insertedCount
-        );
-
-        console.log(
-            "Updated:",
-            updatedCount
-        );
-
-        console.log(
-            "Skipped:",
-            skippedCount
-        );
-
-        console.log(
-            "=========================================="
-        );
-
-        const skippedReasonCounts = {};
-
-        skippedRows.forEach((item) => {
-
-            const reason =
-                item.reason ||
-                "Unknown error";
-
-            skippedReasonCounts[reason] =
-                (skippedReasonCounts[reason] || 0) + 1;
-        });
-
-        console.log(
-            "Skipped reasons:",
-            skippedReasonCounts
-        );
-
-        return res.status(201).json({
-
-            success:
-                true,
-
-            message:
-                `Questions upload completed. ${insertedCount} inserted, ${updatedCount} updated, ${skippedCount} skipped.`,
-
-            totalRecords:
-                rows.length,
-
-            insertedCount:
-                insertedCount,
-
-            updatedCount:
-                updatedCount,
-
-            skippedCount:
-                skippedCount,
-
-            skippedRows:
-                skippedRows
-        });
-
-    }
-    catch (error) {
-
-        console.error("");
-
-        console.error(
-            "=========================================="
-        );
-
-        console.error(
-            "QUESTION BULK UPLOAD FAILED"
-        );
-
-        console.error(
-            error
-        );
-
-        console.error(
-            "=========================================="
-        );
-
-        return res.status(500).json({
-
-            success:
-                false,
-
-            message:
-                error.message ||
-                "Question bulk upload failed."
-        });
-    }
-};
+    });
 
 // ======================================================
 // EXPORT CONTROLLER FUNCTIONS

@@ -1096,6 +1096,8 @@ const handleSave = async (data) => {
 ====================================================== */}
 
 <BulkUploadModal
+    moduleKey="checklist-types"
+    uploadUrl={"/api/checklist-types/bulk-upload"}
 
     isOpen={showBulkUpload}
 
@@ -1109,11 +1111,7 @@ const handleSave = async (data) => {
 
     uploadFunction={uploadChecklistTypes}
 
-    title="Bulk Upload Checklist Types"
-
-    acceptedFile=".csv,.xlsx,.xls"
-
-    sampleFile="/samples/checklist-types-sample.xlsx"
+    title="Bulk Upload Checklist Types"sampleFile="/samples/checklist-types-sample.xlsx"
 
 />
 

@@ -1481,6 +1481,22 @@ loadRoute(
 );
 
 // ======================================================
+// GLOBAL BULK UPLOAD HELPERS
+// (column definitions, sample files, Column Validation preview
+// shared by the Bulk Upload modal of every module)
+// ======================================================
+
+loadRoute(
+
+    "./routes/bulkUploadRoutes",
+
+    "/api/bulk-upload",
+
+    "Global Bulk Upload Routes"
+
+);
+
+// ======================================================
 // STORES
 // ======================================================
 

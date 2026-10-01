@@ -808,6 +808,8 @@ const columns = [
             ====================================================== */}
 
             <BulkUploadModal
+    moduleKey="nso-rules"
+    uploadUrl={"/api/nso-rules/bulk-upload"}
 
                 isOpen={showBulkModal}
 
@@ -818,9 +820,6 @@ const columns = [
                 uploadFunction={handleBulkUpload}
 
                 onSuccess={fetchRules}
-
-                acceptedFile=".csv,.xlsx,.xls"
-
                 sampleFile="/api/nso-rules/sample"
 
             />

@@ -2622,6 +2622,8 @@ function SalesReview() {
       ================================================= */}
 
       <BulkUploadModal
+    moduleKey="sales-review"
+    uploadUrl={"/api/sales-team/sales-review/upload"}
         isOpen={
           showBulkModal
         }
@@ -2640,10 +2642,7 @@ function SalesReview() {
 
         onSuccess={
           load
-        }
-
-        acceptedFile=".csv,.xlsx,.xls"
-      />
+        }/>
 
       {/* =================================================
           DELETE ALL

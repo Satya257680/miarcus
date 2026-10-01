@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const XLSX = require("xlsx");
 const { Parser } = require("json2csv");
 const Announcement = require("../models/announcementModel");
+const { runBulkUpload, rowError, parseYesNo } = require("../utils/bulkUploadEngine");
 const { readDeleteScope } = require("../utils/deleteScope");
 const { sendGenericEmail } = require("../services/emailService");
 const announcementEmail = require("../utils/emailTemplates/announcementEmail");
@@ -790,31 +791,19 @@ const parseBulkIds = (value) => {
         .filter(Number.isInteger);
 };
 
-const readAnnouncementBulkFile = (filePath) => {
-    const workbook = XLSX.readFile(filePath, { cellDates: true });
-    const sheet = workbook.SheetNames[0];
-    if (!sheet) return [];
-    return XLSX.utils.sheet_to_json(workbook.Sheets[sheet], { defval: "" });
-};
-
-const createBulkAnnouncement = (req, row) => new Promise((resolve, reject) => {
-    const title = String(row.title ?? row.Title ?? "").trim();
-    const content = String(row.content ?? row.Content ?? row.message ?? "").trim();
-    const audience = normalizeBulkAudience(row.audience ?? row.Audience ?? row.send_to ?? "everyone");
-    const isPinned = ["1", "true", "yes", "y", "on"].includes(String(row.is_pinned ?? row.pinned ?? "").trim().toLowerCase());
-    const specificIds = parseBulkIds(row.specific_user_ids ?? row.specificUserIds ?? row.user_ids ?? "");
-
-    if (!title) return reject(new Error("Title is required"));
-    if (!["everyone", "managers", "users", "specific"].includes(audience)) {
-        return reject(new Error("Audience must be everyone, managers, users or specific"));
-    }
-    if (audience === "specific" && !specificIds.length) {
-        return reject(new Error("specific_user_ids is required for specific audience"));
-    }
+// Creates one announcement from already-validated values.
+const createBulkAnnouncement = (req, values) => new Promise((resolve, reject) => {
+    const { title, content, audience, isPinned, specificIds } = values;
 
     Announcement.getUsersForAudience(audience, specificIds, async (userErr, users) => {
         if (userErr) return reject(userErr);
-        if (!users.length) return reject(new Error("No active recipients found"));
+        if (!users.length) {
+            return reject(rowError(
+                audience === "specific" ? "Specific User IDs" : "Audience",
+                audience === "specific" ? specificIds.join(", ") : audience,
+                "No active recipients were found for this audience."
+            ));
+        }
 
         const insert = () => Announcement.create({
             title,
@@ -825,15 +814,12 @@ const createBulkAnnouncement = (req, row) => new Promise((resolve, reject) => {
         }, async (createErr, result) => {
             if (createErr) return reject(createErr);
             const announcementId = result.insertId;
-
             Announcement.addRecipients(announcementId, users, async recipientErr => {
                 if (recipientErr) return reject(recipientErr);
-
                 Announcement.getRecipientsForEmail(announcementId, async (emailLookupErr, recipients) => {
                     let emailSent = 0;
                     let emailFailed = 0;
                     const emailAttachment = await getAnnouncementEmailAttachment(announcementId);
-
                     if (!emailLookupErr) {
                         for (const recipient of recipients) {
                             try {
@@ -860,7 +846,6 @@ const createBulkAnnouncement = (req, row) => new Promise((resolve, reject) => {
                     } else {
                         emailFailed = users.length;
                     }
-
                     resolve({ announcementId, recipients: users.length, emailSent, emailFailed });
                 });
             });
@@ -877,52 +862,57 @@ const createBulkAnnouncement = (req, row) => new Promise((resolve, reject) => {
     });
 });
 
+// ======================================================
+// BULK UPLOAD ANNOUNCEMENTS  (global bulk-upload engine)
+// ======================================================
+
 const bulkUploadAnnouncements = async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ success: false, message: "Please upload a CSV, XLSX or XLS file" });
-    }
+    let emailSent = 0;
+    let emailFailed = 0;
 
-    try {
-        const rows = readAnnouncementBulkFile(req.file.path);
-        if (!rows.length) {
-            return res.status(400).json({ success: false, message: "The uploaded file contains no rows" });
-        }
+    const body = await runBulkUpload({
+        req,
+        res,
+        respond: false,
+        module: "announcements",
 
-        let created = 0;
-        let failed = 0;
-        let emailSent = 0;
-        let emailFailed = 0;
-        const errors = [];
-
-        for (let i = 0; i < rows.length; i++) {
-            try {
-                const result = await createBulkAnnouncement(req, rows[i]);
-                created++;
-                emailSent += result.emailSent || 0;
-                emailFailed += result.emailFailed || 0;
-            } catch (err) {
-                failed++;
-                errors.push({ row: i + 2, message: err.message || "Unable to create announcement" });
+        validateRow: (row, ctx) => {
+            const audienceRaw = ctx.text("Audience") || "everyone";
+            const audience = normalizeBulkAudience(audienceRaw);
+            if (!["everyone", "managers", "users", "specific"].includes(audience)) {
+                ctx.fail("Audience", audienceRaw, "Audience must be everyone, managers, users or specific.");
             }
+
+            const pinned = parseYesNo(ctx.cell("Pinned"), false);
+            if (pinned === null) ctx.fail("Pinned", ctx.cell("Pinned"), "Pinned must be Yes or No.");
+
+            const specificRaw = ctx.text("Specific User IDs");
+            const specificIds = parseBulkIds(specificRaw);
+            if (audience === "specific" && !specificIds.length) {
+                ctx.fail("Specific User IDs", specificRaw, "Specific User IDs are required when Audience is specific.");
+            }
+
+            ctx.values = {
+                title: ctx.text("Title"),
+                content: ctx.text("Content"),
+                audience,
+                isPinned: Boolean(pinned),
+                specificIds
+            };
+        },
+
+        processRow: async (row, ctx) => {
+            const result = await createBulkAnnouncement(req, ctx.values);
+            emailSent += result.emailSent || 0;
+            emailFailed += result.emailFailed || 0;
+            if (result.emailFailed) {
+                ctx.note("Audience", ctx.values.audience, `Announcement saved, but ${result.emailFailed} email(s) could not be sent.`);
+            }
+            return { id: result.announcementId };
         }
+    });
 
-        fs.unlink(req.file.path, () => {});
-
-        return res.status(201).json({
-            success: created > 0,
-            message: `${created} announcement(s) uploaded successfully${failed ? `, ${failed} row(s) failed` : ""}.`,
-            processed: rows.length,
-            created,
-            failed,
-            emailSent,
-            emailFailed,
-            errors
-        });
-    } catch (err) {
-        fs.unlink(req.file.path, () => {});
-        console.error("Announcement bulk upload:", err);
-        return res.status(400).json({ success: false, message: "Unable to read the uploaded file" });
-    }
+    return res.status(body.completed ? 201 : 400).json({ ...body, emailSent, emailFailed });
 };
 
 const exportAnnouncements = (req, res) => {

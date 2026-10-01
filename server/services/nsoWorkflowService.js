@@ -371,7 +371,8 @@ const exportWorkflow = async () => {
 
 const bulkImportWorkflow = async (
     records,
-    userId
+    userId,
+    options = {}
 ) => {
 
     // ------------------------------------------
@@ -473,12 +474,16 @@ const bulkImportWorkflow = async (
     //
     // ------------------------------------------
 
-    await historyService.createHistory(
-        null,
-        userId,
-        "Bulk Import",
-        `${preparedRecords.length} New Store Opening project(s) imported.`
-    );
+    // The global bulk-upload engine saves one row at a time and writes
+    // a single history entry for the whole file itself (skipHistory).
+    if (!options.skipHistory) {
+        await historyService.createHistory(
+            null,
+            userId,
+            "Bulk Import",
+            `${preparedRecords.length} New Store Opening project(s) imported.`
+        );
+    }
 
 
     return result;
@@ -705,7 +710,17 @@ const getDashboardSummary = async (
 // MODULE EXPORTS
 // ======================================================
 
+// Exposed for the bulk importer's single history entry.
+const createImportHistory = (userId, count) =>
+    historyService.createHistory(
+        null,
+        userId,
+        "Bulk Import",
+        `${count} New Store Opening project(s) imported.`
+    );
+
 module.exports = {
+    createImportHistory,
 
     createWorkflow,
 

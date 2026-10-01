@@ -94,6 +94,11 @@ function publicJob(job) {
         percent,
         warnings: Array.isArray(job.warnings) ? job.warnings : [],
         errors: Array.isArray(job.errors) ? job.errors : [],
+        // Standard global bulk-upload report (summary, column validation,
+        // every failed row with row / column / value / reason) — set when
+        // the job finishes. See utils/bulkUploadEngine.js.
+        report: job.report || null,
+        errorDetails: Array.isArray(job.errorDetails) ? job.errorDetails : [],
         startedAt: job.startedAt,
         finishedAt: job.finishedAt
     };

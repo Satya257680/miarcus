@@ -719,12 +719,13 @@ return (
     ===================================================== */}
 
 <BulkUploadModal
+    moduleKey="departments"
+    uploadUrl={"/api/departments/bulk-upload"}
     isOpen={showBulkModal}
     onClose={() => setShowBulkModal(false)}
     title="Bulk Upload Departments"
     uploadFunction={handleBulkUpload}
     onSuccess={fetchDepartments}
-    acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp"
     // Matches the app-wide server-side ceiling (server/middleware/
     // fileSecurity.js). Note: this page hasn't been wired up for the
     // chunked upload flow (see enableChunkedUpload on

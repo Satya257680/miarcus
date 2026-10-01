@@ -44,7 +44,6 @@ import {
   exportProducts,
   deleteProduct,
   deleteAllProducts,
-  bulkUploadProducts,
   getProduct,
   getConfigs,
   updateProductStage,
@@ -60,6 +59,7 @@ import {
 
 import "./CollectionTracking.css";
 import ExportButton from "../../components/common/ExportButton";
+import BulkUploadModal from "../../components/common/BulkUploadModal";
 import { exportFromCSV } from "../../utils/exportUtils.js";
 
 const STAGES = [
@@ -587,8 +587,6 @@ function ProductList() {
   const [total, setTotal] = useState(0);
 
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkUploading, setBulkUploading] = useState(false);
-  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const pageSize = 12;
@@ -703,50 +701,8 @@ function ProductList() {
     }
   };
 
-  const handleBulkUpload = async () => {
-    if (!file) {
-      alert("Please select a CSV or Excel file.");
-      return;
-    }
-
-    try {
-      setBulkUploading(true);
-      const formData = new FormData();
-
-      formData.append("file", file);
-
-      await bulkUploadProducts(formData);
-
-      setBulkOpen(false);
-      setFile(null);
-
-      setPage(1);
-
-      await loadProducts();
-
-      alert("Products uploaded successfully.");
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        error?.response?.data?.message ||
-          "Bulk upload failed."
-      );
-    } finally {
-      setBulkUploading(false);
-    }
-  };
-
   return (
     <div className="ct-shell">
-      {bulkUploading && (
-        <PremiumLoader
-          overlay
-          title="Importing Your Data..."
-          message="Your SKU file is being validated and saved to Collection Tracking."
-          caption="Importing products... please do not close this page."
-        />
-      )}
       <Hero
         title="SKU Details"
         subtitle="Manage and track product SKUs across the complete Collection Tracking workflow."
@@ -1039,67 +995,17 @@ function ProductList() {
         </div>
       </div>
 
-      {bulkOpen && (
-        <div className="ct-modal-backdrop">
-          <div
-            className="ct-card"
-            style={{
-              width: 600,
-              maxWidth: "95vw",
-              margin: 0,
-            }}
-          >
-            <h3>Bulk Upload Products</h3>
-
-            <p className="ct-muted">
-              Upload CSV or Excel data using
-              product_code, product_name and
-              Master Data field names.
-            </p>
-
-            <div className="ct-file">
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={(event) =>
-                  setFile(
-                    event.target.files?.[0] ||
-                      null
-                  )
-                }
-              />
-
-              <p className="ct-muted">
-                {file?.name ||
-                  "Choose a CSV or Excel file"}
-              </p>
-            </div>
-
-            <div className="ct-actions">
-              <button
-                type="button"
-                className="ct-btn light"
-                onClick={() => {
-                  setBulkOpen(false);
-                  setFile(null);
-                }}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="ct-btn primary"
-                disabled={!file}
-                onClick={handleBulkUpload}
-              >
-                <FaFileUpload />
-                Upload
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BulkUploadModal
+        isOpen={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onSuccess={async () => {
+          setPage(1);
+          await loadProducts();
+        }}
+        title="Collection Tracking"
+        moduleKey="collection-products"
+        uploadUrl="/api/collection-tracking/products/bulk"
+      />
     </div>
   );
 }
