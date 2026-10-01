@@ -2394,6 +2394,9 @@
 .vp-schedule-chip strong { font-size: 11.5px; }
 .vp-schedule-chip em { font-style: normal; color: var(--mi-accent, #6d4fe0); font-weight: 600; }
 .vp-schedule-more { align-self: center; font-size: 11px; color: var(--mi-muted, #6b7280); }
+.vp-schedule-chip--off { background: #fffbeb; border-color: #fcd34d; max-width: 260px; }
+.vp-schedule-chip--off em { color: #b45309; white-space: normal; }
+:root[data-miarcus-theme="dark"] .vp-schedule-chip--off { background: rgba(217, 119, 6, .12); border-color: rgba(217, 119, 6, .4); }
 
 @media (max-width: 640px) {
     .vp-steps, .vp-dates, .vp-review { padding-left: 14px; padding-right: 14px; }

@@ -84,6 +84,27 @@ const dmy = (value) => {
   return d && m && y ? `${d}/${m}/${y}` : value;
 };
 
+const dayName = (value) => {
+  if (!value) return "";
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short" });
+};
+
+const isWeekendDay = (value) => {
+  const day = new Date(`${value}T00:00:00`).getDay();
+  return day === 0 || day === 6;
+};
+
+/* Reasons a day inside the plan range can have no store visit. */
+const DAY_REASON_TYPES = [
+  "Weekend / Week off",
+  "Leave",
+  "Public holiday",
+  "Travel day",
+  "Office work / Meeting",
+  "Market visit (no store)",
+  "Other",
+];
+
 const makeInitialForm = () => ({
   employee_id: "",
   visit_date: todayYmd(),
@@ -93,6 +114,8 @@ const makeInitialForm = () => ({
   reason_to_travel: "",
   planned_store_ids: [],
   store_dates: {},
+  // { "YYYY-MM-DD": { reason_type, reason } } for days with no store visit
+  day_reasons: {},
 });
 
 /* =========================================================
@@ -514,6 +537,16 @@ function VisitPlanner() {
       }
     });
 
+    const dayReasons = {};
+    (Array.isArray(row.day_reasons) ? row.day_reasons : []).forEach((item) => {
+      if (item?.date) {
+        dayReasons[String(item.date).slice(0, 10)] = {
+          reason_type: item.reason_type || "",
+          reason: item.reason || "",
+        };
+      }
+    });
+
     setForm({
       employee_id: row.employee_id || "",
       visit_date: toInputDate(row.visit_date),
@@ -525,6 +558,7 @@ function VisitPlanner() {
       planned_store_ids:
         existingStoreIds,
       store_dates: storeDates,
+      day_reasons: dayReasons,
     });
 
     setStep("details");
@@ -761,11 +795,81 @@ function VisitPlanner() {
     ) ||
     null;
 
+  /*
+    BLANK DAYS
+    Every day between From and To that has no store visit must get
+    a reason (weekend, leave, holiday...). Computed live so it updates
+    as soon as a store date is changed.
+  */
+  const rangeDays = useMemo(() => {
+    const list = [];
+    if (!form.visit_date || !form.end_date || form.end_date < form.visit_date) return list;
+    let cursor = form.visit_date;
+    while (cursor <= form.end_date && list.length < 400) {
+      list.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+    return list;
+  }, [form.visit_date, form.end_date]);
+
+  const visitDaySet = new Set(includedStoreIds.map((id) => storeDateFor(id)));
+
+  const blankDays = form.week_off
+    ? []
+    : rangeDays.filter((day) => !visitDaySet.has(day));
+
+  const dayReasonFor = (day) =>
+    form.day_reasons?.[day] || { reason_type: "", reason: "" };
+
+  const setDayReason = (day, patch) => {
+    setForm((current) => ({
+      ...current,
+      day_reasons: {
+        ...current.day_reasons,
+        [day]: {
+          ...(current.day_reasons?.[day] || { reason_type: "", reason: "" }),
+          ...patch,
+        },
+      },
+    }));
+  };
+
+  const isDayReasonMissing = (day) => {
+    const item = dayReasonFor(day);
+    const type = String(item.reason_type || "").trim();
+    if (!type) return true;
+    return type === "Other" && !String(item.reason || "").trim();
+  };
+
+  const markWeekends = () => {
+    setForm((current) => {
+      const next = { ...current.day_reasons };
+      blankDays.forEach((day) => {
+        if (isWeekendDay(day) && !next[day]?.reason_type) {
+          next[day] = { reason_type: "Weekend / Week off", reason: next[day]?.reason || "" };
+        }
+      });
+      return { ...current, day_reasons: next };
+    });
+  };
+
+  const applyReasonToAllBlank = (type) => {
+    if (!type) return;
+    setForm((current) => {
+      const next = { ...current.day_reasons };
+      blankDays.forEach((day) => {
+        if (!next[day]?.reason_type) {
+          next[day] = { reason_type: type, reason: next[day]?.reason || "" };
+        }
+      });
+      return { ...current, day_reasons: next };
+    });
+  };
+
   const validateDetails = () => {
     if (!form.employee_id) return "Please select the employee.";
     if (!form.visit_date || !form.end_date) return "Please select the From and To dates.";
     if (form.end_date < form.visit_date) return "To date cannot be before the From date.";
-    if (!form.week_off && !String(form.city || "").trim()) return "City is required.";
     if (!String(form.reason_to_travel || "").trim()) return "Reason to travel is required.";
     if (String(form.reason_to_travel || "").trim().length < 5) return "Please enter a proper reason to travel (at least 5 characters).";
     if (!form.week_off && !form.planned_store_ids.length) return "Please select at least one planned store.";
@@ -782,6 +886,13 @@ function VisitPlanner() {
     if (outside) {
       const store = storeById(outside);
       return `Visit date for ${getStoreName(store) || store?.store_name || "a store"} must be between ${dmy(form.visit_date)} and ${dmy(form.end_date)}.`;
+    }
+    const missing = blankDays.filter(isDayReasonMissing);
+    if (missing.length) {
+      return `Please give a reason for the day(s) without a store visit: ${missing
+        .slice(0, 6)
+        .map(dmy)
+        .join(", ")}${missing.length > 6 ? ` and ${missing.length - 6} more` : ""}. Choose "Other" and type a note if none of the options fit.`;
     }
     return "";
   };
@@ -846,6 +957,11 @@ function VisitPlanner() {
         reason_to_travel: form.reason_to_travel,
         planned_stores: plannedStores,
         planned_store_ids: plannedStores.map((store) => store.store_id),
+        day_reasons: blankDays.map((day) => ({
+          date: day,
+          reason_type: dayReasonFor(day).reason_type,
+          reason: String(dayReasonFor(day).reason || "").trim(),
+        })),
       };
 
       if (editing) {
@@ -1169,6 +1285,21 @@ function VisitPlanner() {
             ))}
             {list.length > 4 && (
               <span className="vp-schedule-more">+{list.length - 4} more</span>
+            )}
+            {Array.isArray(row.day_reasons) && row.day_reasons.length > 0 && (
+              <span
+                className="vp-schedule-chip vp-schedule-chip--off"
+                title={row.day_reasons_text || ""}
+              >
+                <strong>{row.day_reasons.length} day{row.day_reasons.length === 1 ? "" : "s"} without store</strong>
+                <em>
+                  {row.day_reasons
+                    .slice(0, 2)
+                    .map((item) => `${dmy(item.date).slice(0, 5)} ${item.reason_type}`)
+                    .join(", ")}
+                  {row.day_reasons.length > 2 ? "…" : ""}
+                </em>
+              </span>
             )}
           </div>
         );
@@ -1675,7 +1806,7 @@ function VisitPlanner() {
                 {/* CITY */}
                 <label className="sales-field sales-field-full">
                   <span>
-                    <FaMapMarkedAlt className="vpw-label-icon" /> City {form.week_off ? <small className="sales-field-help">(Optional for week off / leave)</small> : <b>*</b>}
+                    <FaMapMarkedAlt className="vpw-label-icon" /> City <small className="sales-field-help">(Optional)</small>
                   </span>
                   <input
                     value={form.city}
@@ -1906,9 +2037,94 @@ function VisitPlanner() {
                   </table>
                 </div>
 
+                {blankDays.length > 0 && (
+                  <div className="vp-blank-days">
+                    <div className="vp-blank-days-head">
+                      <div>
+                        <strong>
+                          <FaExclamationCircle /> Days without a store visit ({blankDays.length}) <b>*</b>
+                        </strong>
+                        <small>
+                          No store is planned on these dates. Give a reason for each day — weekend, leave, holiday or anything else.
+                        </small>
+                      </div>
+                      <div className="vp-blank-days-actions">
+                        {blankDays.some(isWeekendDay) && (
+                          <button type="button" className="vp-soft-btn" onClick={markWeekends}>
+                            <FaUmbrellaBeach /> Mark Sat/Sun as Weekend
+                          </button>
+                        )}
+                        <select
+                          className="vp-blank-apply"
+                          value=""
+                          onChange={(event) => applyReasonToAllBlank(event.target.value)}
+                          aria-label="Apply a reason to every empty day"
+                        >
+                          <option value="">Apply to all empty days…</option>
+                          {DAY_REASON_TYPES.map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="vp-dates-table-wrap">
+                      <table className="vp-dates-table vp-blank-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>Reason *</th>
+                            <th>Note</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {blankDays.map((day) => {
+                            const item = dayReasonFor(day);
+                            const missing = isDayReasonMissing(day);
+                            return (
+                              <tr key={day} className={missing ? "vp-blank-missing" : ""}>
+                                <td><strong>{dmy(day)}</strong></td>
+                                <td>
+                                  <span className={`vp-day-pill ${isWeekendDay(day) ? "weekend" : ""}`}>{dayName(day)}</span>
+                                </td>
+                                <td>
+                                  <select
+                                    value={item.reason_type}
+                                    className={missing && !item.reason_type ? "invalid" : ""}
+                                    onChange={(event) => setDayReason(day, { reason_type: event.target.value })}
+                                  >
+                                    <option value="">Select reason</option>
+                                    {DAY_REASON_TYPES.map((type) => (
+                                      <option key={type} value={type}>{type}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td>
+                                  <input
+                                    type="text"
+                                    maxLength={300}
+                                    value={item.reason}
+                                    className={item.reason_type === "Other" && !String(item.reason || "").trim() ? "invalid" : ""}
+                                    placeholder={item.reason_type === "Other" ? "Required — describe the reason" : "Optional note"}
+                                    onChange={(event) => setDayReason(day, { reason: event.target.value })}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
                 <div className="vp-dates-footer">
                   <span>
                     <FaCheckCircle /> Selected Stores: <strong>{includedStoreIds.length}</strong>
+                    {blankDays.length > 0 && (
+                      <> · Days without store: <strong>{blankDays.length}</strong></>
+                    )}
                   </span>
                   <button type="button" className="vp-soft-btn" onClick={() => setStep("details")}>
                     <FaPlus /> Add More Stores
@@ -1995,6 +2211,34 @@ function VisitPlanner() {
                                 </td>
                                 <td>{getStoreCity(store) || store?.city || "—"}</td>
                                 <td>{dmy(date)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {!form.week_off && blankDays.length > 0 && (
+                    <div className="vp-review-section">
+                      <h4>Days Without a Store Visit ({blankDays.length})</h4>
+                      <div className="vp-dates-table-wrap">
+                        <table className="vp-dates-table">
+                          <thead>
+                            <tr>
+                              <th>Date</th>
+                              <th>Day</th>
+                              <th>Reason</th>
+                              <th>Note</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {blankDays.map((day) => (
+                              <tr key={day}>
+                                <td>{dmy(day)}</td>
+                                <td>{dayName(day)}</td>
+                                <td>{dayReasonFor(day).reason_type || "—"}</td>
+                                <td>{dayReasonFor(day).reason || "—"}</td>
                               </tr>
                             ))}
                           </tbody>

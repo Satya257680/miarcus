@@ -752,20 +752,27 @@ function TravelPlan() {
       minWidth: "240px",
       render: (row) => {
         const list = Array.isArray(row.planned_stores) ? row.planned_stores : [];
-        if (!list.length) {
+        const blankDays = Array.isArray(row.day_reasons) ? row.day_reasons : [];
+        if (!list.length && !blankDays.length) {
           return (
             <span className="sales-wrap-cell">
               {row.planned_store_names || "—"}
             </span>
           );
         }
-        // Store-wise visit dates of the plan.
+        // Store-wise visit dates of the plan + reasons for days with no store.
         return (
-          <div className="vp-schedule-cell" title={row.planned_store_schedule || ""}>
+          <div className="vp-schedule-cell" title={[row.planned_store_schedule, row.day_reasons_text].filter(Boolean).join(" | ")}>
             {list.map((store) => (
               <span key={store.store_id} className="vp-schedule-chip">
                 <strong>{store.store_name}</strong>
                 {store.visit_date ? <em>{formatDate(store.visit_date)}</em> : null}
+              </span>
+            ))}
+            {blankDays.map((item) => (
+              <span key={`off-${item.date}`} className="vp-schedule-chip vp-schedule-chip--off">
+                <strong>No store · {formatDate(item.date)}</strong>
+                <em>{item.reason_type}{item.reason ? ` — ${item.reason}` : ""}</em>
               </span>
             ))}
           </div>

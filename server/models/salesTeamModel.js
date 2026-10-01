@@ -276,6 +276,18 @@ const createTables = (callback) => {
     },
 
     /*
+      BLANK-DAY REASONS
+      JSON list of { date, reason_type, reason } for every day of the
+      plan range that has no store visit (weekend, leave, holiday...).
+    */
+    {
+      table: "sales_visit_plans",
+      column: "day_reasons",
+      definition:
+        "TEXT NULL",
+    },
+
+    /*
       SALES REVIEW MIGRATIONS
 
       CREATE TABLE IF NOT EXISTS does not modify an already existing
@@ -1161,6 +1173,35 @@ const toYmd = (value) => {
   return String(value).slice(0, 10);
 };
 
+/*
+  day_reasons is stored as JSON text. Always hand back a clean array
+  so the UI / exports never have to guess the shape.
+*/
+const parseDayReasons = (value) => {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((item) => item && item.date)
+          .map((item) => ({
+            date: String(item.date).slice(0, 10),
+            reason_type: String(item.reason_type || "Other"),
+            reason: String(item.reason || ""),
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const serializeDayReasons = (value) => {
+  const list = parseDayReasons(value);
+  return list.length ? JSON.stringify(list) : null;
+};
+
 const attachPlanStores = (
   rows,
   callback
@@ -1172,6 +1213,13 @@ const attachPlanStores = (
         .filter(Boolean)
     ),
   ];
+
+  (rows || []).forEach((row) => {
+    row.day_reasons = parseDayReasons(row.day_reasons);
+    row.day_reasons_text = row.day_reasons
+      .map((item) => `${formatDmy(item.date)} - ${item.reason_type}${item.reason ? `: ${item.reason}` : ""}`)
+      .join("; ");
+  });
 
   if (!ids.length) {
     return callback(null, rows);
@@ -1273,6 +1321,8 @@ const createVisitPlan = (
 
       reason_to_travel,
 
+      day_reasons,
+
       approval_status,
 
       created_by,
@@ -1280,7 +1330,7 @@ const createVisitPlan = (
       updated_by
     )
 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       data.employee_id,
@@ -1294,6 +1344,8 @@ const createVisitPlan = (
       data.city || null,
 
       data.reason_to_travel || null,
+
+      data.week_off ? null : serializeDayReasons(data.day_reasons),
 
       approvalStatus,
 
@@ -1363,6 +1415,8 @@ const updateVisitPlan = (
 
       reason_to_travel = ?,
 
+      day_reasons = ?,
+
       approval_status = 'Pending',
 
       approval_by = NULL,
@@ -1385,6 +1439,8 @@ const updateVisitPlan = (
       data.city || null,
 
       data.reason_to_travel || null,
+
+      data.week_off ? null : serializeDayReasons(data.day_reasons),
 
       data.updated_by,
 
@@ -3391,6 +3447,7 @@ const flattenVisitExportRows = (rows) => {
       "Reason to Travel": row.reason_to_travel || "",
       "Planned Stores": row.planned_store_names || "",
       "Store Visit Schedule": row.planned_store_schedule || "",
+      "Blank Day Reasons": row.day_reasons_text || "",
       "Remarks": row.remarks || "",
       "Approval Status": row.approval_status || "Pending",
     };

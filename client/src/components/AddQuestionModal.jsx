@@ -7,6 +7,11 @@ import {
 } from "../services/questionService";
 
 import "../styles/AddQuestionModal.css";
+import {
+  isYesNoType,
+  normalizeExpectedAnswer,
+  suggestExpectedAnswer,
+} from "../config/checklistPhotoRules";
 
 function AddQuestionModal({
   question,
@@ -39,6 +44,7 @@ function AddQuestionModal({
     answer_required: false,
     status: "Active",
     photo_requirement: "",
+    expected_answer: "",
     departments: [],
   });
 
@@ -91,6 +97,7 @@ function AddQuestionModal({
         answer_required: false,
         status: "Active",
         photo_requirement: "",
+        expected_answer: "",
         departments: [],
       });
 
@@ -135,6 +142,9 @@ function AddQuestionModal({
 
       photo_requirement:
         question.photo_requirement || "",
+
+      expected_answer:
+        normalizeExpectedAnswer(question.expected_answer),
 
       departments: departmentIds,
     });
@@ -216,6 +226,25 @@ function AddQuestionModal({
   };
 
   // =====================================================
+  // EXPECTED ANSWER → PHOTO RULE PREVIEW
+  // =====================================================
+
+  const yesNoAnswer = isYesNoType(formData.answer_type);
+  const suggestedExpected = suggestExpectedAnswer(formData.question);
+  const effectiveExpected =
+    normalizeExpectedAnswer(formData.expected_answer) || suggestedExpected;
+  const unexpectedAnswer = effectiveExpected === "Yes" ? "No" : "Yes";
+
+  const photoRuleSummary = (() => {
+    const setting = formData.photo_requirement;
+    if (setting === "Required") return "Photo is required for both Yes and No.";
+    if (setting === "Optional") return "Photo is optional for both answers.";
+    if (setting === "None") return "No photo for this question.";
+    if (setting === "Required on No") return "Photo required when the answer is No (old setting — switch to Auto to use the expected answer).";
+    return `${effectiveExpected} → no photo needed  ·  ${unexpectedAnswer} → photo required`;
+  })();
+
+  // =====================================================
   // SAVE QUESTION
   // =====================================================
 
@@ -237,8 +266,15 @@ function AddQuestionModal({
       return;
     }
 
+    const yesNo = isYesNoType(formData.answer_type);
+
     const payload = {
       ...formData,
+      // Yes / No: keep the chosen normal answer (or the suggestion).
+      expected_answer: yesNo
+        ? normalizeExpectedAnswer(formData.expected_answer) ||
+          suggestExpectedAnswer(formData.question)
+        : "",
       departments: selectedDepartments,
     };
 
@@ -512,6 +548,54 @@ function AddQuestionModal({
 
               </div>
 
+              {/* Expected / Normal Answer (Yes / No only) */}
+
+              {yesNoAnswer && (
+                <div className="question-form-group">
+
+                  <label>
+                    Expected / Normal Answer
+                  </label>
+
+                  <div className="qm-expected-toggle" role="radiogroup" aria-label="Expected answer">
+                    {["Yes", "No"].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        role="radio"
+                        aria-checked={effectiveExpected === option}
+                        className={`qm-expected-option ${effectiveExpected === option ? "active" : ""}`}
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, expected_answer: option }))
+                        }
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+
+                  <small className="qm-help">
+                    {formData.expected_answer
+                      ? suggestedExpected !== formData.expected_answer
+                        ? `Suggested from the wording: ${suggestedExpected}. `
+                        : "Matches the suggestion from the wording. "
+                      : `Auto-detected from the wording: ${suggestedExpected}. Click to confirm or change. `}
+                    {formData.expected_answer && formData.expected_answer !== suggestedExpected && (
+                      <button
+                        type="button"
+                        className="qm-link-btn"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, expected_answer: suggestedExpected }))
+                        }
+                      >
+                        Use suggestion
+                      </button>
+                    )}
+                  </small>
+
+                </div>
+              )}
+
               {/* Photo Evidence (Checklist Submission) */}
 
               <div className="question-form-group">
@@ -529,26 +613,37 @@ function AddQuestionModal({
                 >
 
                   <option value="">
-                    Auto (system decides)
+                    {yesNoAnswer
+                      ? "Auto — photo required for unexpected answer"
+                      : "Auto (system decides)"}
                   </option>
 
                   <option value="Optional">
-                    Optional photo
+                    {yesNoAnswer ? "Always optional" : "Optional photo"}
                   </option>
 
                   <option value="Required">
-                    Photo required
+                    {yesNoAnswer ? "Always required" : "Photo required"}
                   </option>
 
-                  <option value="Required on No">
-                    Photo required when answer is No
-                  </option>
+                  {/* Older setting — kept only so existing questions still show it. */}
+                  {formData.photo_requirement === "Required on No" && (
+                    <option value="Required on No">
+                      Photo required when answer is No (old setting)
+                    </option>
+                  )}
 
                   <option value="None">
-                    No photo
+                    {yesNoAnswer ? "Never required" : "No photo"}
                   </option>
 
                 </select>
+
+                {yesNoAnswer && (
+                  <small className="qm-help qm-help--rule">
+                    {photoRuleSummary}
+                  </small>
+                )}
 
               </div>
 

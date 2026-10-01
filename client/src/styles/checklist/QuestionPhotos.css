@@ -617,6 +617,19 @@
     font-weight: 700;
 }
 
+.cs-q-photo-hint {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #fff7e6;
+    color: #a15c07;
+    font-weight: 600;
+}
+
+:root[data-miarcus-theme="dark"] .cs-q-photo-hint {
+    background: rgba(217, 119, 6, 0.15);
+    color: #fcd34d;
+}
+
 .cs-q-photo-count {
     padding: 2px 8px;
     border-radius: 999px;

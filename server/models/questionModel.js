@@ -15,6 +15,15 @@ const db = require("../config/db");
 
 const PHOTO_REQUIREMENTS = ["Auto", "Optional", "Required", "Required on No", "None"];
 
+// questions.expected_answer ('Yes' / 'No') — the normal answer of a
+// Yes / No question. With Photo Evidence = Auto a photo is required
+// only when the OTHER (unexpected) answer is given.
+const {
+    isYesNoType,
+    normalizeExpectedAnswer,
+    suggestExpectedAnswer
+} = require("../config/checklistExpectedAnswer");
+
 let photoRequirementReady = false;
 
 const ensurePhotoRequirementColumn = async () => {
@@ -35,7 +44,94 @@ const ensurePhotoRequirementColumn = async () => {
         });
     }
 
+    const hasExpected = await new Promise((resolve, reject) => {
+        db.query(
+            `SHOW COLUMNS FROM questions LIKE 'expected_answer'`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasExpected) {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE questions ADD COLUMN expected_answer VARCHAR(5) NULL`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+
     photoRequirementReady = true;
+};
+
+// ----------------------------------------------------------
+// EXPECTED ANSWER FOR EVERY EXISTING YES / NO QUESTION
+// ----------------------------------------------------------
+// Runs on every start but only touches Yes / No questions that do
+// not have an expected answer yet (i.e. once per question):
+//   • expected_answer  ← suggestion from the wording
+//   • "Required on No" → expected Yes + Auto (same behaviour)
+//   • "Required" that came from the default sheet list
+//     (config/checklistPhotoRules.js) → Auto, so the photo is
+//     needed only for the unexpected answer.
+// A photo rule an admin chose by hand for other questions is kept.
+const applyExpectedAnswerDefaults = async () => {
+
+    if (!photoRequirementReady) return 0;
+
+    const { isPhotoRequiredQuestion } = require("../config/checklistPhotoRules");
+
+    const rows = await new Promise((resolve, reject) => {
+        db.query(
+            `SELECT id, question, answer_type, photo_requirement
+             FROM questions
+             WHERE expected_answer IS NULL OR expected_answer = ''`,
+            (err, result) => err ? reject(err) : resolve(result || [])
+        );
+    });
+
+    const yesNoRows = rows.filter((row) => isYesNoType(row.answer_type));
+
+    for (const row of yesNoRows) {
+        const current = String(row.photo_requirement || "").trim().toLowerCase();
+        let expected = suggestExpectedAnswer(row.question);
+        let photo = row.photo_requirement || null;
+
+        if (current === "required on no") {
+            expected = "Yes";
+            photo = null;
+        } else if (current === "required" && isPhotoRequiredQuestion(row.question)) {
+            photo = null;
+        }
+
+        await new Promise((resolve, reject) => {
+            db.query(
+                `UPDATE questions SET expected_answer = ?, photo_requirement = ? WHERE id = ?`,
+                [expected, photo, row.id],
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+
+    if (yesNoRows.length) {
+        console.log(`✅ expected answer set for ${yesNoRows.length} Yes / No checklist question(s)`);
+    }
+
+    return yesNoRows.length;
+};
+
+const setExpectedAnswer = (id, value, answerType, questionText, callback = () => {}) => {
+
+    if (!photoRequirementReady) return callback(null);
+
+    const expected = isYesNoType(answerType)
+        ? normalizeExpectedAnswer(value) || suggestExpectedAnswer(questionText)
+        : null;
+
+    db.query(
+        `UPDATE questions SET expected_answer = ? WHERE id = ?`,
+        [expected, id],
+        (err) => callback(err || null)
+    );
 };
 
 // Questions listed in config/checklistPhotoRules.js (the "Required"
@@ -46,17 +142,21 @@ const applyDefaultPhotoRules = async () => {
 
     if (!photoRequirementReady) return 0;
 
+    // Yes / No questions first get their expected answer; they then
+    // use the "photo for the unexpected answer" rule instead.
+    await applyExpectedAnswerDefaults();
+
     const { isPhotoRequiredQuestion } = require("../config/checklistPhotoRules");
 
     const rows = await new Promise((resolve, reject) => {
         db.query(
-            `SELECT id, question FROM questions WHERE photo_requirement IS NULL OR photo_requirement = ''`,
+            `SELECT id, question, answer_type FROM questions WHERE photo_requirement IS NULL OR photo_requirement = ''`,
             (err, result) => err ? reject(err) : resolve(result || [])
         );
     });
 
     const ids = rows
-        .filter((row) => isPhotoRequiredQuestion(row.question))
+        .filter((row) => !isYesNoType(row.answer_type) && isPhotoRequiredQuestion(row.question))
         .map((row) => row.id);
 
     if (!ids.length) return 0;
@@ -125,7 +225,7 @@ const getAllQuestions = (
 
             q.answer_required,
 
-            ${photoRequirementReady ? "q.photo_requirement," : ""}
+            ${photoRequirementReady ? "q.photo_requirement, q.expected_answer," : ""}
 
             q.status,
 
@@ -283,7 +383,7 @@ const getAllQuestions = (
 
             q.answer_required,
 
-            ${photoRequirementReady ? "q.photo_requirement," : ""}
+            ${photoRequirementReady ? "q.photo_requirement, q.expected_answer," : ""}
 
             q.status,
 
@@ -363,7 +463,7 @@ const getQuestionsByChecklistType = (
 
             q.answer_required,
 
-            ${photoRequirementReady ? "q.photo_requirement," : ""}
+            ${photoRequirementReady ? "q.photo_requirement, q.expected_answer," : ""}
 
             q.status
 
@@ -858,6 +958,10 @@ module.exports = {
     applyDefaultPhotoRules,
 
     setPhotoRequirement,
+
+    applyExpectedAnswerDefaults,
+
+    setExpectedAnswer,
 
     getAllQuestions,
 

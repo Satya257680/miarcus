@@ -18,7 +18,12 @@ import checklistHeroArt from "../assets/premium/checklist-hero.png";
 import checklistBulb from "../assets/premium/checklist-bulb.png";
 import QuestionPhotoPicker from "../components/checklist/QuestionPhotoPicker";
 import { releasePhoto } from "../utils/photoEvidence";
-import { isPhotoRequiredQuestion } from "../config/checklistPhotoRules";
+import {
+  isPhotoRequiredQuestion,
+  isYesNoType,
+  expectedAnswerOf,
+  unexpectedAnswerOf,
+} from "../config/checklistPhotoRules";
 
 const API = API_BASE_URL;
 
@@ -77,6 +82,30 @@ const photoRule = (question, answerValue) => {
       : { mode: "optional", reason: "" };
   }
   if (setting === "optional") return { mode: "optional", reason: "" };
+
+  // Auto + Yes / No: photo only for the unexpected answer.
+  //   expected No  ("Are there any paint issues?")  → Yes needs a photo
+  //   expected Yes ("Is the fire extinguisher available?") → No needs a photo
+  if (isYesNoType(questionType(question))) {
+    const given = String(answerValue || "").trim().toLowerCase();
+    const expected = expectedAnswerOf(question);
+    const unexpected = unexpectedAnswerOf(question);
+
+    if (given && given === unexpected.toLowerCase()) {
+      return {
+        mode: "required",
+        reason: `Photo required because the answer is ${unexpected}`,
+      };
+    }
+
+    return {
+      mode: "optional",
+      reason: "",
+      hint: given ? "" : `Photo needed if answer is ${unexpected}`,
+      expected,
+    };
+  }
+
   // Questions marked "Required" in the Opening / Closing checklist sheets
   if (isPhotoRequiredQuestion(text)) return { mode: "required", reason: "" };
   if (PHOTO_WORDS.test(text)) return { mode: "required", reason: "" };
@@ -1508,6 +1537,11 @@ function ChecklistSubmission() {
                               {rule.mode === "required" && (
                                 <span className="cs-q-photo-req">
                                   + Photo <b>(Required)</b>
+                                </span>
+                              )}
+                              {rule.mode !== "required" && rule.hint && (
+                                <span className="cs-q-photo-hint">
+                                  📷 {rule.hint}
                                 </span>
                               )}
                               {questionPhotos.length > 0 && (

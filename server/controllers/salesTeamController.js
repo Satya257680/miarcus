@@ -493,11 +493,63 @@ const normalizePlanBody = (
     }
   }
 
+  /*
+    BLANK DAYS
+    Every day of the range that has no store visit must carry a
+    reason (weekend, leave, holiday, travel, meeting, other...).
+    Reasons sent for days that do have a store are ignored.
+  */
+  const dayReasons = [];
+
+  if (!weekOff) {
+    const visitDays = new Set(plannedStores.map((s) => s.visit_date));
+    const blankDays = [];
+    const cursor = new Date(`${fromDate}T00:00:00Z`);
+    const last = new Date(`${toDate}T00:00:00Z`);
+
+    while (cursor <= last && blankDays.length <= 400) {
+      const day = cursor.toISOString().slice(0, 10);
+      if (!visitDays.has(day)) blankDays.push(day);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    const incoming = new Map();
+    (Array.isArray(body.day_reasons) ? body.day_reasons : []).forEach((item) => {
+      const date = parseDate(item?.date);
+      if (date) incoming.set(date, item);
+    });
+
+    const missing = [];
+
+    blankDays.forEach((day) => {
+      const item = incoming.get(day);
+      const reasonType = String(item?.reason_type || "").trim().slice(0, 60);
+      const reason = String(item?.reason || "").trim().slice(0, 300);
+
+      if (!reasonType || (reasonType.toLowerCase() === "other" && !reason)) {
+        missing.push(day);
+        return;
+      }
+
+      dayReasons.push({ date: day, reason_type: reasonType, reason });
+    });
+
+    if (missing.length) {
+      return {
+        error: `Please give a reason for the day(s) without a store visit: ${missing
+          .slice(0, 10)
+          .map(formatDmy)
+          .join(", ")}${missing.length > 10 ? ` and ${missing.length - 10} more` : ""}.`,
+      };
+    }
+  }
+
   return {
     weekOff,
     fromDate,
     toDate,
     plannedStores,
+    dayReasons,
   };
 };
 
@@ -544,16 +596,7 @@ exports.createVisitPlan = (
     });
   }
 
-  if (
-    !plan.weekOff &&
-    !String(body.city || "").trim()
-  ) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "City is required.",
-    });
-  }
+  /* City is optional. */
 
   /*
     Normal employees can only create
@@ -602,6 +645,9 @@ exports.createVisitPlan = (
 
     planned_store_ids:
       plan.plannedStores.map((s) => s.store_id),
+
+    day_reasons:
+      plan.dayReasons,
   };
 
   SalesTeam.createVisitPlan(
@@ -737,6 +783,9 @@ exports.updateVisitPlan = (
 
         planned_store_ids:
           plan.plannedStores.map((s) => s.store_id),
+
+        day_reasons:
+          plan.dayReasons,
 
         updated_by:
           req.user.id,

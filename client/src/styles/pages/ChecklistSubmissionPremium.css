@@ -580,3 +580,276 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
+
+
+/* =========================================================
+   QUESTION CARDS — bigger, clearer, prettier
+   (Provide Information step of Checklist Submission)
+========================================================= */
+
+.checklist-submission-page.cs-premium .question-card {
+    margin-bottom: 16px !important;
+    padding: 22px 24px !important;
+    border: 1px solid #e7e3f5 !important;
+    border-radius: 18px !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 2px rgba(31, 22, 74, 0.04), 0 8px 24px rgba(31, 22, 74, 0.05) !important;
+}
+
+.checklist-submission-page.cs-premium .question-card::before {
+    content: "";
+    position: absolute;
+    inset: 18px auto 18px 0;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: #d9d2f3;
+    transition: background 0.2s ease;
+}
+
+.checklist-submission-page.cs-premium .question-card:hover {
+    border-color: #d6cdf5 !important;
+    box-shadow: 0 2px 4px rgba(31, 22, 74, 0.05), 0 14px 32px rgba(91, 53, 213, 0.09) !important;
+}
+
+.checklist-submission-page.cs-premium .question-card.answered {
+    border-color: #cdebd8 !important;
+}
+
+.checklist-submission-page.cs-premium .question-card.answered::before {
+    background: #16a34a;
+}
+
+.checklist-submission-page.cs-premium .question-top {
+    gap: 16px !important;
+}
+
+/* number bubble */
+.checklist-submission-page.cs-premium .question-number {
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    height: 38px !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #7c5cf0, #5b35d5) !important;
+    color: #ffffff !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 6px 14px rgba(91, 53, 213, 0.25);
+}
+
+.checklist-submission-page.cs-premium .question-card.answered .question-number {
+    background: linear-gradient(135deg, #22c55e, #15803d) !important;
+    box-shadow: 0 6px 14px rgba(22, 163, 74, 0.25);
+}
+
+/* question text */
+.checklist-submission-page.cs-premium .question-title {
+    align-items: center !important;
+    margin-bottom: 6px !important;
+}
+
+.checklist-submission-page.cs-premium .question-title h4 {
+    font-size: 18px !important;
+    line-height: 1.4 !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em;
+    color: #1c1537 !important;
+}
+
+.checklist-submission-page.cs-premium .required-star {
+    margin-left: 4px !important;
+    font-size: 18px !important;
+    color: #e03c4a !important;
+}
+
+.checklist-submission-page.cs-premium .answered-badge {
+    padding: 5px 11px !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+}
+
+/* "Type: Yes / No" line → chips */
+.checklist-submission-page.cs-premium .cs-q-meta {
+    gap: 8px !important;
+    margin: 4px 0 16px !important;
+    font-size: 13px !important;
+}
+
+.checklist-submission-page.cs-premium .cs-q-meta > span:first-child {
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: #f4f1fd;
+    color: #5b4a99;
+    font-weight: 600;
+}
+
+.checklist-submission-page.cs-premium .cs-q-photo-req,
+.checklist-submission-page.cs-premium .cs-q-photo-hint,
+.checklist-submission-page.cs-premium .cs-q-photo-count {
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 13px;
+}
+
+.checklist-submission-page.cs-premium .cs-q-photo-req {
+    background: #fdecee;
+    color: #b42335;
+}
+
+/* Yes / No buttons */
+.checklist-submission-page.cs-premium .question-answer {
+    margin-bottom: 18px !important;
+}
+
+.checklist-submission-page.cs-premium .answer-choice-group {
+    gap: 14px !important;
+}
+
+.checklist-submission-page.cs-premium .answer-choice-group .choice-option {
+    min-height: 56px !important;
+    gap: 10px !important;
+    border-width: 1.5px !important;
+    border-radius: 14px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+}
+
+.checklist-submission-page.cs-premium .answer-choice-group .choice-option:hover {
+    transform: translateY(-1px);
+}
+
+.checklist-submission-page.cs-premium .answer-choice-group .choice-option .choice-circle {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 13px !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* other answer inputs */
+.checklist-submission-page.cs-premium .answer-input,
+.checklist-submission-page.cs-premium .answer-textarea {
+    border-radius: 12px !important;
+    font-size: 15px !important;
+}
+
+.checklist-submission-page.cs-premium .answer-input {
+    height: 46px !important;
+    padding: 0 14px !important;
+}
+
+.checklist-submission-page.cs-premium .answer-textarea {
+    padding: 12px 14px !important;
+}
+
+/* remarks */
+.checklist-submission-page.cs-premium .remarks-wrapper {
+    padding-top: 16px !important;
+    border-top: 1px dashed #e7e3f5 !important;
+}
+
+.checklist-submission-page.cs-premium .remarks-wrapper label {
+    margin-bottom: 8px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #3b3363 !important;
+}
+
+.checklist-submission-page.cs-premium .remarks-wrapper label span {
+    padding: 3px 9px !important;
+    font-size: 11px !important;
+    background: #f1effa !important;
+    color: #7a719e !important;
+}
+
+.checklist-submission-page.cs-premium .remarks-input {
+    min-height: 72px !important;
+    padding: 12px 14px !important;
+    border: 1.5px solid #e7e3f5 !important;
+    border-radius: 12px !important;
+    background: #fbfaff !important;
+    font-size: 14px !important;
+    color: #2a2347 !important;
+}
+
+.checklist-submission-page.cs-premium .remarks-input:focus,
+.checklist-submission-page.cs-premium .answer-input:focus,
+.checklist-submission-page.cs-premium .answer-textarea:focus {
+    border-color: #7c5cf0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 4px rgba(124, 92, 240, 0.12) !important;
+}
+
+.checklist-submission-page.cs-premium .remarks-input::placeholder {
+    color: #a29cbd !important;
+}
+
+/* phones / small windows */
+@media (max-width: 640px) {
+    .checklist-submission-page.cs-premium .question-card {
+        padding: 16px 14px !important;
+    }
+
+    .checklist-submission-page.cs-premium .question-number {
+        flex: 0 0 34px !important;
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 14px !important;
+    }
+
+    .checklist-submission-page.cs-premium .question-title h4 {
+        font-size: 16px !important;
+    }
+
+    .checklist-submission-page.cs-premium .answer-choice-group .choice-option {
+        min-height: 50px !important;
+        font-size: 15px !important;
+    }
+}
+
+/* dark theme */
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .question-card {
+    background: #1b1731 !important;
+    border-color: #2e2850 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+}
+
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .question-card::before {
+    background: #3a3266;
+}
+
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .question-title h4 {
+    color: #f4f2ff !important;
+}
+
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .cs-q-meta > span:first-child {
+    background: #2a2448;
+    color: #c9c0f2;
+}
+
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .remarks-wrapper {
+    border-top-color: #2e2850 !important;
+}
+
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .remarks-wrapper label {
+    color: #d9d4f5 !important;
+}
+
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .remarks-wrapper label span {
+    background: #2a2448 !important;
+    color: #a9a1d6 !important;
+}
+
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .remarks-input,
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .answer-input,
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .answer-textarea {
+    background: #14112a !important;
+    border-color: #342d55 !important;
+    color: #f4f2ff !important;
+}
+
+:root[data-miarcus-theme="dark"] .checklist-submission-page.cs-premium .cs-q-photo-req {
+    background: rgba(224, 60, 74, 0.15);
+    color: #fda4af;
+}

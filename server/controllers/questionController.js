@@ -2,6 +2,10 @@ const { readDeleteScope, eachId, cbToPromise, sendFilteredResult } = require("..
 const Question = require("../models/questionModel");
 const { logActivity } = require("../utils/activityLogger");
 const { runBulkUpload } = require("../utils/bulkUploadEngine");
+const {
+    isYesNoType,
+    normalizeExpectedAnswer
+} = require("../config/checklistExpectedAnswer");
 const db = require("../config/db");
 
 const XLSX = require("xlsx");
@@ -190,6 +194,7 @@ exports.createQuestion = (req, res) => {
         answer_required,
         status,
         photo_requirement,
+        expected_answer,
         departments = []
     } = req.body;
 
@@ -268,6 +273,11 @@ exports.createQuestion = (req, res) => {
             // Photo evidence rule (Auto / Optional / Required / Required on No / None)
             Question.setPhotoRequirement(questionId, photo_requirement, (photoErr) => {
                 if (photoErr) console.error("setPhotoRequirement error:", photoErr);
+            });
+
+            // Normal answer of a Yes / No question (photo needed for the other one)
+            Question.setExpectedAnswer(questionId, expected_answer, answer_type, question, (expErr) => {
+                if (expErr) console.error("setExpectedAnswer error:", expErr);
             });
 
             // ==================================================
@@ -350,6 +360,7 @@ exports.updateQuestion = (req, res) => {
         answer_required,
         status,
         photo_requirement,
+        expected_answer,
         departments = []
     } = req.body;
 
@@ -427,6 +438,11 @@ exports.updateQuestion = (req, res) => {
             // Photo evidence rule (Auto / Optional / Required / Required on No / None)
             Question.setPhotoRequirement(id, photo_requirement, (photoErr) => {
                 if (photoErr) console.error("setPhotoRequirement error:", photoErr);
+            });
+
+            // Normal answer of a Yes / No question (photo needed for the other one)
+            Question.setExpectedAnswer(id, expected_answer, answer_type, question, (expErr) => {
+                if (expErr) console.error("setExpectedAnswer error:", expErr);
             });
 
             // ==================================================
@@ -853,6 +869,7 @@ exports.bulkUploadQuestions = (req, res) =>
                 required: "Required", yes: "Required", y: "Required", true: "Required", 1: "Required", mandatory: "Required", "photo required": "Required",
                 "required on no": "Required on No", "required if no": "Required on No", "on no": "Required on No",
                 optional: "Optional",
+                auto: "Auto", "auto (system decides)": "Auto", "unexpected answer": "Auto", "required on unexpected answer": "Auto",
                 none: "None", "no photo": "None", "not required": "None", no: "None"
             };
             ctx.photoRequirement = photoRaw ? PHOTO[photoRaw] : undefined;
@@ -860,8 +877,15 @@ exports.bulkUploadQuestions = (req, res) =>
                 // Only an explicit Photo column is validated; "Remarks" text is free form.
                 const header = (ctx.headers.columns || []).find((c) => c.target === "Photo Requirement");
                 if (header && !/remark/i.test(header.source)) {
-                    ctx.fail("Photo Requirement", ctx.text("Photo Requirement"), "Use Required, Optional, Required on No or None.");
+                    ctx.fail("Photo Requirement", ctx.text("Photo Requirement"), "Use Auto, Required, Optional, Required on No or None.");
                 }
+            }
+
+            // Expected / normal answer (Yes / No questions only).
+            const expectedRaw = ctx.text("Expected Answer");
+            ctx.expectedAnswer = normalizeExpectedAnswer(expectedRaw);
+            if (expectedRaw && !ctx.expectedAnswer && !["-", ""].includes(expectedRaw.trim())) {
+                ctx.fail("Expected Answer", expectedRaw, "Expected Answer must be Yes or No.");
             }
         },
 
@@ -916,10 +940,22 @@ exports.bulkUploadQuestions = (req, res) =>
                 questionId = insertResult.insertId;
             }
 
+            const answerType = ctx.text("Answer Type");
+            const yesNo = isYesNoType(answerType);
+
             let photoRequirement = ctx.photoRequirement;
-            if (!photoRequirement && require("../config/checklistPhotoRules").isPhotoRequiredQuestion(questionText)) {
+            // Yes / No questions use "photo for the unexpected answer" (Auto);
+            // the default sheet list only forces "Required" for other types.
+            if (!photoRequirement && !yesNo && require("../config/checklistPhotoRules").isPhotoRequiredQuestion(questionText)) {
                 photoRequirement = "Required";
             }
+
+            await new Promise((resolve) =>
+                Question.setExpectedAnswer(questionId, ctx.expectedAnswer, answerType, questionText, (expErr) => {
+                    if (expErr) console.error("bulk setExpectedAnswer error:", expErr);
+                    resolve();
+                })
+            );
             if (photoRequirement) {
                 await new Promise((resolve) =>
                     Question.setPhotoRequirement(questionId, photoRequirement, (photoErr) => {

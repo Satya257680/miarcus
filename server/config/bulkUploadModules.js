@@ -281,7 +281,8 @@ defineBulkModule("questions", {
         "SLA Unit": col(["slaUnit", "sla_unit"], { sample: "Days" }),
         "Sequence": col(["sequence", "sequenceNo", "sequence_no", "order", "sr no"], { sample: "1" }),
         "Department": col(["questionDepartmentName", "question_department_name", "departmentName", "department_name", "department", "departments"], { sample: "Operations" }),
-        "Photo Requirement": col(["photoRequirement", "photo_requirement", "photoEvidence", "photo evidence", "photoRequired", "photo required", "photo", "remarks"], { sample: "Optional", help: "Required, Optional, Required on No or None." })
+        "Photo Requirement": col(["photoRequirement", "photo_requirement", "photoEvidence", "photo evidence", "photoRequired", "photo required", "photo", "remarks"], { sample: "Auto", help: "Auto (or empty) (Yes / No: photo only for the unexpected answer). Or Required, Optional, Required on No, None." }),
+        "Expected Answer": col(["expectedAnswer", "expected_answer", "expected answer", "normal answer", "normalAnswer", "correct answer", "correctAnswer", "ideal answer"], { sample: "Yes", help: "Yes / No questions only: the normal answer. A photo is required when the other answer is given. Empty = suggested from the question." })
     },
     guidelines: COMMON_GUIDELINES
 });

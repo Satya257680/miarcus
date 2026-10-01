@@ -284,3 +284,70 @@
     .vpw .sales-modal-actions { padding: 14px 18px; }
     .vpw .modal-secondary-btn, .vpw .modal-primary-btn { flex: 1; }
 }
+
+/* =========================================================
+   DAYS WITHOUT A STORE VISIT (blank-day reasons)
+========================================================= */
+.vpw .vp-blank-days {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1.5px solid #fcd34d;
+    border-radius: 14px;
+    background: #fffbeb;
+}
+.vpw .vp-blank-days-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+.vpw .vp-blank-days-head strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14.5px;
+    color: #92400e;
+}
+.vpw .vp-blank-days-head strong b { color: #dc2626; }
+.vpw .vp-blank-days-head small { display: block; margin-top: 3px; font-size: 12.5px; color: #78716c; }
+.vpw .vp-blank-days-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.vpw .vp-blank-apply,
+.vpw .vp-blank-table select,
+.vpw .vp-blank-table input[type="text"] {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 10px;
+    border: 1.5px solid #e6e1f3;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 13.5px;
+    color: #1c1537;
+}
+.vpw .vp-blank-apply { width: auto; font-weight: 700; color: #6d28d9; }
+.vpw .vp-blank-table th { background: #78350f; }
+.vpw .vp-blank-table td:nth-child(3) { min-width: 190px; }
+.vpw .vp-blank-table td:nth-child(4) { min-width: 200px; }
+.vpw .vp-blank-table select.invalid,
+.vpw .vp-blank-table input.invalid { border-color: #dc2626; background: #fef2f2; }
+.vpw .vp-blank-missing td:first-child { box-shadow: inset 3px 0 0 #dc2626; }
+.vpw .vp-day-pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: #ede9fe;
+    color: #4c1d95;
+    font-size: 12px;
+    font-weight: 700;
+}
+.vpw .vp-day-pill.weekend { background: #fee2e2; color: #b91c1c; }
+
+
+:root[data-miarcus-theme="dark"] .vpw .vp-blank-days { background: rgba(217, 119, 6, .1); border-color: rgba(217, 119, 6, .4); }
+:root[data-miarcus-theme="dark"] .vpw .vp-blank-days-head strong { color: #fcd34d; }
+:root[data-miarcus-theme="dark"] .vpw .vp-blank-days-head small { color: #c4bfd9; }
+:root[data-miarcus-theme="dark"] .vpw .vp-blank-apply,
+:root[data-miarcus-theme="dark"] .vpw .vp-blank-table select,
+:root[data-miarcus-theme="dark"] .vpw .vp-blank-table input[type="text"] { background: #1d1836; color: #f4f2ff; border-color: #342d55; }
