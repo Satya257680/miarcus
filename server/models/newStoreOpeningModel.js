@@ -995,14 +995,15 @@ NewStoreOpening.update = (
 
         data.billing_start_date,
         data.status ?? "Planning",
-        data.updated_by
+        data.updated_by,
+        id
     ],
     (err, result) => {
 
         if (err) {
 
             console.error("========================================");
-            console.error("❌ NEW STORE OPENING CREATE SQL ERROR");
+            console.error("❌ NEW STORE OPENING UPDATE SQL ERROR");
             console.error("========================================");
 
             console.error("ERROR MESSAGE:", err.message);
@@ -1016,8 +1017,8 @@ NewStoreOpening.update = (
         }
 
         console.log("========================================");
-        console.log("✅ NEW STORE OPENING CREATED");
-        console.log("Inserted ID:", result.insertId);
+        console.log("✅ NEW STORE OPENING UPDATED");
+        console.log("Updated ID:", id);
         console.log("========================================");
 
         callback(null, result);

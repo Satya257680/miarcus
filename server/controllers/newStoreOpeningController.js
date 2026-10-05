@@ -11,6 +11,29 @@ const db = require("../config/db");
 const { runBulkUpload } = require("../utils/bulkUploadEngine");
 const { defineBulkModule, COMMON_GUIDELINES } = require("../config/bulkUploadModules");
 
+
+// ======================================================
+// SAFE USER-FACING ERROR MESSAGE
+// Never expose raw MySQL/SQL details to portal users.
+// Full database errors are still logged on the server.
+// ======================================================
+const getSafeSaveErrorMessage = (error, action = "save") => {
+    const code = String(error?.code || "").toUpperCase();
+
+    if (
+        code.startsWith("ER_") ||
+        code === "E_PARSE" ||
+        /sql syntax|mysql|database|query/i.test(String(error?.message || ""))
+    ) {
+        return `We couldn't ${action} this New Store Opening right now. Please try again. If the problem continues, contact your administrator.`;
+    }
+
+    return (
+        error?.message ||
+        `We couldn't ${action} this New Store Opening right now. Please try again.`
+    );
+};
+
 // ======================================================
 // WHICH new_store_openings COLUMNS ARE ACTUALLY NUMERIC?
 // ======================================================
@@ -493,13 +516,13 @@ exports.createNewStoreOpening = async (
 
     ) {
 
+        console.error("NSO create request failed:", error);
+
         return res.status(500).json({
 
             success: false,
 
-            message:
-
-                error.message
+            message: getSafeSaveErrorMessage(error, "create")
 
         });
 
@@ -606,21 +629,24 @@ exports.updateNewStoreOpening = async (
 
     ) {
 
+        const isNotFound =
+            error?.message === "Project not found.";
+
+        console.error("NSO update request failed:", error);
+
         return res.status(
 
-            error.message === "Project not found."
-
+            isNotFound
                 ? 404
-
                 : 500
 
         ).json({
 
             success: false,
 
-            message:
-
-                error.message
+            message: isNotFound
+                ? "This New Store Opening could not be found. Please refresh the list and try again."
+                : getSafeSaveErrorMessage(error, "update")
 
         });
 

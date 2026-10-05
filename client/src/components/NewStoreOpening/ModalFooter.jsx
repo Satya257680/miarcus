@@ -4,7 +4,8 @@ import {
     FaArrowLeft,
     FaArrowRight,
     FaTimes,
-    FaCheck
+    FaCheck,
+    FaSpinner
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
@@ -16,7 +17,8 @@ export default function ModalFooter({
     setCurrentStep,
     totalSteps,
     onClose,
-    onSubmit
+    onSubmit,
+    loading = false
 
 }) {
 
@@ -76,6 +78,7 @@ export default function ModalFooter({
                 type="button"
                 className="footer-btn footer-cancel"
                 onClick={onClose}
+                disabled={loading}
             >
 
                 <FaTimes />
@@ -103,6 +106,7 @@ export default function ModalFooter({
                             type="button"
                             className="footer-btn footer-secondary"
                             onClick={handlePrevious}
+                            disabled={loading}
                         >
 
                             <FaArrowLeft />
@@ -126,6 +130,7 @@ export default function ModalFooter({
                             type="button"
                             className="footer-btn footer-primary"
                             onClick={handleNext}
+                            disabled={loading}
                         >
 
                             Next
@@ -147,13 +152,18 @@ export default function ModalFooter({
 
                         <button
                             type="button"
-                            className="footer-btn footer-success"
+                            className={`footer-btn footer-success ${loading ? "is-loading" : ""}`}
                             onClick={onSubmit}
+                            disabled={loading}
                         >
 
-                            <FaCheck />
+                            {loading ? (
+                                <FaSpinner className="nso-submit-spinner" />
+                            ) : (
+                                <FaCheck />
+                            )}
 
-                            Submit Entry
+                            {loading ? "Saving..." : "Submit Entry"}
 
                         </button>
 

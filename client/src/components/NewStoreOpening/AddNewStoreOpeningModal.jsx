@@ -8,7 +8,8 @@ import axios, { API_BASE_URL } from "../../axiosConfig.js";
 
 import {
     FaTimes,
-    FaStore
+    FaStore,
+    FaExclamationTriangle
 } from "react-icons/fa";
 
 import Stepper from "./Stepper";
@@ -815,7 +816,8 @@ export default function AddNewStoreOpeningModal({
 
             ...prev,
 
-            [name]: ""
+            [name]: "",
+            submit: ""
 
         }));
 
@@ -889,7 +891,8 @@ export default function AddNewStoreOpeningModal({
 
             ...prev,
 
-            attachment: ""
+            attachment: "",
+            submit: ""
 
         }));
 
@@ -1088,9 +1091,6 @@ export default function AddNewStoreOpeningModal({
 
             });
 
-
-            alert(message);
-
         }
 
         finally {
@@ -1192,9 +1192,51 @@ export default function AddNewStoreOpeningModal({
 
                     currentStep={currentStep}
 
-                    onStepChange={setCurrentStep}
+                    onStepChange={(step) => {
+                        setCurrentStep(step);
+                        setErrors(prev => ({
+                            ...prev,
+                            submit: ""
+                        }));
+                    }}
 
                 />
+
+
+                {/* ==================================================
+                   PREMIUM SAVE ERROR
+                   Keep technical/database errors out of browser alerts.
+                ================================================== */}
+                {errors.submit && (
+                    <div
+                        className="nso-submit-error"
+                        role="alert"
+                        aria-live="assertive"
+                    >
+                        <div className="nso-submit-error-icon">
+                            <FaExclamationTriangle />
+                        </div>
+
+                        <div className="nso-submit-error-content">
+                            <strong>We couldn't save your changes</strong>
+                            <p>{errors.submit}</p>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="nso-submit-error-close"
+                            onClick={() =>
+                                setErrors(prev => ({
+                                    ...prev,
+                                    submit: ""
+                                }))
+                            }
+                            aria-label="Dismiss error"
+                        >
+                            <FaTimes />
+                        </button>
+                    </div>
+                )}
 
 
                 {/* ==================================================
