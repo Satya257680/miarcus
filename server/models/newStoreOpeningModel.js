@@ -751,7 +751,7 @@ db.query(
         data.deal_days,
         data.actual_possession_date,
         data.remarks,
-        data.attachment,
+        data.attachment ?? null,
         data.delay_loi_vs_broker,
 
         data.possession_delay,
@@ -877,7 +877,8 @@ NewStoreOpening.update = (
 
             remarks = ?,
 
-            attachment = ?,
+            /* Preserve the existing attachment when an edit does not upload a new file. */
+            attachment = COALESCE(?, attachment),
 
             delay_loi_vs_broker = ?,
 

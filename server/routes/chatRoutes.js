@@ -132,6 +132,8 @@ router.post("/messages/:id/star", addAccess, C.starMessage);
 
 router.put("/presence", viewAccess, C.presence);
 router.get("/calls/history", viewAccess, C.callHistory);
+router.post("/calls/history/clear", viewAccess, C.clearCallHistory);
+router.delete("/calls/:id/history", viewAccess, C.deleteCallHistoryItem);
 router.get("/calls/incoming", viewAccess, C.incomingCalls);
 router.post("/calls", addAccess, C.startCall);
 router.get("/calls/:id", viewAccess, C.getCallStatus);

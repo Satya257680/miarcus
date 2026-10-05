@@ -808,6 +808,38 @@ exports.callHistory = async (req, res) => {
     res.json({ success: true, calls });
 };
 
+exports.deleteCallHistoryItem = async (req, res) => {
+    try {
+        const callId = Number(req.params.id || 0);
+        if (!callId) return res.status(400).json({ success: false, message: "Invalid call history entry." });
+
+        await Model.hideCallHistoryItem(callId, req.user.id, isAdmin(req));
+        res.json({ success: true, message: "Call history entry removed." });
+    } catch (error) {
+        console.error("DELETE CALL HISTORY ERROR:", error);
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : "Call history entry could not be removed."
+        });
+    }
+};
+
+exports.clearCallHistory = async (req, res) => {
+    try {
+        const storeId = Number(req.query.store_id || 0) || null;
+        if (storeId) await requireStoreAccess(req, storeId);
+
+        await Model.clearCallHistory(req.user.id, isAdmin(req), storeId);
+        res.json({ success: true, message: "Call history cleared." });
+    } catch (error) {
+        console.error("CLEAR CALL HISTORY ERROR:", error);
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : "Call history could not be cleared."
+        });
+    }
+};
+
 exports.adminOverview = async (req, res) => {
     if (!isAdmin(req)) {
         return res.status(403).json({ success: false, message: "Administrator access required." });

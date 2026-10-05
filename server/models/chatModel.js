@@ -187,6 +187,19 @@ const ensureTables = async () => {
         if (!/duplicate key name|1061/i.test(String(error.message || error))) throw error;
     }
 
+    // Call history is user-specific: deleting a history entry hides it only
+    // from the user who deleted it, without destroying the underlying call.
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS chat_call_history_hidden (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            call_id BIGINT NOT NULL,
+            user_id INT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_chat_call_history_hidden (call_id, user_id),
+            INDEX idx_chat_call_history_hidden_user (user_id, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
     await db.query(`
         CREATE TABLE IF NOT EXISTS chat_call_signals (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -959,8 +972,8 @@ const getIncomingCalls = async (userId) => {
 
 const getCallHistory = async (userId, admin = false, storeId = null, limit = 100) => {
     const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 300);
-    const params = [];
-    const where = [];
+    const params = [userId];
+    const where = [`hidden.id IS NULL`];
 
     if (!admin) {
         where.push(`(c.caller_id = ? OR c.callee_id = ?)`);
@@ -978,7 +991,7 @@ const getCallHistory = async (userId, admin = false, storeId = null, limit = 100
         params.push(storeId);
     }
 
-    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const whereSql = `WHERE ${where.join(" AND ")}`;
 
     return db.query(`
         SELECT
@@ -1009,10 +1022,73 @@ const getCallHistory = async (userId, admin = false, storeId = null, limit = 100
         LEFT JOIN stores s ON s.id = c.store_id
         INNER JOIN users caller ON caller.id = c.caller_id
         INNER JOIN users callee ON callee.id = c.callee_id
+        LEFT JOIN chat_call_history_hidden hidden
+            ON hidden.call_id = c.id AND hidden.user_id = ?
         ${whereSql}
         ORDER BY c.created_at DESC, c.id DESC
         LIMIT ${safeLimit}
     `, params);
+};
+
+const hideCallHistoryItem = async (callId, userId, admin = false) => {
+    const rows = await db.query(`
+        SELECT c.id, c.caller_id, c.callee_id
+        FROM chat_calls c
+        WHERE c.id = ?
+        LIMIT 1
+    `, [callId]);
+
+    const call = rows[0];
+    if (!call) {
+        const error = new Error("Call history entry not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (!admin && ![Number(call.caller_id), Number(call.callee_id)].includes(Number(userId))) {
+        const error = new Error("You can only delete your own call history.");
+        error.statusCode = 403;
+        throw error;
+    }
+
+    await db.query(`
+        INSERT IGNORE INTO chat_call_history_hidden (call_id, user_id)
+        VALUES (?, ?)
+    `, [callId, userId]);
+
+    return true;
+};
+
+const clearCallHistory = async (userId, admin = false, storeId = null) => {
+    const params = [userId];
+    const where = [`hidden.id IS NULL`];
+
+    if (!admin) {
+        where.push(`(c.caller_id = ? OR c.callee_id = ?)`);
+        params.push(userId, userId);
+        where.push(`c.store_id IN (
+            SELECT us.store_id
+            FROM user_stores us
+            WHERE us.user_id = ?
+        )`);
+        params.push(userId);
+    }
+
+    if (storeId) {
+        where.push(`c.store_id = ?`);
+        params.push(storeId);
+    }
+
+    await db.query(`
+        INSERT IGNORE INTO chat_call_history_hidden (call_id, user_id)
+        SELECT c.id, ?
+        FROM chat_calls c
+        LEFT JOIN chat_call_history_hidden hidden
+            ON hidden.call_id = c.id AND hidden.user_id = ?
+        WHERE ${where.join(" AND ")}
+    `, [userId, userId, ...params.slice(1)]);
+
+    return true;
 };
 
 const getStoreManager = async (storeId) => {
@@ -1107,6 +1183,8 @@ module.exports = {
     createCall,
     getCall,
     getCallHistory,
+    hideCallHistoryItem,
+    clearCallHistory,
     addSignal,
     getSignals,
     updateCall,

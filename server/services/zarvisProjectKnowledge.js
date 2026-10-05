@@ -191,9 +191,9 @@ const PLAYBOOKS = [
     {
         aliases: ["reset password", "forgot password", "change password", "password reset", "password"],
         audience: "employee",
-        answer: "To recover a Miarcus password, use the Forgot Password screen, complete the OTP verification step, and then use the Reset Password screen to set the new password. If your account is inactive or the OTP cannot be completed, contact an administrator through Human Support.",
+        answer: "If you forgot your Miarcus password, contact the Administrator and request a password reset. If you still remember your old/current password, you do not need the forgot-password flow: open your Profile, use Change Password, enter the current password, enter the new password and save it. The new password must be different from the current password.",
         module: "Settings & Profile",
-        routes: ["/forgot-password", "/verify-otp", "/reset-password"],
+        routes: ["/profile", "/forgot-password", "/verify-otp", "/reset-password"],
     },
     {
         aliases: ["raise action point", "create action point", "add action point", "new action point", "action point"],
@@ -350,9 +350,85 @@ const DETAILED_PLAYBOOKS = [
     },
     {
         aliases: ["what is miarcus built with", "project architecture", "how project is structured", "where is frontend backend", "project folders", "source structure"],
-        module: "Miarcus Architecture",
-        answer: `## Miarcus project structure\n\nMiarcus is a React/Vite frontend backed by a Node/Express-style server and a MySQL-compatible database layer.\n\n### Frontend\n- 'client/src/pages/' contains module screens.\n- 'client/src/components/' contains reusable UI and feature components.\n- 'client/src/services/' contains API service functions used by screens.\n- 'client/src/context/' contains application contexts such as authentication and theme.\n- 'client/src/components/layout/' contains the main layout, sidebar, protected routes and permission-aware route wrappers.\n\n### Backend\n- 'server/routes/' maps HTTP endpoints to controllers.\n- 'server/controllers/' handles request validation and orchestration.\n- 'server/services/' contains business workflows such as NSO, notifications, email, action-point and location logic.\n- 'server/models/' contains database access for modules.\n- 'server/middleware/' contains authentication, permission, security, upload and audit controls.\n- 'server/config/' contains database, storage, mailer, security and application URL configuration.\n\n### Security boundary\nZarvis can explain the product architecture and safe file locations, but it must not disclose credentials, '.env' values, tokens, private keys or raw source code through the chat.` ,
+        module: "Miarcus Product Structure",
+        answer: `## Miarcus product structure
+
+Miarcus is organized into connected business areas so users can move from daily work to review, reporting and management follow-up without leaving the portal.
+
+### Main product areas
+- Core Operations: Announcements, Gallery, Asset Master, Attendance, Attendance Reports, Employee Location, Location Reports, Password Management, Store Status, Chat, Help Center and Action Points.
+- Checklist Management: Checklist Reports, Checklist Tracker and Checklist Submit.
+- New Store Opening Management: New Store Openings, NSO Tracking and NSO Rules.
+- Expense & Petty Cash: Expense Entry, Track Expenses, Approve Expenses, Petty Cash Dashboard, New Advance, Manage Advances, Manage Expenses, Manage Deposits, Audit Trail and Email Notifications.
+- Billing & Daily Collection: Billing Entry, Bills, Daily Report, Daily Collection, Daily Entry, Daily Data Report, Collection Reports and Blocked Stores.
+- Quiz & Training: Take Quiz, Quiz Setup, Training Report and Email Setting.
+- Sales & Travel: Visit Planner, Travel Plan, Travel Plan Approvals, Sales Review and Travel Plan Emails.
+- Listing & Inventory: Listing Tracker, ERP Data Upload and Inventory Planning.
+- Collection Tracking: Add Products, SKU Details, Insight, Requests and Collection Permissions.
+- Master Data & Administration: Master Data, Users, Departments, Designations, Store Management, Questions, Checklist Types, Hierarchy, Profile and Appearance.
+
+If someone asks how the software was technically created, keep the answer user-facing and focus on what the portal does, how users operate it and how the modules connect. Do not reveal private implementation details, credentials or raw source code.`,
         confidence: 96,
+    },
+
+];
+
+const DETAILED_USER_PLAYBOOKS = [
+    {
+        aliases: ["explain chat", "how does chat work", "chat module", "call history", "clear call history", "delete call history"],
+        module: "Team Chat",
+        answer: `## MIARCUS Chat — detailed user guide
+
+Chat is the internal communication area for employees and teams. It follows a familiar messaging flow so users can find people, communicate, share supported files and call colleagues without leaving Miarcus.
+
+### Find a person
+Open **Chat** from the sidebar. Use the Store filter to choose the required store or All Stores when permitted. Use **All, Unread, Groups or Direct** to narrow the conversation list. The search box can find an existing conversation or help start a new one.
+
+### Start a conversation
+Choose **Start a new chat**, search the available employee list and select the person. A direct conversation opens. You can also create a group by selecting multiple employees from the selected store.
+
+### During a chat
+The conversation area lets users send messages and supported attachments. The header provides message search, voice call, video call, contact information and more options. Contact information can show shared media/documents and starred messages, and users can mute notifications or enable disappearing messages.
+
+### Calls
+Users can start a **voice call or video call** with another employee. A video call provides microphone, camera and end-call controls. Call History records the person, incoming/outgoing direction, store, date/time, call type and duration/status.
+
+### Call history controls
+Each call can be **deleted from your own call history**, or the visible history can be **cleared**. Removing history does not delete the actual call or remove it from another participant's history. New calls will continue appearing normally.
+
+### Chat cleanup
+**Clear Chat** removes messages from your own view according to the chat controls. **Delete Chat** removes the conversation from your chat list according to the selected deletion option.
+
+### Simple flow
+**Chat → Store/Search → All/Unread/Groups/Direct → Employee/Group → Message/File → Voice/Video Call → Contact Information → Call History**`,
+    },
+    {
+        aliases: ["explain help center", "how help center works", "how zarvis works", "voice assistant", "ask zarvis"],
+        module: "Help Center & Zarvis",
+        answer: `## Help Center & Zarvis — detailed user guide
+
+The Help Center is the Miarcus support and guidance area. It combines searchable help information, Zarvis, optional voice assistance and human support.
+
+### 1. Search Help
+Open **Help Center** from the sidebar. Search guides and common questions by words or phrases. Category filters help narrow the available guidance.
+
+### 2. Ask Zarvis
+Open **Ask Zarvis** and ask naturally. You do not have to use exact wording. Zarvis can explain Miarcus modules, screens, workflows and supported project information, and it can keep the conversation context for follow-up questions.
+
+### 3. Detailed answers
+For a broad question such as “Explain Miarcus”, Zarvis should give a project-level business overview covering the main operational areas, not only a one-line answer. For a specific module, it can explain the purpose, main actions and normal user flow.
+
+### 4. Voice assistant
+Use the microphone in Ask Zarvis to speak a question when browser voice input is available. Zarvis can also read its written answer aloud. Voice is an optional convenience feature; normal typing and reading remain available.
+
+### 5. Human Support
+If Zarvis cannot resolve the issue, open **My Support**, enter a subject and detailed description, select the priority and send the request. Previous requests remain visible with their status, and the conversation can continue until the issue is resolved or closed.
+
+### 6. Admin support
+Administrators can maintain verified answers and manage the manual support queue. This keeps approved information available for future users and connects self-service guidance with human support.
+
+### Complete flow
+**Help Center → Search / Ask Zarvis → Detailed explanation → Voice assistance if wanted → Human Support if required → Admin reply → Continued conversation → Resolution**`,
     },
 ];
 
@@ -406,14 +482,114 @@ const searchProjectKnowledge = (question, audience = "employee", context = {}) =
 
     const projectOverviewIntent = /(describe.*project|what is miarcus|what does miarcus do|tell me about miarcus|explain.*project|miarcus project)/i.test(normalized);
     if (projectOverviewIntent) {
-        const answer = `## Miarcus — project overview\n\n${OVERVIEW}\n\n### How the pieces fit together\n1. Users enter through the authenticated React/Vite client.\n2. Screens call module-specific API services.\n3. Backend routes send requests to controllers.\n4. Controllers validate and coordinate business services.\n5. Services handle workflows such as NSO, notifications, email and status/history logic.\n6. Models read and write the database through the shared DB configuration.\n7. Authentication, permissions, audit logging and security middleware protect the workflow.\n\nIf you ask about a specific module, I can explain its screen, purpose, workflow, permissions and where its code lives.`;
-        return { resolved: true, source: "project_knowledge", confidence: 98, module: "Miarcus Project", answer, matches: MODULES.slice(0, 8).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
+        const answer = `## Miarcus — complete project overview
+
+Miarcus is a centralized Retail Operations and Management Portal designed to bring store operations, employee activities, compliance, financial work, communication, planning and reporting into one place. Instead of depending on separate spreadsheets, paper records, emails and disconnected tools, users work through organized modules from the same portal.
+
+### 1. Home, Login and Dashboard
+The portal starts with a landing page that introduces Miarcus and guides users to Sign In. After login, the Dashboard provides a practical overview of the activities available to the user. It brings together important counts, recent activity, notifications, profile access and analytics, while the sidebar provides access to the modules permitted for that user.
+
+### 2. Communication and information
+**Announcements** is the digital company notice board for policies, notices, circulars and important updates. Authorized users can create announcements, choose the audience, attach supported documents or media, pin important notices, and later view, edit, export or delete them.
+
+**Gallery** is the central media area for photos, videos, audio and supported documents. Media can come from the website, mobile upload or other modules such as checklist submissions. Users can search and filter media and, according to permission, view, download or delete files.
+
+**Notifications** keeps users informed about relevant portal activity and provides unread/read management.
+
+### 3. Employees, stores and daily workforce operations
+**Users, Departments, Designations, Store Management and Reporting Hierarchy** maintain the organization structure. Access is role- and permission-based, so employees only see the areas required for their work.
+
+**Attendance** records employee attendance activity. **Attendance Reports** allow authorized users to search and filter attendance by employee, store, date and status, inspect attendance details, review available photo/map evidence and export records.
+
+**Employee Location** supports location-related employee activity and reporting for authorized users.
+
+**Store Status** provides administrators with a quick view of store availability and manager activity.
+
+### 4. Chat and internal communication
+**MIARCUS Chat** provides a familiar employee-to-employee communication experience. Users can search employees, select a store, use All/Unread/Groups/Direct filters, start direct or group conversations, exchange messages and supported files, and use voice or video calling. Contact information includes media, starred messages, mute controls, disappearing messages, Clear Chat and Delete Chat. Call History records previous calls with the person, direction, store, date/time and call type.
+
+### 5. Help Center and Zarvis
+**Help Center** is the 24×7 guidance and support area. Users can search guides, ask Zarvis natural-language questions, continue follow-up questions, choose a language, listen to answers aloud and move to Human Support when needed. Human Support keeps support requests and replies together until the issue is resolved or closed. Administrators can maintain verified answers and manage the support queue.
+
+### 6. Checklist and Action Points
+**Checklist Management** is a major operational workflow. Authorized administrators maintain checklist types and questions, while employees submit store-level checklists, answer questions, add remarks and provide photographs where required. Submissions can be reviewed through Checklist Reports and tracking views.
+
+When an operational issue is identified, it can become an **Action Point**. Action Points can be assigned, prioritized, followed up and tracked until completion. This connects field/checklist observations with corrective work.
+
+### 7. New Store Opening (NSO)
+**New Store Openings** manages store-opening projects and their progress. It covers store/project information, important possession and opening dates, project timelines, milestones, descriptions and supporting documents.
+
+**NSO Tracking** follows project milestones and operational tracking information, while **NSO Rules** define conditions and expected actions used during the opening process. The NSO area supports project monitoring, progress review, delayed-project identification, search/filtering and management reporting.
+
+### 8. Expenses and Petty Cash
+**Expense Entry, Track Expenses and Approve Expenses** support the complete expense workflow from submission through review and approval.
+
+**Petty Cash** provides dashboard, advance, settlement, expense, deposit, audit and email-notification functions. It helps authorized users maintain a structured record of petty-cash activity and related supporting information.
+
+### 9. Billing and Daily Collection
+**Billing** manages billing entry, bills and billing reports.
+
+**Daily Collection** handles store-wise daily collection activities and related reports. The broader collection area includes daily entry, daily data/report views, collection reports and blocked-store controls. Authorized users can use filtering, bulk upload and export functions where provided.
+
+### 10. Quiz and Training
+**Quiz and Training Management** provides quiz setup, employee quiz participation, training reporting and email settings. It supports organized employee learning and assessment activities.
+
+### 11. Sales Team and Travel
+**Visit Planner** helps organize planned field visits.
+
+**Travel Plan** manages travel-related planning, while **Travel Plan Approvals** handles approval workflows. **Sales Review** provides a dedicated area for reviewing sales-team activities and performance-related information. Travel-related email settings are also available to authorized users.
+
+### 12. Listing and Inventory
+**Listing Tracker** provides listing-related operational tracking.
+
+**ERP Data Upload** and **Inventory Planning** support inventory-related data handling, planning and review. These areas help management maintain product and inventory information in a structured manner.
+
+### 13. Collection Tracking
+**Collection Tracking** includes Add Products, SKU Details, Insight, Requests and Collection Permissions. It is used for product/SKU information, collection-related insights and controlled access to collection activities.
+
+### 14. Master Data and administration
+The administration area maintains **Master Data, Users, Departments, Designations, Stores, Questions, Checklist Types, Hierarchy, Profile and Appearance**. These controls provide the foundation for consistent organization data and user access.
+
+### 15. Reports, exports and data handling
+Across the portal, users can search, filter and review operational information. Many areas provide pagination, bulk upload and exports such as CSV, Excel and PDF. Reports cover activities such as attendance, checklists, action points, billing, daily collection, expenses, inventory, training and sales-related operations.
+
+### 16. Security and permissions from a user perspective
+Miarcus uses protected access and role-based permissions. This means a user may see only the modules and actions assigned to their responsibilities. Administrators have additional management capabilities.
+
+### 17. Password help
+If a user **forgot their password**, contact the Administrator and request a password reset. If the user **still knows their old/current password**, they can use **Profile → Change Password**, enter the current password, choose a new password and save it. The new password should be different from the current password.
+
+### Overall Miarcus flow
+**Login → Dashboard → Choose the required module → Perform the daily operation → Review/track the result → Reports/notifications → Management follow-up**
+
+Miarcus is therefore not just a single form or dashboard. It is a connected retail-operations workspace covering people, stores, daily field work, compliance, new-store projects, money movement, collections, training, sales planning, inventory, communication, support and reporting. When a user asks about the whole project, explain it at this business/workflow level and do not describe how the software was technically created.`;
+        return { resolved: true, source: "project_knowledge", confidence: 99, module: "Miarcus Project", answer, matches: MODULES.slice(0, 12).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
     }
 
     const architectureIntent = /(project structure|architecture|folders|modules|whole project|entire project|how.*built|built.*project|technology|tech stack)/i.test(normalized);
     if (architectureIntent) {
-        const answer = `## Miarcus at a glance\n\n${OVERVIEW}\n\n### Project layers\n- **Frontend:** React/Vite screens, reusable components, contexts, layouts and API service modules.\n- **Backend:** Node server, routes, controllers, business services, models and security middleware.\n- **Database:** module-specific models use the shared database configuration layer.\n- **Operations:** email, notifications, activity/audit logging, uploads, scheduled jobs and security controls are separated into services/middleware.\n\n### Current source footprint\nThe server-side Zarvis knowledge layer sees approximately **${RUNTIME_SNAPSHOT.frontendFiles || PROJECT_SNAPSHOT.pageSourceFiles} frontend source files** and **${RUNTIME_SNAPSHOT.backendFiles || PROJECT_SNAPSHOT.controllers + PROJECT_SNAPSHOT.models} backend source/config files** in the deployed project. Zarvis intentionally explains the structure without revealing secrets or raw source code.`;
-        return { resolved: true, source: "project_knowledge", confidence: 97, module: "Miarcus Architecture", answer, matches: MODULES.slice(0, 8).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
+        const answer = `## Miarcus — product structure
+
+The project is organized around business areas rather than one large workflow. The main product structure is:
+
+- **Core operations:** Announcements, Gallery, Asset Master, Attendance, Attendance Reports, Employee Location, Location Reports, Password Management, Store Status, Chat, Help Center and Action Points.
+- **Checklist Management:** Checklist Reports, Checklist Tracker and Checklist Submit.
+- **New Store Opening Management:** New Store Openings, NSO Tracking and NSO Rules.
+- **Expense & Petty Cash:** Expense Entry, Track Expenses, Approve Expenses, Petty Cash Dashboard, New Advance, Manage Advances, Manage Expenses, Manage Deposits, Audit Trail and Email Notifications.
+- **Billing & Daily Collection:** Billing Entry, Bills, Daily Report, Daily Collection, Daily Entry, Daily Data Report, Collection Reports and Blocked Stores.
+- **Quiz & Training:** Take Quiz, Quiz Setup, Training Report and Email Setting.
+- **Sales & Travel:** Visit Planner, Travel Plan, Travel Plan Approvals, Sales Review and Travel Plan Emails.
+- **Listing & Inventory:** Listing Tracker, ERP Data Upload and Inventory Planning.
+- **Collection Tracking:** Add Products, SKU Details, Insight, Requests and Collection Permissions.
+- **Administration:** Master Data, Users, Departments, Designations, Store Management, Questions, Checklist Types, Hierarchy, Profile and Appearance.
+
+If someone asks how Miarcus was created technically, keep the answer high-level or redirect to the user-facing functionality. Do not reveal implementation details, private files, credentials or source code.`;
+        return { resolved: true, source: "project_knowledge", confidence: 98, module: "Miarcus Product Structure", answer, matches: MODULES.slice(0, 12).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
+    }
+
+    for (const playbook of DETAILED_USER_PLAYBOOKS) {
+        const score = scoreEntry(expanded, { name: playbook.module, aliases: playbook.aliases, summary: playbook.answer, features: [], routes: [] });
+        if (score >= 10) return { resolved: true, source: "project_knowledge", confidence: Math.min(99, Math.round(65 + score * 3)), module: playbook.module, answer: playbook.answer, matches: [] };
     }
 
     for (const playbook of DETAILED_PLAYBOOKS) {

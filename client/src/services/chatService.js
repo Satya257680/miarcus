@@ -150,6 +150,15 @@ export const getChatCallHistory = (params = {}) =>
         params
     });
 
+export const deleteChatCallHistoryItem = (callId) =>
+    axios.delete(`${API}/calls/${callId}/history`, authConfig());
+
+export const clearChatCallHistory = (params = {}) =>
+    axios.post(`${API}/calls/history/clear`, {}, {
+        ...authConfig(),
+        params
+    });
+
 export const getChatAdminOverview = () =>
     axios.get(`${API}/admin/overview`, authConfig());
 

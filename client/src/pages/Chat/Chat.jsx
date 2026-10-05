@@ -63,6 +63,8 @@ import {
     getChatCall,
     getIncomingChatCalls,
     getChatCallHistory,
+    deleteChatCallHistoryItem,
+    clearChatCallHistory,
     getChatAdminOverview,
     assignChatStoreManager,
     openChatEventStream
@@ -1617,6 +1619,45 @@ function Chat() {
         }
     };
 
+    const clearCallHistory = async () => {
+        const scopeText = selectedStoreId && selectedStoreId !== "all"
+            ? "the selected store"
+            : "all stores you can access";
+
+        if (!window.confirm(`Clear your call history for ${scopeText}? This only removes it from your history; it does not delete the actual calls.`)) {
+            return;
+        }
+
+        try {
+            await clearChatCallHistory(
+                selectedStoreId && selectedStoreId !== "all"
+                    ? { store_id: selectedStoreId }
+                    : {}
+            );
+            setCallHistory([]);
+        } catch (err) {
+            setError(err.response?.data?.message || "Call history could not be cleared.");
+        }
+    };
+
+    const deleteCallHistoryItem = async (call) => {
+        if (!call?.id) return;
+        const peerName = Number(call.caller_id) === Number(currentUser.id)
+            ? call.callee_name
+            : call.caller_name;
+
+        if (!window.confirm(`Remove this ${call.call_type === "video" ? "video" : "voice"} call with ${peerName || "this user"} from your history?`)) {
+            return;
+        }
+
+        try {
+            await deleteChatCallHistoryItem(call.id);
+            setCallHistory(previous => previous.filter(item => Number(item.id) !== Number(call.id)));
+        } catch (err) {
+            setError(err.response?.data?.message || "Call history entry could not be removed.");
+        }
+    };
+
     const loadMedia = async () => {
         if (!selectedConversationId) return;
         try {
@@ -2881,26 +2922,43 @@ function Chat() {
             )}
 
             {showCallHistory && (
-                <div className="chat-modal-backdrop" onMouseDown={() => setShowCallHistory(false)}>
+                <div className="chat-modal-backdrop chat-premium-backdrop" onMouseDown={() => setShowCallHistory(false)}>
                     <div
-                        className="chat-modal call-history-modal"
+                        className="chat-modal call-history-modal chat-premium-modal"
                         onMouseDown={event => event.stopPropagation()}
                     >
-                        <header>
-                            <div>
-                                <h2>Call history</h2>
-                                <p>
-                                    {selectedStoreId === "all"
-                                        ? "Calls across the stores you are allowed to access."
-                                        : "Calls for your selected store."}
-                                </p>
+                        <header className="chat-premium-modal-head">
+                            <div className="chat-premium-title-wrap">
+                                <div className="chat-premium-icon"><FaHistory /></div>
+                                <div>
+                                    <span className="chat-premium-eyebrow">COMMUNICATION</span>
+                                    <h2>Call history</h2>
+                                    <p>
+                                        {selectedStoreId === "all"
+                                            ? "Your recent voice and video calls across accessible stores."
+                                            : "Your recent calls for the selected store."}
+                                    </p>
+                                </div>
                             </div>
-                            <button onClick={() => setShowCallHistory(false)}>
-                                <FaTimes />
-                            </button>
+                            <div className="chat-premium-head-actions">
+                                {callHistory.length > 0 && (
+                                    <button className="chat-history-clear-btn" onClick={clearCallHistory} title="Clear call history">
+                                        <FaTrash /> Clear history
+                                    </button>
+                                )}
+                                <button className="chat-premium-close" onClick={() => setShowCallHistory(false)} aria-label="Close">
+                                    <FaTimes />
+                                </button>
+                            </div>
                         </header>
 
-                        <div className="chat-call-history-list">
+                        <div className="chat-history-summary">
+                            <div><strong>{callHistory.length}</strong><span>visible calls</span></div>
+                            <div><FaPhone /><span>Voice & video</span></div>
+                            <div><FaLock /><span>Private to your history</span></div>
+                        </div>
+
+                        <div className="chat-call-history-list chat-premium-history-list">
                             {callHistoryLoading ? (
                                 <div className="chat-modal-empty"><PremiumLoader compact title="Loading call history" /></div>
                             ) : callHistory.length ? (
@@ -2912,8 +2970,11 @@ function Chat() {
                                     const status = callStatusLabel(call, currentUser.id);
 
                                     return (
-                                        <div className="chat-call-history-item" key={call.id}>
-                                            <div className="chat-avatar">
+                                        <div className="chat-call-history-item chat-premium-history-item" key={call.id}>
+                                            <div className={`chat-history-type-icon ${isVideo ? "video" : "voice"}`}>
+                                                {isVideo ? <FaVideo /> : <FaPhone />}
+                                            </div>
+                                            <div className="chat-avatar chat-history-avatar">
                                                 {peerPhoto ? (
                                                     <img src={peerPhoto} alt="" />
                                                 ) : (
@@ -2927,35 +2988,49 @@ function Chat() {
                                                 </div>
                                                 <div className="chat-call-history-meta">
                                                     <span className={`chat-call-history-status ${call.status}`}>
-                                                        {isVideo ? <FaVideo /> : <FaPhone />}
                                                         {status}
                                                     </span>
                                                     <span>{formatCallDuration(call.duration_seconds)}</span>
                                                     {call.store_name && <span>{call.store_name}</span>}
                                                 </div>
                                             </div>
-                                            {selectedConversationId && selectedOtherMember && Number(selectedOtherMember.id) === Number(mine ? call.callee_id : call.caller_id) && canAdd && (
+                                            <div className="chat-history-row-actions">
+                                                {selectedConversationId && selectedOtherMember && Number(selectedOtherMember.id) === Number(mine ? call.callee_id : call.caller_id) && canAdd && (
+                                                    <button
+                                                        className="chat-call-history-again"
+                                                        title={`Call ${peerName}`}
+                                                        onClick={() => {
+                                                            setShowCallHistory(false);
+                                                            startCall(isVideo ? "video" : "audio");
+                                                        }}
+                                                    >
+                                                        {isVideo ? <FaVideo /> : <FaPhone />}
+                                                    </button>
+                                                )}
                                                 <button
-                                                    className="chat-call-history-again"
-                                                    title={`Call ${peerName}`}
-                                                    onClick={() => {
-                                                        setShowCallHistory(false);
-                                                        startCall(isVideo ? "video" : "audio");
-                                                    }}
+                                                    className="chat-call-history-delete"
+                                                    title="Delete from my history"
+                                                    onClick={() => deleteCallHistoryItem(call)}
                                                 >
-                                                    {isVideo ? <FaVideo /> : <FaPhone />}
+                                                    <FaTrash />
                                                 </button>
-                                            )}
+                                            </div>
                                         </div>
                                     );
                                 })
                             ) : (
-                                <div className="chat-modal-empty">
-                                    <FaHistory />
-                                    <p>No calls recorded yet.</p>
+                                <div className="chat-modal-empty chat-history-empty">
+                                    <div className="chat-history-empty-icon"><FaHistory /></div>
+                                    <h3>No call history</h3>
+                                    <p>Your call history is clear. New voice and video calls will appear here.</p>
                                 </div>
                             )}
                         </div>
+
+                        <footer className="chat-history-footer">
+                            <span><FaLock /> Removing history only hides it from your account.</span>
+                            <button onClick={() => setShowCallHistory(false)}>Done</button>
+                        </footer>
                     </div>
                 </div>
             )}

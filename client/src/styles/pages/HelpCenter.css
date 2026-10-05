@@ -144,3 +144,151 @@
         max-width: 82px;
     }
 }
+
+
+/* ==========================================================
+   MIARCUS HELP CENTER — PREMIUM ZARVIS EXPERIENCE
+   ========================================================== */
+.help-center-page{
+    background:
+      radial-gradient(circle at 80% 8%,rgba(117,91,201,.09),transparent 26%),
+      linear-gradient(180deg,#f8f6ff 0%,#f3f8fa 100%);
+}
+.hc-hero-luna{
+    position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.25);
+    box-shadow:0 24px 65px rgba(37,73,91,.14);
+}
+.hc-hero-luna:before{
+    content:"";position:absolute;width:390px;height:390px;border:1px solid rgba(255,255,255,.15);
+    border-radius:50%;right:-140px;top:-175px;
+}
+.hc-hero-luna:after{
+    content:"";position:absolute;width:240px;height:240px;border:1px solid rgba(255,255,255,.10);
+    border-radius:50%;right:65px;bottom:-170px;
+}
+.hc-orb{position:relative;z-index:1;}
+.hc-orb-inner{
+    width:125px!important;height:125px!important;border:1px solid rgba(255,255,255,.55)!important;
+    box-shadow:0 0 0 15px rgba(255,255,255,.06),0 18px 45px rgba(0,0,0,.10)!important;
+}
+.hc-tabs{
+    margin-top:12px;padding:5px;border:1px solid #e1e8ed;border-radius:16px;
+    background:rgba(255,255,255,.78);box-shadow:0 8px 25px rgba(29,61,76,.06);
+    backdrop-filter:blur(12px);
+}
+.hc-tabs button{
+    border-radius:11px!important;padding:9px 13px!important;font-size:9px!important;
+}
+.hc-tabs button.active{
+    background:linear-gradient(135deg,#fff,#eef8fa)!important;
+    box-shadow:0 5px 15px rgba(27,86,105,.09)!important;color:#0a7081!important;
+}
+.hc-feature-row>div,.hc-panel,.hc-chat-card,.hc-trust,.hc-suggest{
+    border:1px solid #e2eaee!important;
+    box-shadow:0 12px 30px rgba(27,63,79,.055)!important;
+}
+.hc-search-wrap{
+    border-radius:15px!important;box-shadow:0 8px 24px rgba(27,63,79,.05);
+}
+.hc-zarvis{
+    gap:14px!important;
+}
+.hc-chat-card-luna{
+    border-radius:20px!important;overflow:hidden;
+    box-shadow:0 20px 48px rgba(22,64,82,.09)!important;
+}
+.hc-chat-head{
+    min-height:64px!important;padding:11px 14px!important;
+    background:linear-gradient(135deg,#fff,#f5fbfc)!important;
+}
+.hc-avatar-z{
+    width:39px!important;height:39px!important;border-radius:13px!important;
+    box-shadow:0 7px 17px rgba(12,112,128,.13);
+}
+.hc-chat-body{
+    background:
+      radial-gradient(circle at 10% 15%,rgba(112,177,187,.05),transparent 28%),
+      linear-gradient(180deg,#f8fcfd,#f2f8fa)!important;
+}
+.hc-msg.zarvis .hc-bubble{
+    border:1px solid #e1ecef!important;
+    box-shadow:0 7px 19px rgba(22,61,76,.045)!important;
+}
+.hc-msg.user .hc-bubble{
+    background:linear-gradient(135deg,#0b7183,#138f9a)!important;
+    box-shadow:0 7px 18px rgba(12,109,126,.16)!important;
+}
+.hc-voice-toggle{
+    border:1px solid #d5e6e9!important;
+    background:#f6fbfc!important;color:#0b7282!important;
+}
+.hc-voice-toggle.active{
+    background:#e6f7f4!important;border-color:#9fd4cc!important;color:#157d68!important;
+}
+.hc-voice-assistant-card{
+    position:relative;overflow:hidden;padding:18px;border-radius:20px;
+    border:1px solid #dfe9ec;background:
+      radial-gradient(circle at 85% 0%,rgba(117,91,201,.13),transparent 30%),
+      linear-gradient(145deg,#ffffff,#f5fbfc);
+    box-shadow:0 16px 36px rgba(24,64,81,.08);
+}
+.hc-voice-assistant-card:after{
+    content:"";position:absolute;width:110px;height:110px;border:1px solid #e2edf0;
+    border-radius:50%;right:-48px;top:-48px;
+}
+.hc-voice-assistant-orb{
+    width:58px;height:58px;border-radius:19px;display:grid;place-items:center;margin-bottom:12px;
+    background:linear-gradient(145deg,#7659c7,#0d8897);box-shadow:0 12px 25px rgba(88,74,176,.18);
+}
+.hc-voice-assistant-orb span{
+    width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+    background:#fff;color:#0b7787;font-size:13px;
+}
+.hc-voice-assistant-orb span.listening{
+    animation:hcVoicePulse 1.2s infinite;
+    box-shadow:0 0 0 7px rgba(255,255,255,.12);
+}
+.hc-voice-kicker{font-size:7px;letter-spacing:1.15px;font-weight:950;color:#0b7183;}
+.hc-voice-assistant-card h3{margin:5px 0 5px;color:#173f51;font-size:15px;}
+.hc-voice-assistant-card p{margin:0;color:#718792;font-size:9px;line-height:1.55;}
+.hc-voice-main-btn{
+    width:100%;margin-top:14px;min-height:38px;border:0;border-radius:12px;
+    background:linear-gradient(135deg,#0a7183,#14939e);color:#fff;font:inherit;
+    font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:7px;
+    cursor:pointer;box-shadow:0 9px 20px rgba(9,111,129,.18);
+}
+.hc-voice-main-btn:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(9,111,129,.22);}
+.hc-voice-main-btn.active{background:linear-gradient(135deg,#7659c7,#9a70cf);}
+.hc-voice-main-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+.hc-voice-status{
+    display:flex;align-items:center;justify-content:center;gap:6px;margin-top:9px;
+    color:#8a9aa2;font-size:7px;font-weight:800;
+}
+.hc-voice-status span{width:6px;height:6px;border-radius:50%;background:#c3cdd1;}
+.hc-voice-status span.ready{background:#35b67a;box-shadow:0 0 0 4px rgba(53,182,122,.08);}
+@keyframes hcVoicePulse{50%{transform:scale(1.08);box-shadow:0 0 0 8px rgba(255,255,255,.18);}}
+.hc-trust-luna{background:rgba(255,255,255,.88)!important;}
+.hc-suggest{background:rgba(255,255,255,.88)!important;}
+.hc-message-tools button{border-radius:8px!important;}
+.hc-support-layout{gap:15px!important;}
+.hc-ticket-item{
+    border:1px solid transparent!important;border-radius:12px!important;margin:4px!important;
+}
+.hc-ticket-item:hover,.hc-ticket-item.selected{
+    background:linear-gradient(135deg,#f5fafb,#f2f4fb)!important;border-color:#dce8eb!important;
+}
+.hc-support-form{
+    padding:22px!important;
+}
+.hc-support-form input,.hc-support-form textarea,.hc-support-form select{
+    border-radius:11px!important;border-color:#dce6ea!important;
+}
+.hc-primary{
+    border-radius:11px!important;
+    box-shadow:0 8px 19px rgba(9,109,126,.13);
+}
+@media(max-width:760px){
+    .hc-voice-assistant-card{margin-bottom:2px;}
+    .hc-tabs{overflow:auto;white-space:nowrap;}
+    .hc-tabs button{flex:0 0 auto;}
+}
