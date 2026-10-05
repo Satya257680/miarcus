@@ -10,7 +10,8 @@ import {
 import {
     askZarvis, askPublicZarvis, createHelpTicket, getAdminHelpArticles, getAdminHelpTickets,
     getPublicHelpArticles, getHelpArticles, getHelpTicket, getMyHelpTickets, replyHelpTicket,
-    createAdminHelpArticle, updateAdminHelpArticle, deleteAdminHelpArticle, updateAdminHelpTicket
+    createAdminHelpArticle, updateAdminHelpArticle, deleteAdminHelpArticle, updateAdminHelpTicket,
+    getZarvisHistory, clearZarvisHistory
 } from "../../services/helpCenterService";
 import "../../styles/pages/HelpCenter.css";
 
@@ -69,7 +70,7 @@ function HelpCenter({ publicMode = false }) {
     const isAdmin = [true, 1, "1"].includes(user?.administrator) || [true, 1, "1"].includes(user?.is_admin);
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
-    const [tab, setTab] = useState(publicMode ? "home" : (requestedTab === "support" ? "support" : "home"));
+    const [tab, setTab] = useState(publicMode ? "home" : (requestedTab === "support" ? "support" : requestedTab === "history" ? "history" : "home"));
     const [articles, setArticles] = useState([]);
     const [adminArticles, setAdminArticles] = useState([]);
     const [tickets, setTickets] = useState([]);
@@ -81,6 +82,9 @@ function HelpCenter({ publicMode = false }) {
     const [botQuestion, setBotQuestion] = useState("");
     const [botMessages, setBotMessages] = useState([{ id: "welcome", from: "zarvis", text: `Hi ${effectiveUserName}! 👋 I'm Zarvis, your Miarcus assistant. Ask me naturally — even if your spelling is not perfect. I can explain modules, screens, workflows and the project structure. For a short follow-up like “explain that” or “how do I do it?”, I use the conversation context.` }]);
     const [botBusy, setBotBusy] = useState(false);
+    const [zarvisHistory, setZarvisHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyClearing, setHistoryClearing] = useState(false);
     const [ticketSubject, setTicketSubject] = useState("");
     const [ticketText, setTicketText] = useState("");
     const [ticketPriority, setTicketPriority] = useState("normal");
@@ -155,6 +159,20 @@ function HelpCenter({ publicMode = false }) {
     useEffect(() => { load(); }, [adminStatus]);
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [botMessages]);
     useEffect(() => {
+        if (publicMode || tab !== "history") return;
+        let active = true;
+        setHistoryLoading(true);
+        getZarvisHistory(100)
+            .then((response) => {
+                if (active) setZarvisHistory(response.data?.history || []);
+            })
+            .catch(() => {
+                if (active) setToast("Could not load your private Zarvis history.");
+            })
+            .finally(() => { if (active) setHistoryLoading(false); });
+        return () => { active = false; };
+    }, [tab, publicMode]);
+    useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         setVoiceSupported(Boolean(SpeechRecognition));
         if (!SpeechRecognition) return undefined;
@@ -209,6 +227,20 @@ function HelpCenter({ publicMode = false }) {
         setBotMessages([{ id: `welcome-${Date.now()}`, from: "zarvis", text: `New chat started. 👋 What would you like to know about Miarcus?` }]);
         setBotQuestion("");
     };
+    const clearHistory = async () => {
+        if (historyClearing || !zarvisHistory.length) return;
+        if (!window.confirm("Clear your private Zarvis question history? This will not affect anyone else.")) return;
+        setHistoryClearing(true);
+        try {
+            await clearZarvisHistory();
+            setZarvisHistory([]);
+            setToast("Your private Zarvis history was cleared.");
+        } catch (e) {
+            setToast(e?.response?.data?.message || "Could not clear your history.");
+        } finally {
+            setHistoryClearing(false);
+        }
+    };
 
     const submitBot = async (e) => {
         e?.preventDefault();
@@ -219,6 +251,11 @@ function HelpCenter({ publicMode = false }) {
             const res = publicMode ? await askPublicZarvis(q, history, language) : await askZarvis(q, history, language);
             const data = res.data || {};
             setBotMessages(m => [...m, { id: `${Date.now()}z`, from: "zarvis", text: data.message, resolved: data.resolved, source: data.source, confidence: data.confidence, module: data.module, related: data.related || [] }]);
+            if (!publicMode) {
+                getZarvisHistory(100).then((historyResponse) => {
+                    setZarvisHistory(historyResponse.data?.history || []);
+                }).catch(() => {});
+            }
             if (autoSpeak && data.message) {
                 window.setTimeout(() => speak(data.message, `${Date.now()}voice`), 120);
             }
@@ -279,12 +316,72 @@ function HelpCenter({ publicMode = false }) {
         </section>
     );
 
+    const renderHistory = () => (
+        <section className="hc-history-page">
+            <div className="hc-history-hero">
+                <div className="hc-history-icon"><FaHistory /></div>
+                <div>
+                    <span className="hc-eyebrow">PRIVATE KNOWLEDGE TRAIL</span>
+                    <h2>Your Zarvis history</h2>
+                    <p>Every question you ask is stored only for your account. Other employees cannot see your questions or answers.</p>
+                </div>
+                <div className="hc-history-actions">
+                    <span className="hc-history-count">{zarvisHistory.length} questions</span>
+                    <button onClick={clearHistory} disabled={historyClearing || !zarvisHistory.length}>
+                        <FaTrash /> {historyClearing ? "Clearing…" : "Clear history"}
+                    </button>
+                </div>
+            </div>
+
+            <div className="hc-history-note">
+                <FaShieldAlt />
+                <div><strong>Private to {effectiveUserName}</strong><span>This history is linked to your logged-in account, not a shared Help Center feed.</span></div>
+            </div>
+
+            {historyLoading ? (
+                <div className="hc-history-loading"><PremiumLoader compact title="Loading your private history" /></div>
+            ) : zarvisHistory.length ? (
+                <div className="hc-history-list">
+                    {zarvisHistory.map((item, index) => (
+                        <article className="hc-history-card" key={item.id}>
+                            <div className="hc-history-card-top">
+                                <div className="hc-history-number">{String(zarvisHistory.length - index).padStart(2, "0")}</div>
+                                <div className="hc-history-meta">
+                                    <span>{item.module_name || "General Knowledge"}</span>
+                                    <time>{new Date(item.created_at).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
+                                </div>
+                                {item.confidence != null && <b>{Math.round(Number(item.confidence))}% confidence</b>}
+                            </div>
+                            <h3>{item.question}</h3>
+                            <div className="hc-history-answer">{String(item.answer || "").slice(0, 700)}{String(item.answer || "").length > 700 ? "…" : ""}</div>
+                            <div className="hc-history-card-bottom">
+                                <span className={`hc-history-source ${String(item.source || "").replace(/_/g, "-")}`}>{String(item.source || "zarvis").replace(/_/g, " ")}</span>
+                                <button onClick={() => {
+                                    setBotQuestion(item.question);
+                                    setTab("zarvis");
+                                    setTimeout(() => inputRef.current?.focus(), 80);
+                                }}><FaArrowRight /> Ask again</button>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            ) : (
+                <div className="hc-history-empty">
+                    <div><FaHistory /></div>
+                    <h3>Your question trail is empty</h3>
+                    <p>Ask Zarvis something and your private conversation history will appear here.</p>
+                    <button className="hc-primary" onClick={() => setTab("zarvis")}><FaRobot /> Ask Zarvis</button>
+                </div>
+            )}
+        </section>
+    );
+
     return <div className="help-center-page">
         <div className="hc-hero hc-hero-luna">
             <div className="hc-hero-copy"><div className="hc-kicker"><FaBolt/> MIARCUS CARE DESK</div><h1>Ask anything. Get it explained clearly.</h1><p>{publicMode ? "Zarvis helps customers with administrator-approved answers and Miarcus product guidance, 24×7." : "Zarvis understands natural language, remembers the current conversation, explains Miarcus workflows, answers general questions and coding topics, and can hand you to a human when needed."}</p><div className="hc-hero-actions"><button onClick={()=>setTab("zarvis")} className="hc-hero-btn"><FaRobot/> Ask Zarvis <FaArrowRight/></button>{!publicMode&&<button onClick={()=>setTab("support")} className="hc-hero-link"><FaHeadset/> Human support</button>}</div></div>
             <div className="hc-orb"><div className="hc-orb-inner"><span className="hc-orb-z">Z</span><strong>Zarvis</strong><span>24×7</span></div></div>
         </div>
-        <div className="hc-tabs"><button className={tab==="home"?'active':''} onClick={()=>setTab("home")}><FaBookOpen/> Help Center</button><button className={tab==="zarvis"?'active':''} onClick={()=>setTab("zarvis")}><FaRobot/> Ask Zarvis</button>{!publicMode&&<button className={tab==="support"?'active':''} onClick={()=>setTab("support")}><FaHeadset/> My Support</button>}{isAdmin&&!publicMode&&<button className={tab==="admin"?'active':''} onClick={()=>setTab("admin")}><FaShieldAlt/> Admin Console</button>}</div>
+        <div className="hc-tabs"><button className={tab==="home"?'active':''} onClick={()=>setTab("home")}><FaBookOpen/> Help Center</button><button className={tab==="zarvis"?'active':''} onClick={()=>setTab("zarvis")}><FaRobot/> Ask Zarvis</button>{!publicMode&&<button className={tab==="history"?'active':''} onClick={()=>setTab("history")}><FaHistory/> My History</button>}{!publicMode&&<button className={tab==="support"?'active':''} onClick={()=>setTab("support")}><FaHeadset/> My Support</button>}{isAdmin&&!publicMode&&<button className={tab==="admin"?'active':''} onClick={()=>setTab("admin")}><FaShieldAlt/> Admin Console</button>}</div>
         {toast && <div className="hc-toast" onClick={()=>setToast("")}>{toast}<FaTimes/></div>}
         {loading ? <div className="hc-loading"><PremiumLoader compact title="Loading your Help Center" /></div> : <>
             {tab==="home" && <>
@@ -312,6 +409,7 @@ function HelpCenter({ publicMode = false }) {
                 </div>
                 <div className="hc-zarvis-side"><div className="hc-voice-assistant-card"><div className="hc-voice-assistant-orb"><span className={isListening ? "listening" : ""}><FaMicrophone /></span></div><div><span className="hc-voice-kicker">VOICE ASSISTANT</span><h3>{isListening ? "Listening to you…" : "Ask Zarvis by voice"}</h3><p>Tap the microphone, speak naturally, and let Zarvis answer. You can also hear the answer aloud.</p></div><button type="button" className={`hc-voice-main-btn ${isListening ? "active" : ""}`} onClick={()=>toggleVoiceInput()} disabled={!voiceSupported}><FaMicrophone /> {isListening ? "Listening" : "Start voice"}</button><div className="hc-voice-status"><span className={voiceSupported ? "ready" : ""}></span>{voiceSupported ? "Microphone ready" : "Use Chrome or Edge for voice input"}</div></div><div className="hc-trust hc-trust-luna"><div className="hc-trust-icon"><FaShieldAlt/></div><h3>How Zarvis answers</h3><p><b>1.</b> Checks administrator-approved answers.</p><p><b>2.</b> If needed, checks the safe Miarcus project knowledge.</p><p><b>3.</b> Uses conversation context for short follow-ups.</p><p><b>4.</b> It can answer broad general-knowledge and coding questions through AI, while Miarcus facts remain grounded in project knowledge.</p><p><b>5.</b> Choose a language or use Auto detect. Voice recognition availability depends on the browser and installed language support.</p></div><div className="hc-suggest"><span>TRY ASKING</span>{SUGGESTIONS.slice(0,4).map(q=><button key={q} onClick={()=>{setBotQuestion(q);setTimeout(()=>inputRef.current?.focus(),50)}}>{q}<FaArrowRight/></button>)}</div></div>
             </div>}
+            {!publicMode && tab==="history" && renderHistory()}
             {!publicMode && tab==="support" && <div className="hc-support-layout"><div className="hc-panel"><div className="hc-panel-title"><span>My support requests</span><span className="hc-count">{tickets.length}</span></div>{tickets.length?tickets.map(t=><button className={`hc-ticket-item ${selectedTicket?.id===t.id?'selected':''}`} key={t.id} onClick={()=>openTicket(t.id)}><span>#{t.id}</span><div><strong>{t.subject}</strong><small>{t.status.replace("_"," ")} · {t.priority} · {new Date(t.last_message_at).toLocaleString()}</small></div><FaArrowRight/></button>):<div className="hc-empty small"><FaComments/><h3>No support requests yet</h3><p>Ask Zarvis first or open a human support request.</p></div>}</div><div className="hc-panel"><div className="hc-panel-title"><span>24×7 support</span></div>{selectedTicket?<TicketConversation ticket={selectedTicket} reply={ticketReply} setReply={setTicketReply} onSend={sendTicketReply}/>:<div className="hc-support-form"><div className="hc-support-badge"><FaHeadset/><span>Human support fallback</span></div><h2>Need a person?</h2><p>Send your question to the Miarcus support queue. You can continue the conversation here.</p><input value={ticketSubject} onChange={e=>setTicketSubject(e.target.value)} placeholder="Subject"/><textarea rows="7" value={ticketText} onChange={e=>setTicketText(e.target.value)} placeholder="Tell us what you need help with…"/><div className="hc-inline"><select value={ticketPriority} onChange={e=>setTicketPriority(e.target.value)}><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent</option><option value="low">Low</option></select><button className="hc-primary" onClick={requestHuman}>Send to support <FaPaperPlane/></button></div></div>}</div></div>}
             {!publicMode && tab==="admin" && isAdmin && renderAdmin()}
         </>}

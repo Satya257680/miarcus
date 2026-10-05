@@ -52,6 +52,22 @@ const ensureTables = async () => {
         `);
 
         await db.query(`
+            CREATE TABLE IF NOT EXISTS zarvis_question_history (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                question TEXT NOT NULL,
+                answer LONGTEXT NULL,
+                source VARCHAR(80) NULL,
+                module_name VARCHAR(160) NULL,
+                confidence DECIMAL(5,2) NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX idx_zarvis_history_user_created (user_id, created_at),
+                INDEX idx_zarvis_history_user_question (user_id, id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        await db.query(`
             CREATE TABLE IF NOT EXISTS help_ticket_messages (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 ticket_id BIGINT UNSIGNED NOT NULL,
@@ -323,6 +339,44 @@ const updateTicket = async (id, data) => {
     return getTicket(id, null, true);
 };
 
+
+const saveZarvisHistory = async ({ userId, question, answer, source, moduleName, confidence }) => {
+    const result = await db.query(`
+        INSERT INTO zarvis_question_history
+            (user_id, question, answer, source, module_name, confidence)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+        Number(userId),
+        String(question || "").trim().slice(0, 4000),
+        String(answer || "").slice(0, 30000),
+        String(source || "").slice(0, 80) || null,
+        String(moduleName || "").slice(0, 160) || null,
+        confidence == null ? null : Number(confidence)
+    ]);
+    return Number(result.insertId);
+};
+
+const getZarvisHistory = async (userId, limit = 100) => {
+    const safeLimit = Math.min(200, Math.max(1, Number(limit) || 100));
+    const rows = await db.query(`
+        SELECT id, question, answer, source, module_name, confidence, created_at
+        FROM zarvis_question_history
+        WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ${safeLimit}
+    `, [Number(userId)]);
+    return rows.map((row) => ({
+        ...row,
+        id: Number(row.id),
+        confidence: row.confidence == null ? null : Number(row.confidence)
+    }));
+};
+
+const clearZarvisHistory = async (userId) => {
+    await db.query("DELETE FROM zarvis_question_history WHERE user_id = ?", [Number(userId)]);
+};
+
+
 module.exports = {
     ensureTables,
     getPublishedArticles,
@@ -339,4 +393,7 @@ module.exports = {
     getTicketsForUser,
     getTicketsForAdmin,
     updateTicket,
+    saveZarvisHistory,
+    getZarvisHistory,
+    clearZarvisHistory,
 };

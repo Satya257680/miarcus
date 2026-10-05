@@ -14,6 +14,9 @@ export const askPublicZarvis = (question, history = [], language = "auto") =>
 export const getHelpArticle = (id) => axios.get(`${API}/articles/${id}`, auth());
 export const askZarvis = (question, history = [], language = "auto") =>
     axios.post(`${API}/zarvis/ask`, { question, history, language }, auth());
+export const getZarvisHistory = (limit = 100) =>
+    axios.get(`${API}/zarvis/history`, { ...auth(), params: { limit } });
+export const clearZarvisHistory = () => axios.delete(`${API}/zarvis/history`, auth());
 export const createHelpTicket = (payload) => axios.post(`${API}/tickets`, payload, auth());
 export const getMyHelpTickets = () => axios.get(`${API}/tickets`, auth());
 export const getHelpTicket = (id) => axios.get(`${API}/tickets/${id}`, auth());

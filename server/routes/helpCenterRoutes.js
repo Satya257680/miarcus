@@ -21,6 +21,8 @@ router.use(auth);
 router.get("/articles", C.articles);
 router.get("/articles/:id", C.viewArticle);
 router.post("/zarvis/ask", C.askZarvis);
+router.get("/zarvis/history", C.zarvisHistory);
+router.delete("/zarvis/history", C.clearZarvisHistory);
 router.post("/tickets", C.createTicket);
 router.get("/tickets", C.myTickets);
 router.get("/tickets/:id", C.getTicket);

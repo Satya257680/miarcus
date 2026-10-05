@@ -261,7 +261,46 @@ exports.askZarvis = async (req, res, next) => {
     try {
         const question = clean(req.body?.question, 2000);
         if (!question) return res.status(400).json({ success: false, message: "Please enter your question." });
-        res.json(await resolveZarvis({ question, audience: "employee", history: req.body?.history, language: clean(req.body?.language, 40) || "auto" }));
+
+        const result = await resolveZarvis({
+            question,
+            audience: "employee",
+            history: req.body?.history,
+            language: clean(req.body?.language, 40) || "auto"
+        });
+
+        // Every employee gets a private Zarvis history. It is keyed by the
+        // authenticated user and is never returned through another user's request.
+        try {
+            await Model.saveZarvisHistory({
+                userId: req.user.id,
+                question,
+                answer: result.message,
+                source: result.source,
+                moduleName: result.module,
+                confidence: result.confidence
+            });
+        } catch (historyError) {
+            console.error("Zarvis history save:", historyError.message);
+        }
+
+        res.json(result);
+    } catch (error) { next(error); }
+};
+
+exports.zarvisHistory = async (req, res, next) => {
+    try {
+        res.json({
+            success: true,
+            history: await Model.getZarvisHistory(req.user.id, req.query.limit)
+        });
+    } catch (error) { next(error); }
+};
+
+exports.clearZarvisHistory = async (req, res, next) => {
+    try {
+        await Model.clearZarvisHistory(req.user.id);
+        res.json({ success: true, message: "Your Zarvis history was cleared." });
     } catch (error) { next(error); }
 };
 
