@@ -967,8 +967,10 @@
     top: calc(100% + 8px);
     bottom: auto;
     left: 0;
-    right: 0;
-    width: 100%;
+    right: auto;
+    width: max-content;
+    min-width: 100%;
+    max-width: min(760px, calc(100vw - 32px));
     max-height: 310px;
     display: flex;
     flex-direction: column;
@@ -1104,9 +1106,10 @@
 
 .cs-premium .cs-search-option-text {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .cs-premium .cs-search-option-check {
