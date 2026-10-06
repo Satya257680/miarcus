@@ -1,5 +1,5 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/ChecklistSubmission.css";
 import "../styles/pages/ChecklistSubmissionPremium.css";
@@ -118,6 +118,172 @@ const answerToText = (value) => {
   if (Array.isArray(value)) return value.join(", ");
   return String(value).trim();
 };
+
+
+// ---------------------------------------------------------
+// SEARCHABLE SELECT
+// Custom dropdown used for Checklist Type and Store.
+// The menu is intentionally anchored below the field.
+// ---------------------------------------------------------
+function SearchableSelect({
+  value,
+  options,
+  placeholder,
+  searchPlaceholder,
+  onChange,
+  getOptionLabel,
+  getOptionValue,
+  icon,
+  disabled = false,
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const selectedOption =
+    options.find(
+      (option) =>
+        String(getOptionValue(option)) === String(value)
+    ) || null;
+
+  const filteredOptions = options.filter((option) =>
+    String(getOptionLabel(option) || "")
+      .toLowerCase()
+      .includes(search.trim().toLowerCase())
+  );
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!wrapperRef.current?.contains(event.target)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => searchRef.current?.focus());
+    }
+  }, [open]);
+
+  const handleOpen = () => {
+    if (disabled) return;
+    setOpen((current) => !current);
+  };
+
+  const handleSelect = (option) => {
+    onChange(String(getOptionValue(option)));
+    setOpen(false);
+    setSearch("");
+  };
+
+  return (
+    <div
+      ref={wrapperRef}
+      className={`cs-search-select ${open ? "is-open" : ""} ${
+        disabled ? "is-disabled" : ""
+      }`}
+    >
+      <button
+        type="button"
+        className="cs-search-select-trigger"
+        onClick={handleOpen}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+      >
+        <span className={`cs-search-select-value ${!selectedOption ? "is-placeholder" : ""}`}>
+          {selectedOption ? (
+            <>
+              {icon && <span className="cs-search-select-selected-icon">{icon}</span>}
+              <span className="cs-search-select-selected-text">
+                {getOptionLabel(selectedOption)}
+              </span>
+            </>
+          ) : (
+            placeholder
+          )}
+        </span>
+
+        <span className="cs-search-select-chevron" aria-hidden="true">
+          <span />
+        </span>
+      </button>
+
+      {open && (
+        <div className="cs-search-select-menu" role="listbox">
+          <div className="cs-search-select-search">
+            <span className="cs-search-icon" aria-hidden="true">⌕</span>
+            <input
+              ref={searchRef}
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setOpen(false);
+                  setSearch("");
+                }
+              }}
+              placeholder={searchPlaceholder}
+              autoComplete="off"
+              spellCheck="false"
+              aria-label={searchPlaceholder}
+            />
+            {search && (
+              <button
+                type="button"
+                className="cs-search-clear"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          <div className="cs-search-select-results">
+            {filteredOptions.length ? (
+              filteredOptions.map((option) => {
+                const optionValue = String(getOptionValue(option));
+                const isSelected = String(value) === optionValue;
+
+                return (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    key={optionValue}
+                    className={`cs-search-option ${isSelected ? "is-selected" : ""}`}
+                    onClick={() => handleSelect(option)}
+                  >
+                    <span className="cs-search-option-text">
+                      {getOptionLabel(option)}
+                    </span>
+                    {isSelected && <FaCheck className="cs-search-option-check" />}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="cs-search-empty">
+                <span className="cs-search-empty-icon">⌕</span>
+                <strong>No matching results</strong>
+                <small>Try another name or keyword.</small>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ChecklistSubmission() {
   // =========================================================
@@ -1189,37 +1355,23 @@ function ChecklistSubmission() {
                 <span>*</span>
               </label>
 
-              <select
+              <SearchableSelect
                 value={checklistTypeId}
-                onChange={(e) =>
-                  handleChecklistTypeChange(
-                    e.target.value
-                  )
+                options={checklistTypes}
+                placeholder="Select Checklist Type"
+                searchPlaceholder="Search checklist type..."
+                onChange={handleChecklistTypeChange}
+                getOptionValue={(checklist) =>
+                  checklist.id || checklist.checklist_type_id
                 }
-              >
-                <option value="">
-                  Select Checklist Type
-                </option>
-
-                {checklistTypes.map(
-                  (checklist) => {
-                    const id =
-                      checklist.id ||
-                      checklist.checklist_type_id;
-
-                    return (
-                      <option
-                        key={id}
-                        value={id}
-                      >
-                        {checklist.name ||
-                          checklist.checklist_name ||
-                          checklist.title}
-                      </option>
-                    );
-                  }
-                )}
-              </select>
+                getOptionLabel={(checklist) =>
+                  checklist.name ||
+                  checklist.checklist_name ||
+                  checklist.title ||
+                  "Unnamed Checklist"
+                }
+                icon={<FaFileAlt />}
+              />
 
               <small>
                 Choose the checklist you want
@@ -1243,34 +1395,22 @@ function ChecklistSubmission() {
                 <span>*</span>
               </label>
 
-              <select
+              <SearchableSelect
                 value={storeId}
-                onChange={(e) =>
-                  handleStoreChange(
-                    e.target.value
-                  )
+                options={stores}
+                placeholder="Select Store"
+                searchPlaceholder="Search store name..."
+                onChange={handleStoreChange}
+                getOptionValue={(store) =>
+                  store.id || store.store_id
                 }
-              >
-                <option value="">
-                  Select Store
-                </option>
-
-                {stores.map((store) => {
-                  const id =
-                    store.id ||
-                    store.store_id;
-
-                  return (
-                    <option
-                      key={id}
-                      value={id}
-                    >
-                      {store.store_name ||
-                        store.name}
-                    </option>
-                  );
-                })}
-              </select>
+                getOptionLabel={(store) =>
+                  store.store_name ||
+                  store.name ||
+                  "Unnamed Store"
+                }
+                icon={<FaStore />}
+              />
 
               <small>
                 Select the store being inspected.

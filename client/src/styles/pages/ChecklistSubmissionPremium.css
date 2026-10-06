@@ -853,3 +853,319 @@
     background: rgba(224, 60, 74, 0.15);
     color: #fda4af;
 }
+
+
+/* =========================================================
+   SEARCHABLE CHECKLIST / STORE SELECT
+   - Search while typing
+   - Menu always opens downward
+   - Selected value stays in the field
+   ========================================================= */
+
+.cs-premium .cs-search-select {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    z-index: 20;
+}
+
+.cs-premium .cs-search-select.is-open {
+    z-index: 1000;
+}
+
+.cs-premium .cs-search-select-trigger {
+    width: 100%;
+    min-width: 0;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 14px;
+    border: 1px solid #e0ddf0;
+    border-radius: 12px;
+    background: #ffffff;
+    color: var(--cs-navy);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    outline: none;
+    box-shadow: 0 2px 6px rgba(35, 25, 110, 0.04);
+    transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.cs-premium .cs-search-select-trigger:hover {
+    border-color: #cfc7eb;
+    background: #fefeff;
+}
+
+.cs-premium .cs-search-select.is-open .cs-search-select-trigger,
+.cs-premium .cs-search-select-trigger:focus-visible {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, .12);
+}
+
+.cs-premium .cs-search-select-value {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    flex: 1;
+}
+
+.cs-premium .cs-search-select-value.is-placeholder {
+    color: #5d607f;
+    font-weight: 500;
+}
+
+.cs-premium .cs-search-select-selected-icon {
+    width: 25px;
+    height: 25px;
+    flex: 0 0 25px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    color: #6d3df2;
+    background: #f0eaff;
+    font-size: 11px;
+}
+
+.cs-premium .cs-search-select-selected-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-premium .cs-search-select-chevron {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    background: #f5f2ff;
+}
+
+.cs-premium .cs-search-select-chevron::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid #6d3df2;
+    border-bottom: 2px solid #6d3df2;
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform .18s ease;
+}
+
+.cs-premium .cs-search-select.is-open .cs-search-select-chevron::before {
+    transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.cs-premium .cs-search-select-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    bottom: auto;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 310px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #ddd6fe;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow:
+        0 20px 45px rgba(47, 35, 120, .18),
+        0 4px 12px rgba(47, 35, 120, .08);
+    animation: cs-search-menu-down .16s ease-out;
+    transform-origin: top center;
+}
+
+@keyframes cs-search-menu-down {
+    from {
+        opacity: 0;
+        transform: translateY(-5px) scale(.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.cs-premium .cs-search-select-search {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px;
+    padding: 0 10px;
+    height: 42px;
+    border: 1px solid #e4def7;
+    border-radius: 10px;
+    background: #faf9ff;
+}
+
+.cs-premium .cs-search-select-search:focus-within {
+    border-color: #a78bfa;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, .08);
+}
+
+.cs-premium .cs-search-icon {
+    flex: 0 0 auto;
+    color: #7c3aed;
+    font-size: 21px;
+    line-height: 1;
+    transform: rotate(-20deg);
+}
+
+.cs-premium .cs-search-select-search input {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #25234f;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.cs-premium .cs-search-select-search input::placeholder {
+    color: #9693ad;
+    font-weight: 500;
+}
+
+.cs-premium .cs-search-clear {
+    width: 23px;
+    height: 23px;
+    flex: 0 0 23px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #e9e4fb;
+    color: #625a83;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cs-premium .cs-search-clear:hover {
+    background: #ddd5f7;
+    color: #3d365e;
+}
+
+.cs-premium .cs-search-select-results {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 8px 9px;
+    scrollbar-width: thin;
+    scrollbar-color: #c8bdf0 transparent;
+}
+
+.cs-premium .cs-search-option {
+    width: 100%;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #353456;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 550;
+    text-align: left;
+    cursor: pointer;
+    transition: background .12s ease, color .12s ease, transform .12s ease;
+}
+
+.cs-premium .cs-search-option:hover {
+    background: #f3efff;
+    color: #5b21b6;
+    transform: translateX(1px);
+}
+
+.cs-premium .cs-search-option.is-selected {
+    background: linear-gradient(90deg, #f0eaff, #f7f4ff);
+    color: #5b21b6;
+    font-weight: 750;
+}
+
+.cs-premium .cs-search-option-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-premium .cs-search-option-check {
+    flex: 0 0 auto;
+    color: #7c3aed;
+    font-size: 12px;
+}
+
+.cs-premium .cs-search-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 120px;
+    padding: 15px;
+    color: #777493;
+    text-align: center;
+}
+
+.cs-premium .cs-search-empty-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 3px;
+    border-radius: 50%;
+    background: #f0ebff;
+    color: #7c3aed;
+    font-size: 21px;
+    transform: rotate(-20deg);
+}
+
+.cs-premium .cs-search-empty strong {
+    font-size: 13px;
+    color: #4b476b;
+}
+
+.cs-premium .cs-search-empty small {
+    margin: 0;
+    font-size: 11px;
+    color: #9995b2;
+}
+
+.cs-premium .cs-search-select.is-disabled .cs-search-select-trigger {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+/* Keep the dropdown above neighboring form fields. */
+.cs-premium .cs-details-card,
+.cs-premium .cs-premium .cs-details-card,
+.cs-premium .selection-grid.cs-fields,
+.cs-premium .checklist-field.cs-field {
+    overflow: visible;
+}
+
+@media (max-width: 820px) {
+    .cs-premium .cs-search-select-menu {
+        max-height: 280px;
+    }
+}
