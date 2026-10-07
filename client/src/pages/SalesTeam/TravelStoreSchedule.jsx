@@ -12,6 +12,21 @@ import {
 } from "react-icons/fa";
 import { formatDate } from "./salesTeamUtils";
 
+const FALLBACK_STORE_IMAGES = [
+  "/assets/travel-stores/store-1.jpg",
+  "/assets/travel-stores/store-2.jpg",
+  "/assets/travel-stores/store-3.jpg",
+  "/assets/travel-stores/store-4.jpg",
+  "/assets/travel-stores/store-5.jpg",
+  "/assets/travel-stores/store-6.jpg",
+];
+
+const getStoreImage = (store, index) =>
+  store?.image_url ||
+  store?.image ||
+  store?.store_image ||
+  FALLBACK_STORE_IMAGES[index % FALLBACK_STORE_IMAGES.length];
+
 /**
  * Shared store schedule.
  *
@@ -122,7 +137,15 @@ export default function TravelStoreSchedule({
               <div className="travel-store-rich-top">
                 <span className="travel-store-number">{index + 1}</span>
 
-                <div className="travel-store-rich-image" aria-hidden="true">
+                <div className="travel-store-rich-image">
+                  <img
+                    src={getStoreImage(store, index)}
+                    alt={store.store_name || "Store"}
+                    loading="lazy"
+                    onError={(event) => {
+                      event.currentTarget.src = FALLBACK_STORE_IMAGES[index % FALLBACK_STORE_IMAGES.length];
+                    }}
+                  />
                   <span><FaStore /></span>
                 </div>
 

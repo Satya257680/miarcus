@@ -93,6 +93,12 @@ function TravelPlan() {
   const [search, setSearch] =
     useState("");
 
+  const [planListSearch, setPlanListSearch] =
+    useState("");
+
+  const [selectedPlanId, setSelectedPlanId] =
+    useState(null);
+
   const [from, setFrom] =
     useState("");
 
@@ -279,6 +285,19 @@ function TravelPlan() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!rows.length) {
+      setSelectedPlanId(null);
+      return;
+    }
+
+    setSelectedPlanId((current) =>
+      rows.some((row) => String(row.id) === String(current))
+        ? current
+        : rows[0].id
+    );
+  }, [rows]);
 
   /* =======================================================
      LOAD CURRENT STORE MANAGEMENT STORES
@@ -1081,219 +1100,216 @@ function TravelPlan() {
 
 
   /* =======================================================
-     PREMIUM APPROVED PLAN CARDS
-     Replaces the old wide table with the compact card layout:
-     plan summary on the left + scrollable 2-column store cards.
+     PREMIUM APPROVED PLAN MASTER / DETAIL VIEW
   ======================================================= */
 
-  const renderApprovedPlanCard = (row) => {
-    const plannedStores = Array.isArray(row.planned_stores)
-      ? row.planned_stores
-      : [];
+  const planListRows = useMemo(() => {
+    const query = planListSearch.trim().toLowerCase();
+    if (!query) return rows;
 
+    return rows.filter((row) => [
+      row.name,
+      row.designation,
+      row.department,
+      row.city,
+      row.visit_date,
+      row.end_date,
+      formatDate(row.visit_date),
+      formatDate(row.end_date),
+      String(row.planned_store_count || ""),
+    ].filter(Boolean).join(" ").toLowerCase().includes(query));
+  }, [rows, planListSearch]);
+
+  const selectedPlan = useMemo(
+    () => rows.find((row) => String(row.id) === String(selectedPlanId)) || rows[0] || null,
+    [rows, selectedPlanId]
+  );
+
+  const renderPlanListItem = (row) => {
+    const plannedStores = Array.isArray(row.planned_stores) ? row.planned_stores : [];
+    const plannedCount = Number(row.planned_store_count || plannedStores.length || 0);
+    const selected = String(row.id) === String(selectedPlan?.id);
+    const start = formatDate(row.visit_date);
+    const end = row.end_date && String(row.end_date).slice(0, 10) !== String(row.visit_date).slice(0, 10)
+      ? formatDate(row.end_date)
+      : null;
+
+    return (
+      <button
+        type="button"
+        className={`travel-plan-master-item ${selected ? "is-selected" : ""}`}
+        key={row.id}
+        onClick={() => setSelectedPlanId(row.id)}
+      >
+        <span className="travel-plan-master-icon"><FaPlaneDeparture /></span>
+        <span className="travel-plan-master-main">
+          <strong>{end ? `${start} to ${end}` : start}</strong>
+          <small>{row.day_name || "Travel plan"}</small>
+          <b>{row.name || "Employee"}</b>
+          <small>{row.designation || "—"}</small>
+          {row.city && (
+            <span className="travel-plan-master-city"><FaMapMarkerAlt />{row.city}</span>
+          )}
+        </span>
+        <span className="travel-plan-master-meta">
+          <em>{plannedCount} {plannedCount === 1 ? "Store" : "Stores"}</em>
+          <span><FaCheckCircle /> Approved</span>
+        </span>
+      </button>
+    );
+  };
+
+  const renderApprovedPlanDetail = (row) => {
+    if (!row) return null;
+
+    const plannedStores = Array.isArray(row.planned_stores) ? row.planned_stores : [];
     const selectedActual = getActualStoreIds(row);
     const plannedCount = Number(row.planned_store_count || plannedStores.length || 0);
     const visitRate = plannedCount
       ? Math.min(100, Math.round((selectedActual.length / plannedCount) * 100))
       : 0;
-
     const start = formatDate(row.visit_date);
-    const end =
-      row.end_date &&
-      String(row.end_date).slice(0, 10) !== String(row.visit_date).slice(0, 10)
-        ? formatDate(row.end_date)
-        : null;
-
+    const end = row.end_date && String(row.end_date).slice(0, 10) !== String(row.visit_date).slice(0, 10)
+      ? formatDate(row.end_date)
+      : null;
     const dateRange = end ? `${start} to ${end}` : start;
 
+    const availableActualStores = stores.filter((storeItem) =>
+      (Array.isArray(row.planned_store_ids)
+        ? row.planned_store_ids
+        : plannedStores.map((item) => item.store_id)
+      ).map(Number).includes(Number(storeItem.id))
+    );
+
     return (
-      <article className="travel-plan-premium-card" key={row.id}>
-        <aside className="travel-plan-premium-summary">
-          <div className="travel-plan-summary-date">
-            <span className="travel-plan-summary-date-icon">
-              <FaPlaneDeparture />
-            </span>
+      <article className="travel-plan-detail-shell" key={row.id}>
+        <header className="travel-plan-detail-header">
+          <div className="travel-plan-detail-header-date">
+            <span><FaPlaneDeparture /></span>
             <div>
               <strong>{dateRange}</strong>
-              <span>{row.day_name || "Travel plan"}</span>
+              <small>{row.day_name || "Travel plan"}</small>
             </div>
           </div>
 
-          <div className="travel-plan-summary-person">
+          <div className="travel-plan-detail-header-person">
             <span className={`pp-avatar pp-avatar--round ${avatarTone(row.name)}`}>
               {initials(row.name)}
             </span>
             <div>
               <strong>{row.name || "Employee"}</strong>
-              <span>{row.designation || "—"}</span>
+              <small>{row.designation || "—"}</small>
             </div>
           </div>
 
-          {row.department && (
-            <span className="pp-pill pp-pill--violet travel-plan-department">
-              {row.department}
-            </span>
-          )}
-
           {row.city && (
-            <span className="travel-plan-summary-city">
+            <div className="travel-plan-detail-header-city">
               <FaMapMarkerAlt />
               {row.city}
-            </span>
+            </div>
           )}
 
           <div className="travel-plan-approved-badge">
-            <FaCheckCircle />
-            Approved
+            <FaCheckCircle /> Approved
           </div>
+        </header>
 
-          <div className="travel-plan-summary-stats">
-            <div>
-              <strong>{plannedCount}</strong>
-              <span>Planned stores</span>
-            </div>
-            <div>
-              <strong>{visitRate}%</strong>
-              <span>Visit rate</span>
-            </div>
-          </div>
-
-          {canEdit(permission) && !row.week_off && (
-            <div className="travel-plan-actual-editor">
-              <div className="travel-plan-actual-label">
-                <span>Actual stores visited</span>
-                <b>{selectedActual.length}/{plannedCount}</b>
-              </div>
-
-              {stores.filter((storeItem) =>
-                (Array.isArray(row.planned_store_ids)
-                  ? row.planned_store_ids
-                  : plannedStores.map((item) => item.store_id)
-                ).map(Number).includes(Number(storeItem.id))
-              ).length > 0 ? (
-                <select
-                  multiple
-                  value={selectedActual.map(String)}
-                  onChange={(event) =>
-                    setSelection(
-                      row.id,
-                      [...event.target.selectedOptions].map(
-                        (option) => Number(option.value)
-                      )
-                    )
-                  }
-                  disabled={savingActual === row.id}
-                  aria-label="Select actual visited stores"
-                >
-                  {stores
-                    .filter((storeItem) =>
-                      (Array.isArray(row.planned_store_ids)
-                        ? row.planned_store_ids
-                        : plannedStores.map((item) => item.store_id)
-                      ).map(Number).includes(Number(storeItem.id))
-                    )
-                    .map((storeItem) => (
-                      <option key={storeItem.id} value={storeItem.id}>
-                        {storeItem.store_name}
-                        {storeItem.store_code ? ` (${storeItem.store_code})` : ""}
-                      </option>
-                    ))}
-                </select>
-              ) : (
-                <span className="travel-plan-no-actual">No planned stores</span>
-              )}
-
-              <button
-                type="button"
-                className="travel-plan-save-btn"
-                onClick={() => save(row)}
-                disabled={savingActual === row.id}
-              >
-                {savingActual === row.id ? (
-                  <>
-                    <FaSyncAlt className="sales-spin" />
-                    Saving
-                  </>
-                ) : (
-                  <>
-                    <FaSave />
-                    Save actual
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          <div className="travel-plan-summary-actions">
-            <button type="button" onClick={() => openRemarks(row)}>
-              <FaCommentAlt />
-              {row.remarks ? "Remarks" : "Add remarks"}
-            </button>
-            <button type="button" onClick={() => openHistory(row)}>
-              <FaHistory />
-              History
-            </button>
-            {canDelete(permission) && (
-              <button
-                type="button"
-                className="danger"
-                onClick={() => setDeleteId(row.id)}
-              >
-                <FaTrash />
-                Delete
-              </button>
-            )}
-          </div>
-        </aside>
-
-        <section className="travel-plan-premium-content">
-          <div className="travel-plan-premium-content-head">
-            <div>
+        <div className="travel-plan-detail-body">
+          <section className="travel-plan-detail-stores">
+            <div className="travel-plan-premium-content-head">
               <div className="travel-plan-premium-title">
                 <span className="travel-plan-store-icon"><FaStore /></span>
                 <div>
                   <h3>Store Visits <span>({plannedStores.length})</span></h3>
-                  <p>
-                    {row.reason_to_travel || "Store Visit"}
-                    {row.remarks ? " · Remarks available" : ""}
-                  </p>
+                  <p>{row.reason_to_travel || "Store Visit"}</p>
                 </div>
               </div>
+              <span className="travel-plan-store-count">
+                {plannedStores.length} of {plannedStores.length} stores
+              </span>
             </div>
 
-            <span className="travel-plan-store-count">
-              {plannedStores.length} of {plannedStores.length} stores
-            </span>
-          </div>
-
-          {row.week_off ? (
-            <div className="travel-plan-weekoff-panel">
-              <span><FaBed /></span>
-              <div>
-                <strong>Week off</strong>
-                <p>{row.leave_days || 1} day{Number(row.leave_days) === 1 ? "" : "s"} — no store visit planned.</p>
+            {row.week_off ? (
+              <div className="travel-plan-weekoff-panel">
+                <span><FaBed /></span>
+                <div>
+                  <strong>Week off</strong>
+                  <p>{row.leave_days || 1} day{Number(row.leave_days) === 1 ? "" : "s"} — no store visit planned.</p>
+                </div>
               </div>
+            ) : (
+              <TravelStoreSchedule
+                stores={plannedStores}
+                blankDays={Array.isArray(row.day_reasons) ? row.day_reasons : []}
+                rich
+                highlightVisit
+                visitRate={visitRate}
+                visitReason={row.reason_to_travel || "Store Visit"}
+                planRemarks={row.remarks || ""}
+                onRemarks={() => openRemarks(row)}
+                onHistory={() => openHistory(row)}
+                onDelete={() => setDeleteId(row.id)}
+                canDeleteAction={canDelete(permission)}
+              />
+            )}
+          </section>
+
+          <aside className="travel-plan-detail-side">
+            <div className="travel-plan-side-stats">
+              <div><strong>{plannedCount}</strong><span>Planned stores</span></div>
+              <div><strong>{visitRate}%</strong><span>Visit rate</span></div>
             </div>
-          ) : (
-            <TravelStoreSchedule
-              stores={plannedStores}
-              blankDays={Array.isArray(row.day_reasons) ? row.day_reasons : []}
-              rich
-              highlightVisit
-              visitRate={visitRate}
-              visitReason={row.reason_to_travel || "Store Visit"}
-              planRemarks={row.remarks || ""}
-              onRemarks={() => openRemarks(row)}
-              onHistory={() => openHistory(row)}
-              onDelete={() => setDeleteId(row.id)}
-              canDeleteAction={canDelete(permission)}
-            />
-          )}
-        </section>
+
+            {canEdit(permission) && !row.week_off && (
+              <div className="travel-plan-actual-editor">
+                <div className="travel-plan-actual-label">
+                  <span>Actual stores visited</span>
+                  <b>{selectedActual.length}/{plannedCount}</b>
+                </div>
+
+                {availableActualStores.length > 0 ? (
+                  <select
+                    multiple
+                    value={selectedActual.map(String)}
+                    onChange={(event) =>
+                      setSelection(row.id, [...event.target.selectedOptions].map((option) => Number(option.value)))
+                    }
+                    disabled={savingActual === row.id}
+                    aria-label="Select actual visited stores"
+                  >
+                    {availableActualStores.map((storeItem) => (
+                      <option key={storeItem.id} value={storeItem.id}>
+                        {storeItem.store_name}{storeItem.store_code ? ` (${storeItem.store_code})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="travel-plan-no-actual">No planned stores</span>
+                )}
+
+                <button
+                  type="button"
+                  className="travel-plan-save-btn"
+                  onClick={() => save(row)}
+                  disabled={savingActual === row.id}
+                >
+                  {savingActual === row.id ? <><FaSyncAlt className="sales-spin" /> Saving</> : <><FaSave /> Save actual</>}
+                </button>
+              </div>
+            )}
+
+            <div className="travel-plan-summary-actions">
+              <button type="button" onClick={() => openRemarks(row)}><FaCommentAlt />{row.remarks ? "Remarks" : "Add remarks"}</button>
+              <button type="button" onClick={() => openHistory(row)}><FaHistory />History</button>
+              {canDelete(permission) && (
+                <button type="button" className="danger" onClick={() => setDeleteId(row.id)}><FaTrash />Delete</button>
+              )}
+            </div>
+          </aside>
+        </div>
       </article>
     );
   };
-
   /* =======================================================
      PERMISSION
   ======================================================= */
@@ -1509,8 +1525,28 @@ function TravelPlan() {
             <p>Approved plans will appear here for actual-store tracking.</p>
           </div>
         ) : (
-          <div className="travel-plan-premium-list">
-            {rows.map(renderApprovedPlanCard)}
+          <div className="travel-plan-master-detail">
+            <aside className="travel-plan-master-list">
+              <div className="travel-plan-master-search">
+                <input
+                  type="search"
+                  value={planListSearch}
+                  onChange={(event) => setPlanListSearch(event.target.value)}
+                  placeholder="Search plan, name, city or date..."
+                  aria-label="Search approved travel plans"
+                />
+              </div>
+              <div className="travel-plan-master-items">
+                {planListRows.map(renderPlanListItem)}
+                {!planListRows.length && (
+                  <div className="travel-plan-master-empty">No matching plans.</div>
+                )}
+              </div>
+            </aside>
+
+            <section className="travel-plan-master-detail-panel">
+              {renderApprovedPlanDetail(selectedPlan)}
+            </section>
           </div>
         )}
 
