@@ -34,7 +34,6 @@ import "../../styles/premium/AdminPagesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
-import TravelStoreSchedule from "./TravelStoreSchedule";
 
 /* =========================================================
    TRAVEL PLAN APPROVALS
@@ -613,13 +612,9 @@ function TravelPlanApprovals() {
                         <p>{plan.reason_to_travel || "—"}</p>
                       </div>
 
-                      <div className="approval-detail-stores">
+                      <div>
                         <small>Planned stores</small>
-                        <TravelStoreSchedule
-                          stores={plan.planned_stores}
-                          compact
-                          highlightVisit
-                        />
+                        <p>{plan.planned_store_schedule || plan.planned_store_names || "No stores selected"}</p>
                       </div>
 
                       <div>
@@ -627,12 +622,9 @@ function TravelPlanApprovals() {
                         <p>{plan.remarks || "—"}</p>
                       </div>
 
-                      <div className="approval-day-type">
+                      <div>
                         <small>Day type</small>
-                        <span className={`travel-visit-highlight ${plan.week_off ? "is-off" : ""}`}>
-                          <FaPlaneDeparture />
-                          {plan.week_off ? "Week off" : "Store Visit"}
-                        </span>
+                        <p>{plan.week_off ? "Week off" : "Store visit"}</p>
                       </div>
                     </div>
                   </div>
