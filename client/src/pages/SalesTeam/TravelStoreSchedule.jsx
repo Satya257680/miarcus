@@ -7,7 +7,7 @@ import { formatDate } from "./salesTeamUtils";
  * Travel Plan Approvals. Keeps long store lists inside a scrollable
  * panel and makes every store/date immediately readable.
  */
-export default function TravelStoreSchedule({ stores = [], blankDays = [], compact = false }) {
+export default function TravelStoreSchedule({ stores = [], blankDays = [], compact = false, highlightVisit = false }) {
   const [search, setSearch] = useState("");
 
   const safeStores = Array.isArray(stores) ? stores : [];
@@ -49,7 +49,7 @@ export default function TravelStoreSchedule({ stores = [], blankDays = [], compa
   const visible = filteredStores.length + filteredBlankDays.length;
 
   return (
-    <div className={`travel-store-schedule ${compact ? "travel-store-schedule--compact" : ""}`}>
+    <div className={`travel-store-schedule ${compact ? "travel-store-schedule--compact" : ""} ${highlightVisit ? "travel-store-schedule--highlight-visit" : ""}`}>
       <div className="travel-store-toolbar">
         <div className="travel-store-count">
           <FaStore />
@@ -86,12 +86,17 @@ export default function TravelStoreSchedule({ stores = [], blankDays = [], compa
                 </span>
               </div>
             </div>
-            {store.visit_date && (
-              <span className="travel-store-date">
-                <FaCalendarAlt />
-                {formatDate(store.visit_date)}
-              </span>
-            )}
+            <div className="travel-store-chip-meta">
+              {highlightVisit && (
+                <span className="travel-store-visit-badge">VISIT</span>
+              )}
+              {store.visit_date && (
+                <span className="travel-store-date">
+                  <FaCalendarAlt />
+                  {formatDate(store.visit_date)}
+                </span>
+              )}
+            </div>
           </div>
         ))}
 
@@ -104,9 +109,11 @@ export default function TravelStoreSchedule({ stores = [], blankDays = [], compa
                 <span>{item.reason_type || "No visit"}{item.reason ? ` · ${item.reason}` : ""}</span>
               </div>
             </div>
-            {item.date && (
-              <span className="travel-store-date">{formatDate(item.date)}</span>
-            )}
+            <div className="travel-store-chip-meta">
+              {item.date && (
+                <span className="travel-store-date">{formatDate(item.date)}</span>
+              )}
+            </div>
           </div>
         ))}
 

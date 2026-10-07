@@ -618,6 +618,7 @@ function TravelPlanApprovals() {
                         <TravelStoreSchedule
                           stores={plan.planned_stores}
                           compact
+                          highlightVisit
                         />
                       </div>
 
@@ -626,9 +627,12 @@ function TravelPlanApprovals() {
                         <p>{plan.remarks || "—"}</p>
                       </div>
 
-                      <div>
+                      <div className="approval-day-type">
                         <small>Day type</small>
-                        <p>{plan.week_off ? "Week off" : "Store visit"}</p>
+                        <span className={`travel-visit-highlight ${plan.week_off ? "is-off" : ""}`}>
+                          <FaPlaneDeparture />
+                          {plan.week_off ? "Week off" : "Store Visit"}
+                        </span>
                       </div>
                     </div>
                   </div>

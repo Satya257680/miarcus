@@ -766,6 +766,8 @@ function TravelPlan() {
           <TravelStoreSchedule
             stores={list}
             blankDays={blankDays}
+            compact
+            highlightVisit
           />
         );
       },
@@ -986,10 +988,12 @@ function TravelPlan() {
       minWidth: "220px",
 
       render: (row) => (
-        <span className="sales-wrap-cell">
-          {row.reason_to_travel ||
-            "—"}
-        </span>
+        <div className="travel-reason-cell">
+          <span className="travel-visit-highlight">
+            <FaPlaneDeparture />
+            {row.reason_to_travel || "Store Visit"}
+          </span>
+        </div>
       ),
     },
 

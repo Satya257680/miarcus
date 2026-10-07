@@ -2429,12 +2429,12 @@
   align-items: center;
   gap: 5px;
   color: #766b82;
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
-.travel-store-count svg { color: var(--travel-purple); font-size: 10px; }
-.travel-store-count strong { color: #30224a; font-size: 11px; }
+.travel-store-count svg { color: var(--travel-purple); font-size: 11px; }
+.travel-store-count strong { color: #30224a; font-size: 13px; }
 
 .travel-store-search {
   position: relative;
@@ -2449,20 +2449,20 @@
   position: absolute;
   left: 8px;
   color: #9b8daf;
-  font-size: 10px;
+  font-size: 11px;
   pointer-events: none;
 }
 
 .travel-store-search input {
   width: 100%;
-  height: 28px;
+  height: 30px;
   padding: 0 27px 0 25px;
   border: 1px solid #ded5ef;
   border-radius: 8px;
   outline: none;
   background: #fff;
   color: #31244a;
-  font-size: 10px;
+  font-size: 11px;
   transition: .18s ease;
 }
 
@@ -2485,30 +2485,34 @@
 
 .travel-store-search button:hover { background: #f1ecfa; color: #5c35b0; }
 
+/* Show only one compact row (two stores) at first. Scroll to reveal all stores. */
 .travel-store-scroll {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  max-height: 210px;
+  gap: 7px;
+  height: 58px;
+  max-height: 58px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px 5px 4px 1px;
+  padding: 1px 5px 2px 1px;
   scrollbar-width: thin;
-  scrollbar-color: #b9a4e7 transparent;
+  scrollbar-color: #a98bdf transparent;
+  overscroll-behavior: contain;
 }
 
 .travel-store-scroll::-webkit-scrollbar { width: 6px; }
 .travel-store-scroll::-webkit-scrollbar-track { background: transparent; }
-.travel-store-scroll::-webkit-scrollbar-thumb { background: #b9a4e7; border-radius: 20px; }
+.travel-store-scroll::-webkit-scrollbar-thumb { background: #a98bdf; border-radius: 20px; }
 
 .travel-store-chip {
   min-width: 0;
-  min-height: 45px;
+  min-height: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 7px;
-  padding: 7px 8px;
+  gap: 8px;
+  padding: 7px 9px;
   border: 1px solid var(--travel-border);
   border-radius: 10px;
   background: linear-gradient(135deg, #fff 0%, #fbf9ff 100%);
@@ -2518,7 +2522,7 @@
 
 .travel-store-chip:hover {
   transform: translateY(-1px);
-  border-color: #c9b6ee;
+  border-color: #bca5ed;
   box-shadow: 0 6px 16px rgba(74, 44, 132, .08);
 }
 
@@ -2526,20 +2530,20 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
 
 .travel-store-chip-icon {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 7px;
+  border-radius: 8px;
   background: #f0eaff;
   color: #6d43c8;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .travel-store-chip-main > div { min-width: 0; }
@@ -2548,8 +2552,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #30263f;
-  font-size: 10.5px;
+  color: #29203b;
+  font-size: 12px;
+  font-weight: 800;
   line-height: 1.2;
 }
 
@@ -2559,8 +2564,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #8b8098;
-  font-size: 8.5px;
+  color: #7d718e;
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.travel-store-chip-meta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .travel-store-date {
@@ -2568,16 +2581,29 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  background: #f1ecff;
-  color: #6941c6;
-  font-size: 8.5px;
-  font-weight: 800;
+  padding: 5px 7px;
+  border-radius: 7px;
+  background: #eee7ff;
+  color: #6135be;
+  font-size: 10px;
+  font-weight: 900;
   white-space: nowrap;
 }
 
-.travel-store-date svg { font-size: 8px; }
+.travel-store-date svg { font-size: 9px; }
+
+.travel-store-visit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: #e8fff4;
+  color: #087a50;
+  border: 1px solid #b8efd7;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
 
 .travel-store-chip--off { background: #fffaf0; border-color: #f3dfae; }
 .travel-store-chip--off .travel-store-chip-icon { background: #fff0cf; color: #b77900; }
@@ -2585,27 +2611,74 @@
 
 .travel-store-empty {
   grid-column: 1 / -1;
-  min-height: 70px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
   color: #958aa3;
-  font-size: 10px;
+  font-size: 11px;
   border: 1px dashed #d9cfee;
   border-radius: 9px;
   background: #fcfbff;
 }
 
-.approval-detail-stores { min-width: 0; }
-.approval-detail-stores .travel-store-scroll { max-height: 180px; }
-.approval-detail-stores .travel-store-chip { min-height: 42px; }
+.travel-store-schedule--compact .travel-store-scroll {
+  height: 58px;
+  max-height: 58px;
+}
 
-/* Keep the approved-plan table row compact even when hundreds of stores exist. */
-.vp-schedule-cell { min-width: 300px; }
+.travel-store-schedule--compact .travel-store-chip {
+  min-height: 48px;
+  height: 48px;
+}
+
+.approval-detail-stores { min-width: 0; }
+
+/* Highlight the reason/day type so Store Visit is immediately visible. */
+.travel-reason-cell {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+}
+
+.travel-visit-highlight {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f0eaff, #e8ddff);
+  border: 1px solid #d3c1ff;
+  color: #5a2db4;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(105, 65, 198, .10);
+}
+
+.travel-visit-highlight svg {
+  font-size: 11px;
+}
+
+.travel-visit-highlight.is-off {
+  background: #fff4df;
+  border-color: #f3d69c;
+  color: #9a6200;
+}
+
+.approval-day-type {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
 
 @media (max-width: 900px) {
   .travel-store-scroll { grid-template-columns: 1fr; }
+  .travel-store-chip { height: 48px; }
+
 }
 
 @media (max-width: 620px) {
