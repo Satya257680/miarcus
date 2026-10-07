@@ -21,6 +21,8 @@ import {
   FaUsers,
   FaMapMarkerAlt,
   FaBed,
+  FaSearch,
+  FaChevronDown,
 } from "react-icons/fa";
 
 import PageToolbar from "../../components/common/PageToolbar";
@@ -156,6 +158,10 @@ function TravelPlan() {
 
   const [deleteId, setDeleteId] =
     useState(null);
+
+  // Compact planned-store preview. Large selections open in a scrollable panel.
+  const [storePreviewRow, setStorePreviewRow] = useState(null);
+  const [storePreviewSearch, setStorePreviewSearch] = useState("");
 
   /* =======================================================
      DEPARTMENTS
@@ -761,20 +767,73 @@ function TravelPlan() {
           );
         }
         // Store-wise visit dates of the plan + reasons for days with no store.
+        const previewItems = [
+          ...list.map((store) => ({
+            type: "store",
+            id: `store-${store.store_id}-${store.visit_date || ""}`,
+            name: store.store_name,
+            code: store.store_code,
+            city: store.city,
+            date: store.visit_date,
+          })),
+          ...blankDays.map((item) => ({
+            type: "off",
+            id: `off-${item.date}`,
+            name: `No store · ${formatDate(item.date)}`,
+            code: "",
+            city: "",
+            date: item.date,
+            reason: item.reason_type || "Office work",
+            detail: item.reason,
+          })),
+        ];
+
+        const visibleItems = previewItems.slice(0, 2);
+        const remaining = Math.max(0, previewItems.length - visibleItems.length);
+
         return (
-          <div className="vp-schedule-cell" title={[row.planned_store_schedule, row.day_reasons_text].filter(Boolean).join(" | ")}>
-            {list.map((store) => (
-              <span key={store.store_id} className="vp-schedule-chip">
-                <strong>{store.store_name}</strong>
-                {store.visit_date ? <em>{formatDate(store.visit_date)}</em> : null}
-              </span>
-            ))}
-            {blankDays.map((item) => (
-              <span key={`off-${item.date}`} className="vp-schedule-chip vp-schedule-chip--off">
-                <strong>No store · {formatDate(item.date)}</strong>
-                <em>{item.reason_type}{item.reason ? ` — ${item.reason}` : ""}</em>
-              </span>
-            ))}
+          <div
+            className="vp-schedule-cell vp-schedule-cell--compact"
+            title={[row.planned_store_schedule, row.day_reasons_text].filter(Boolean).join(" | ")}
+          >
+            <div className="vp-schedule-preview">
+              {visibleItems.map((item) => (
+                <span
+                  key={item.id}
+                  className={`vp-schedule-chip ${item.type === "off" ? "vp-schedule-chip--off" : ""}`}
+                >
+                  <strong>{item.name}</strong>
+                  {item.code ? <span className="vp-schedule-code">{item.code}</span> : null}
+                  {item.date ? <em>{formatDate(item.date)}</em> : null}
+                </span>
+              ))}
+            </div>
+            {remaining > 0 && (
+              <button
+                type="button"
+                className="vp-schedule-more-btn"
+                onClick={() => {
+                  setStorePreviewRow(row);
+                  setStorePreviewSearch("");
+                }}
+              >
+                <FaStore /> +{remaining} more
+                <FaChevronDown />
+              </button>
+            )}
+            {previewItems.length > 0 && previewItems.length <= 2 && (
+              <button
+                type="button"
+                className="vp-schedule-expand-btn"
+                onClick={() => {
+                  setStorePreviewRow(row);
+                  setStorePreviewSearch("");
+                }}
+                title="View selected stores"
+              >
+                <FaChevronDown />
+              </button>
+            )}
           </div>
         );
       },
@@ -1318,6 +1377,91 @@ function TravelPlan() {
           }}
         />
       </Card>
+
+      {/* =================================================
+          PLANNED STORE PREVIEW
+      ================================================= */}
+
+      {storePreviewRow && (
+        <div
+          className="sales-modal-backdrop vp-store-preview-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setStorePreviewRow(null);
+              setStorePreviewSearch("");
+            }
+          }}
+        >
+          <div className="vp-store-preview-modal" role="dialog" aria-modal="true" aria-label="Selected stores">
+            <div className="vp-store-preview-header">
+              <div>
+                <span className="vp-store-preview-eyebrow">TRAVEL PLAN · SELECTED STORES</span>
+                <h3>{(Array.isArray(storePreviewRow.planned_stores) ? storePreviewRow.planned_stores.length : 0)} stores selected</h3>
+                <p>{storePreviewRow.name || "Employee"} · {formatDate(storePreviewRow.visit_date)}</p>
+              </div>
+              <button
+                type="button"
+                className="sales-modal-close vp-store-preview-close"
+                onClick={() => { setStorePreviewRow(null); setStorePreviewSearch(""); }}
+                aria-label="Close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="vp-store-preview-search">
+              <FaSearch />
+              <input
+                value={storePreviewSearch}
+                onChange={(event) => setStorePreviewSearch(event.target.value)}
+                placeholder="Search store name, code or city..."
+                autoFocus
+              />
+            </div>
+
+            <div className="vp-store-preview-list">
+              {(() => {
+                const storesForPreview = Array.isArray(storePreviewRow.planned_stores)
+                  ? storePreviewRow.planned_stores
+                  : [];
+                const query = storePreviewSearch.trim().toLowerCase();
+                const filtered = storesForPreview.filter((item) =>
+                  [item.store_name, item.store_code, item.city]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase()
+                    .includes(query)
+                );
+
+                if (!filtered.length) {
+                  return <div className="vp-store-preview-empty">No matching stores found.</div>;
+                }
+
+                return filtered.map((item, index) => (
+                  <div className="vp-store-preview-item" key={`${item.store_id}-${item.visit_date || index}`}>
+                    <span className="vp-store-preview-number">{index + 1}</span>
+                    <div className="vp-store-preview-main">
+                      <strong>{item.store_name || "Store"}</strong>
+                      <span>
+                        {item.store_code ? `${item.store_code}` : ""}
+                        {item.city ? ` · ${item.city}` : ""}
+                      </span>
+                    </div>
+                    <span className="vp-store-preview-date">
+                      {item.visit_date ? formatDate(item.visit_date) : "—"}
+                    </span>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="vp-store-preview-footer">
+              <span>Showing all selected stores with individual visit dates.</span>
+              <button type="button" onClick={() => { setStorePreviewRow(null); setStorePreviewSearch(""); }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =================================================
           REMARKS / HISTORY MODAL

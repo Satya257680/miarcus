@@ -2403,3 +2403,491 @@
     .vp-range { flex-direction: column; }
     .vp-range-arrow { transform: rotate(90deg); }
 }
+
+
+/* =====================================================
+   TRAVEL PLAN — COMPACT STORE SELECTION
+   Keep large store selections out of the table height.
+===================================================== */
+.vp-schedule-cell--compact {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  max-width: 270px;
+}
+
+.vp-schedule-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.vp-schedule-cell--compact .vp-schedule-chip {
+  width: 100%;
+  max-width: 225px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 6px 9px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.vp-schedule-cell--compact .vp-schedule-chip strong,
+.vp-schedule-cell--compact .vp-schedule-chip em,
+.vp-schedule-cell--compact .vp-schedule-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vp-schedule-cell--compact .vp-schedule-chip strong {
+  font-size: 11px;
+}
+
+.vp-schedule-cell--compact .vp-schedule-chip em {
+  font-size: 10px;
+}
+
+.vp-schedule-code {
+  display: block;
+  color: #7c6a96;
+  font-size: 9px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.vp-schedule-more-btn,
+.vp-schedule-expand-btn {
+  border: 1px solid #d8ccf5;
+  background: #faf8ff;
+  color: #6436c9;
+  cursor: pointer;
+  font-weight: 800;
+  transition: .18s ease;
+}
+
+.vp-schedule-more-btn {
+  min-height: 31px;
+  padding: 0 8px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.vp-schedule-more-btn svg:last-child {
+  font-size: 8px;
+}
+
+.vp-schedule-expand-btn {
+  width: 28px;
+  height: 31px;
+  flex: 0 0 28px;
+  align-self: center;
+  border-radius: 8px;
+}
+
+.vp-schedule-more-btn:hover,
+.vp-schedule-expand-btn:hover {
+  background: #f0eaff;
+  border-color: #a98be8;
+  transform: translateY(-1px);
+}
+
+.vp-store-preview-backdrop {
+  z-index: 1400;
+  padding: 18px;
+}
+
+.vp-store-preview-modal {
+  width: min(650px, 96vw);
+  max-height: min(760px, calc(100vh - 36px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 28px 90px rgba(31, 20, 67, .42);
+}
+
+.vp-store-preview-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px;
+  color: #fff;
+  background: linear-gradient(120deg, #261352, #6332d0 58%, #9661ff);
+}
+
+.vp-store-preview-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  opacity: .78;
+}
+
+.vp-store-preview-header h3 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+.vp-store-preview-header p {
+  margin: 5px 0 0;
+  font-size: 11px;
+  opacity: .86;
+}
+
+.vp-store-preview-close {
+  flex: 0 0 34px;
+  color: #fff;
+  border-color: rgba(255,255,255,.3);
+  background: rgba(255,255,255,.12);
+}
+
+.vp-store-preview-close:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,.55);
+  background: rgba(255,255,255,.2);
+}
+
+.vp-store-preview-search {
+  margin: 16px 18px 10px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 13px;
+  border: 1px solid #ddd5ef;
+  border-radius: 11px;
+  background: #fbfaff;
+  color: #6d4bd0;
+}
+
+.vp-store-preview-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #29213d;
+  font-size: 12px;
+}
+
+.vp-store-preview-list {
+  min-height: 100px;
+  max-height: 470px;
+  overflow-y: auto;
+  padding: 4px 18px 12px;
+}
+
+.vp-store-preview-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.vp-store-preview-list::-webkit-scrollbar-thumb {
+  background: #c5b5eb;
+  border-radius: 999px;
+}
+
+.vp-store-preview-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 10px;
+  margin-bottom: 7px;
+  border: 1px solid #ece7f7;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.vp-store-preview-item:hover {
+  border-color: #d5c8f2;
+  background: #fbf9ff;
+}
+
+.vp-store-preview-number {
+  width: 27px;
+  height: 27px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f0eaff;
+  color: #6332d0;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.vp-store-preview-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vp-store-preview-main strong {
+  color: #2b2140;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vp-store-preview-main span {
+  color: #81778f;
+  font-size: 10px;
+}
+
+.vp-store-preview-date {
+  color: #6436c9;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.vp-store-preview-empty {
+  padding: 35px 10px;
+  text-align: center;
+  color: #81778f;
+  font-size: 12px;
+}
+
+.vp-store-preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid #ece7f7;
+  background: #faf9fd;
+}
+
+.vp-store-preview-footer span {
+  color: #81778f;
+  font-size: 10px;
+}
+
+.vp-store-preview-footer button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #d7c9f5;
+  border-radius: 8px;
+  background: #fff;
+  color: #5e32bf;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* =====================================================
+   TRAVEL PLAN APPROVAL — STORE + REASON REDESIGN
+===================================================== */
+.approval-reason-highlight {
+  grid-column: 1 / -1;
+  padding: 15px 17px;
+  border: 1px solid #f4c65b;
+  border-left: 5px solid #e79b0b;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #fff9e8, #fffdf7);
+  box-shadow: 0 6px 18px rgba(224, 157, 24, .08);
+}
+
+.approval-reason-highlight small {
+  margin-bottom: 4px;
+  color: #a25a00;
+}
+
+.approval-reason-highlight strong {
+  display: block;
+  color: #a84400;
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.approval-stores-block {
+  grid-column: 1 / -1;
+  padding: 15px 17px 13px;
+  border: 1px solid #e5ddf5;
+  border-radius: 13px;
+  background: #fcfbff;
+}
+
+.approval-stores-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.approval-stores-heading > div {
+  min-width: 0;
+}
+
+.approval-stores-heading small {
+  margin-bottom: 3px;
+}
+
+.approval-stores-heading strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #30204c;
+  font-size: 14px;
+}
+
+.approval-stores-heading strong svg {
+  color: #6636cc;
+}
+
+.approval-stores-toggle,
+.approval-stores-more {
+  border: 1px solid #d7c9f5;
+  background: #fff;
+  color: #6234c4;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.approval-stores-toggle {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.approval-stores-more {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-style: dashed;
+  border-radius: 8px;
+  font-size: 10px;
+}
+
+.approval-stores-toggle:hover,
+.approval-stores-more:hover {
+  background: #f5f0ff;
+  border-color: #aa8ae8;
+}
+
+.approval-store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.approval-store-list.is-expanded {
+  max-height: 285px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.approval-store-list.is-expanded::-webkit-scrollbar {
+  width: 6px;
+}
+
+.approval-store-list.is-expanded::-webkit-scrollbar-thumb {
+  background: #c6b5eb;
+  border-radius: 999px;
+}
+
+.approval-store-row {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border: 1px solid #ebe6f6;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.approval-store-index {
+  width: 25px;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f0eaff;
+  color: #6234c4;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.approval-store-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.approval-store-name strong {
+  color: #2c2240;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.approval-store-name span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #81778f;
+  font-size: 9px;
+}
+
+.approval-store-name svg {
+  color: #e83d5b;
+  font-size: 9px;
+}
+
+.approval-store-date {
+  color: #6436c9;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.approval-no-stores {
+  padding: 12px;
+  border-radius: 9px;
+  background: #fff;
+  color: #81778f;
+  font-size: 10px;
+}
+
+@media (max-width: 760px) {
+  .vp-schedule-cell--compact {
+    max-width: 220px;
+  }
+
+  .vp-schedule-cell--compact .vp-schedule-chip {
+    max-width: 180px;
+  }
+
+  .vp-store-preview-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .approval-reason-highlight strong {
+    font-size: 17px;
+  }
+}

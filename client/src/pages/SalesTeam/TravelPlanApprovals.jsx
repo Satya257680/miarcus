@@ -11,6 +11,10 @@ import {
   FaClipboardCheck,
   FaUsers,
   FaCalendarDay,
+  FaStore,
+  FaMapMarkerAlt,
+  FaChevronDown,
+  FaChevronUp,
 } from "react-icons/fa";
 
 import Card from "../../components/common/Card";
@@ -63,6 +67,7 @@ function TravelPlanApprovals() {
   const [viewingItem, setViewingItem] = useState(null);
   const [viewDetails, setViewDetails] = useState([]);
   const [viewLoading, setViewLoading] = useState(false);
+  const [expandedApprovalStores, setExpandedApprovalStores] = useState({});
 
   /* =======================================================
      LOAD APPROVALS
@@ -126,6 +131,7 @@ function TravelPlanApprovals() {
   const openView = async (item) => {
     setViewingItem(item);
     setViewDetails([]);
+    setExpandedApprovalStores({});
     setViewLoading(true);
 
     try {
@@ -155,6 +161,7 @@ function TravelPlanApprovals() {
     if (viewLoading) return;
     setViewingItem(null);
     setViewDetails([]);
+    setExpandedApprovalStores({});
   };
 
   /* =======================================================
@@ -607,14 +614,69 @@ function TravelPlanApprovals() {
                     </div>
 
                     <div className="approval-detail-grid">
-                      <div>
+                      <div className="approval-reason-highlight">
                         <small>Reason to travel</small>
-                        <p>{plan.reason_to_travel || "—"}</p>
+                        <strong>{plan.reason_to_travel || "Not specified"}</strong>
                       </div>
 
-                      <div>
-                        <small>Planned stores</small>
-                        <p>{plan.planned_store_schedule || plan.planned_store_names || "No stores selected"}</p>
+                      <div className="approval-stores-block">
+                        {(() => {
+                          const plannedStores = Array.isArray(plan.planned_stores) ? plan.planned_stores : [];
+                          const expanded = Boolean(expandedApprovalStores[plan.id]);
+                          const shownStores = expanded ? plannedStores : plannedStores.slice(0, 2);
+                          const remaining = Math.max(0, plannedStores.length - shownStores.length);
+
+                          return (
+                            <>
+                              <div className="approval-stores-heading">
+                                <div>
+                                  <small>Planned stores</small>
+                                  <strong><FaStore /> {plannedStores.length || 0} {plannedStores.length === 1 ? "store" : "stores"}</strong>
+                                </div>
+                                {plannedStores.length > 2 && (
+                                  <button
+                                    type="button"
+                                    className="approval-stores-toggle"
+                                    onClick={() => setExpandedApprovalStores((current) => ({ ...current, [plan.id]: !expanded }))}
+                                  >
+                                    {expanded ? <FaChevronUp /> : <FaChevronDown />}
+                                    {expanded ? "Show less" : `View all ${plannedStores.length}`}
+                                  </button>
+                                )}
+                              </div>
+
+                              {plannedStores.length ? (
+                                <div className={`approval-store-list ${expanded ? "is-expanded" : ""}`}>
+                                  {shownStores.map((store, index) => (
+                                    <div className="approval-store-row" key={`${store.store_id}-${store.visit_date || index}`}>
+                                      <span className="approval-store-index">{index + 1}</span>
+                                      <div className="approval-store-name">
+                                        <strong>{store.store_name || "Store"}</strong>
+                                        <span>
+                                          {store.store_code ? store.store_code : ""}
+                                          {store.city ? <> <FaMapMarkerAlt /> {store.city}</> : null}
+                                        </span>
+                                      </div>
+                                      <span className="approval-store-date">{store.visit_date || "—"}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="approval-no-stores">No stores selected for this plan.</div>
+                              )}
+
+                              {!expanded && remaining > 0 && (
+                                <button
+                                  type="button"
+                                  className="approval-stores-more"
+                                  onClick={() => setExpandedApprovalStores((current) => ({ ...current, [plan.id]: true }))}
+                                >
+                                  +{remaining} more stores selected · click to view all
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
 
                       <div>
