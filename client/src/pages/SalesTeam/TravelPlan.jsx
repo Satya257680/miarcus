@@ -26,7 +26,6 @@ import {
 import PageToolbar from "../../components/common/PageToolbar";
 import FilterBar from "../../components/common/FilterBar";
 import Card from "../../components/common/Card";
-import DataTable from "../../components/common/DataTable";
 import Pagination from "../../components/common/Pagination";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 
@@ -1080,6 +1079,221 @@ function TravelPlan() {
     },
   ];
 
+
+  /* =======================================================
+     PREMIUM APPROVED PLAN CARDS
+     Replaces the old wide table with the compact card layout:
+     plan summary on the left + scrollable 2-column store cards.
+  ======================================================= */
+
+  const renderApprovedPlanCard = (row) => {
+    const plannedStores = Array.isArray(row.planned_stores)
+      ? row.planned_stores
+      : [];
+
+    const selectedActual = getActualStoreIds(row);
+    const plannedCount = Number(row.planned_store_count || plannedStores.length || 0);
+    const visitRate = plannedCount
+      ? Math.min(100, Math.round((selectedActual.length / plannedCount) * 100))
+      : 0;
+
+    const start = formatDate(row.visit_date);
+    const end =
+      row.end_date &&
+      String(row.end_date).slice(0, 10) !== String(row.visit_date).slice(0, 10)
+        ? formatDate(row.end_date)
+        : null;
+
+    const dateRange = end ? `${start} to ${end}` : start;
+
+    return (
+      <article className="travel-plan-premium-card" key={row.id}>
+        <aside className="travel-plan-premium-summary">
+          <div className="travel-plan-summary-date">
+            <span className="travel-plan-summary-date-icon">
+              <FaPlaneDeparture />
+            </span>
+            <div>
+              <strong>{dateRange}</strong>
+              <span>{row.day_name || "Travel plan"}</span>
+            </div>
+          </div>
+
+          <div className="travel-plan-summary-person">
+            <span className={`pp-avatar pp-avatar--round ${avatarTone(row.name)}`}>
+              {initials(row.name)}
+            </span>
+            <div>
+              <strong>{row.name || "Employee"}</strong>
+              <span>{row.designation || "—"}</span>
+            </div>
+          </div>
+
+          {row.department && (
+            <span className="pp-pill pp-pill--violet travel-plan-department">
+              {row.department}
+            </span>
+          )}
+
+          {row.city && (
+            <span className="travel-plan-summary-city">
+              <FaMapMarkerAlt />
+              {row.city}
+            </span>
+          )}
+
+          <div className="travel-plan-approved-badge">
+            <FaCheckCircle />
+            Approved
+          </div>
+
+          <div className="travel-plan-summary-stats">
+            <div>
+              <strong>{plannedCount}</strong>
+              <span>Planned stores</span>
+            </div>
+            <div>
+              <strong>{visitRate}%</strong>
+              <span>Visit rate</span>
+            </div>
+          </div>
+
+          {canEdit(permission) && !row.week_off && (
+            <div className="travel-plan-actual-editor">
+              <div className="travel-plan-actual-label">
+                <span>Actual stores visited</span>
+                <b>{selectedActual.length}/{plannedCount}</b>
+              </div>
+
+              {stores.filter((storeItem) =>
+                (Array.isArray(row.planned_store_ids)
+                  ? row.planned_store_ids
+                  : plannedStores.map((item) => item.store_id)
+                ).map(Number).includes(Number(storeItem.id))
+              ).length > 0 ? (
+                <select
+                  multiple
+                  value={selectedActual.map(String)}
+                  onChange={(event) =>
+                    setSelection(
+                      row.id,
+                      [...event.target.selectedOptions].map(
+                        (option) => Number(option.value)
+                      )
+                    )
+                  }
+                  disabled={savingActual === row.id}
+                  aria-label="Select actual visited stores"
+                >
+                  {stores
+                    .filter((storeItem) =>
+                      (Array.isArray(row.planned_store_ids)
+                        ? row.planned_store_ids
+                        : plannedStores.map((item) => item.store_id)
+                      ).map(Number).includes(Number(storeItem.id))
+                    )
+                    .map((storeItem) => (
+                      <option key={storeItem.id} value={storeItem.id}>
+                        {storeItem.store_name}
+                        {storeItem.store_code ? ` (${storeItem.store_code})` : ""}
+                      </option>
+                    ))}
+                </select>
+              ) : (
+                <span className="travel-plan-no-actual">No planned stores</span>
+              )}
+
+              <button
+                type="button"
+                className="travel-plan-save-btn"
+                onClick={() => save(row)}
+                disabled={savingActual === row.id}
+              >
+                {savingActual === row.id ? (
+                  <>
+                    <FaSyncAlt className="sales-spin" />
+                    Saving
+                  </>
+                ) : (
+                  <>
+                    <FaSave />
+                    Save actual
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          <div className="travel-plan-summary-actions">
+            <button type="button" onClick={() => openRemarks(row)}>
+              <FaCommentAlt />
+              {row.remarks ? "Remarks" : "Add remarks"}
+            </button>
+            <button type="button" onClick={() => openHistory(row)}>
+              <FaHistory />
+              History
+            </button>
+            {canDelete(permission) && (
+              <button
+                type="button"
+                className="danger"
+                onClick={() => setDeleteId(row.id)}
+              >
+                <FaTrash />
+                Delete
+              </button>
+            )}
+          </div>
+        </aside>
+
+        <section className="travel-plan-premium-content">
+          <div className="travel-plan-premium-content-head">
+            <div>
+              <div className="travel-plan-premium-title">
+                <span className="travel-plan-store-icon"><FaStore /></span>
+                <div>
+                  <h3>Store Visits <span>({plannedStores.length})</span></h3>
+                  <p>
+                    {row.reason_to_travel || "Store Visit"}
+                    {row.remarks ? " · Remarks available" : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <span className="travel-plan-store-count">
+              {plannedStores.length} of {plannedStores.length} stores
+            </span>
+          </div>
+
+          {row.week_off ? (
+            <div className="travel-plan-weekoff-panel">
+              <span><FaBed /></span>
+              <div>
+                <strong>Week off</strong>
+                <p>{row.leave_days || 1} day{Number(row.leave_days) === 1 ? "" : "s"} — no store visit planned.</p>
+              </div>
+            </div>
+          ) : (
+            <TravelStoreSchedule
+              stores={plannedStores}
+              blankDays={Array.isArray(row.day_reasons) ? row.day_reasons : []}
+              rich
+              highlightVisit
+              visitRate={visitRate}
+              visitReason={row.reason_to_travel || "Store Visit"}
+              planRemarks={row.remarks || ""}
+              onRemarks={() => openRemarks(row)}
+              onHistory={() => openHistory(row)}
+              onDelete={() => setDeleteId(row.id)}
+              canDeleteAction={canDelete(permission)}
+            />
+          )}
+        </section>
+      </article>
+    );
+  };
+
   /* =======================================================
      PERMISSION
   ======================================================= */
@@ -1276,38 +1490,37 @@ function TravelPlan() {
       </FilterBar>
 
       {/* =================================================
-          TABLE
+          PREMIUM APPROVED TRAVEL PLAN BOARD
       ================================================= */}
 
       <Card
         title="Approved Travel Plans"
-        subtitle={`${total} approved plan${
-          total === 1
-            ? ""
-            : "s"
-        } found`}
+        subtitle={`${total} approved plan${total === 1 ? "" : "s"} found`}
         noPadding
       >
-        <DataTable
-          columns={columns}
-          data={rows}
-          loading={loading}
-          emptyTitle="No Approved Travel Plans"
-          emptyDescription="Approved plans will appear here for actual-store tracking."
-          className="sales-global-table travel-global-table"
-        />
+        {loading ? (
+          <div className="sales-loading-state travel-plan-loading">
+            <PremiumLoader compact title="Loading approved travel plans" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="sales-empty-panel travel-plan-empty">
+            <FaPlaneDeparture />
+            <h3>No Approved Travel Plans</h3>
+            <p>Approved plans will appear here for actual-store tracking.</p>
+          </div>
+        ) : (
+          <div className="travel-plan-premium-list">
+            {rows.map(renderApprovedPlanCard)}
+          </div>
+        )}
 
         <Pagination
           currentPage={page}
           totalPages={pageCount}
           totalRecords={total}
           pageSize={limit}
-          onPageChange={
-            setPage
-          }
-          onPageSizeChange={(
-            size
-          ) => {
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
             setPage(1);
             setLimit(size);
           }}
