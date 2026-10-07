@@ -55,6 +55,7 @@ import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
 import { exportFromCSV } from "../../utils/exportUtils.js";
+import TravelStoreSchedule from "./TravelStoreSchedule";
 
 /* =========================================================
    TRAVEL PLAN
@@ -762,20 +763,10 @@ function TravelPlan() {
         }
         // Store-wise visit dates of the plan + reasons for days with no store.
         return (
-          <div className="vp-schedule-cell" title={[row.planned_store_schedule, row.day_reasons_text].filter(Boolean).join(" | ")}>
-            {list.map((store) => (
-              <span key={store.store_id} className="vp-schedule-chip">
-                <strong>{store.store_name}</strong>
-                {store.visit_date ? <em>{formatDate(store.visit_date)}</em> : null}
-              </span>
-            ))}
-            {blankDays.map((item) => (
-              <span key={`off-${item.date}`} className="vp-schedule-chip vp-schedule-chip--off">
-                <strong>No store · {formatDate(item.date)}</strong>
-                <em>{item.reason_type}{item.reason ? ` — ${item.reason}` : ""}</em>
-              </span>
-            ))}
-          </div>
+          <TravelStoreSchedule
+            stores={list}
+            blankDays={blankDays}
+          />
         );
       },
     },

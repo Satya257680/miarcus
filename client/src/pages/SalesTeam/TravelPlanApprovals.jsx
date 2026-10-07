@@ -34,6 +34,7 @@ import "../../styles/premium/AdminPagesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
+import TravelStoreSchedule from "./TravelStoreSchedule";
 
 /* =========================================================
    TRAVEL PLAN APPROVALS
@@ -612,9 +613,12 @@ function TravelPlanApprovals() {
                         <p>{plan.reason_to_travel || "—"}</p>
                       </div>
 
-                      <div>
+                      <div className="approval-detail-stores">
                         <small>Planned stores</small>
-                        <p>{plan.planned_store_schedule || plan.planned_store_names || "No stores selected"}</p>
+                        <TravelStoreSchedule
+                          stores={plan.planned_stores}
+                          compact
+                        />
                       </div>
 
                       <div>

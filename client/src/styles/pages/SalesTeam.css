@@ -2403,3 +2403,212 @@
     .vp-range { flex-direction: column; }
     .vp-range-arrow { transform: rotate(90deg); }
 }
+
+/* ==========================================================
+   PREMIUM TRAVEL STORE SCHEDULE
+   Compact store/date presentation for long travel plans.
+========================================================== */
+.travel-store-schedule {
+  --travel-purple: #6941c6;
+  --travel-purple-soft: #f5f1ff;
+  --travel-border: #e5ddf4;
+  width: 100%;
+  min-width: 0;
+}
+
+.travel-store-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.travel-store-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #766b82;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.travel-store-count svg { color: var(--travel-purple); font-size: 10px; }
+.travel-store-count strong { color: #30224a; font-size: 11px; }
+
+.travel-store-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 145px;
+  max-width: 210px;
+  flex: 1;
+}
+
+.travel-store-search > svg {
+  position: absolute;
+  left: 8px;
+  color: #9b8daf;
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.travel-store-search input {
+  width: 100%;
+  height: 28px;
+  padding: 0 27px 0 25px;
+  border: 1px solid #ded5ef;
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+  color: #31244a;
+  font-size: 10px;
+  transition: .18s ease;
+}
+
+.travel-store-search input:focus {
+  border-color: #9b78ed;
+  box-shadow: 0 0 0 3px rgba(105, 65, 198, .08);
+}
+
+.travel-store-search button {
+  position: absolute;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #8d819d;
+  cursor: pointer;
+}
+
+.travel-store-search button:hover { background: #f1ecfa; color: #5c35b0; }
+
+.travel-store-scroll {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 210px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px 5px 4px 1px;
+  scrollbar-width: thin;
+  scrollbar-color: #b9a4e7 transparent;
+}
+
+.travel-store-scroll::-webkit-scrollbar { width: 6px; }
+.travel-store-scroll::-webkit-scrollbar-track { background: transparent; }
+.travel-store-scroll::-webkit-scrollbar-thumb { background: #b9a4e7; border-radius: 20px; }
+
+.travel-store-chip {
+  min-width: 0;
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 7px 8px;
+  border: 1px solid var(--travel-border);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff 0%, #fbf9ff 100%);
+  box-shadow: 0 2px 7px rgba(64, 42, 110, .04);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.travel-store-chip:hover {
+  transform: translateY(-1px);
+  border-color: #c9b6ee;
+  box-shadow: 0 6px 16px rgba(74, 44, 132, .08);
+}
+
+.travel-store-chip-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.travel-store-chip-icon {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: #f0eaff;
+  color: #6d43c8;
+  font-size: 10px;
+}
+
+.travel-store-chip-main > div { min-width: 0; }
+.travel-store-chip strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #30263f;
+  font-size: 10.5px;
+  line-height: 1.2;
+}
+
+.travel-store-chip-main > div > span {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8b8098;
+  font-size: 8.5px;
+}
+
+.travel-store-date {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #f1ecff;
+  color: #6941c6;
+  font-size: 8.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.travel-store-date svg { font-size: 8px; }
+
+.travel-store-chip--off { background: #fffaf0; border-color: #f3dfae; }
+.travel-store-chip--off .travel-store-chip-icon { background: #fff0cf; color: #b77900; }
+.travel-store-chip--off .travel-store-date { background: #fff0cf; color: #9b6500; }
+
+.travel-store-empty {
+  grid-column: 1 / -1;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #958aa3;
+  font-size: 10px;
+  border: 1px dashed #d9cfee;
+  border-radius: 9px;
+  background: #fcfbff;
+}
+
+.approval-detail-stores { min-width: 0; }
+.approval-detail-stores .travel-store-scroll { max-height: 180px; }
+.approval-detail-stores .travel-store-chip { min-height: 42px; }
+
+/* Keep the approved-plan table row compact even when hundreds of stores exist. */
+.vp-schedule-cell { min-width: 300px; }
+
+@media (max-width: 900px) {
+  .travel-store-scroll { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .travel-store-toolbar { align-items: stretch; flex-direction: column; }
+  .travel-store-search { max-width: none; }
+}
