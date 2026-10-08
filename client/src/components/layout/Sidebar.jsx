@@ -871,26 +871,11 @@ function Sidebar({ collapsed }) {
                                             <FaMoneyBillWave />
                                             <span>Petty Cash Dashboard</span>
                                         </NavLink>
-                                        <NavLink to="/petty-cash/new" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                            <FaPlus />
-                                            <span>New Advance</span>
-                                        </NavLink>
-                                        <NavLink to="/petty-cash/advances" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                            <FaListAlt />
-                                            <span>Manage Advances</span>
-                                        </NavLink>
-                                        <NavLink to="/petty-cash/expenses" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                            <FaReceipt />
-                                            <span>Manage Expenses</span>
-                                        </NavLink>
-                                        <NavLink to="/petty-cash/deposits" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                            <FaMoneyCheckAlt />
-                                            <span>Manage Deposits</span>
-                                        </NavLink>
-                                        <NavLink to="/petty-cash/audit-trail" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                            <FaHistory />
-                                            <span>Audit Trail</span>
-                                        </NavLink>
+
+
+
+
+
                                     </>
                                 )}
                                 {canPettyCashEmail && (

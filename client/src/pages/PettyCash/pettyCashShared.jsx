@@ -8,9 +8,7 @@ import {
     FaMoneyBillWave,
     FaPlusCircle,
     FaListAlt,
-    FaReceipt,
-    FaUniversity,
-    FaHistory,
+    FaReceipt,FaHistory,
     FaEnvelope
 } from "react-icons/fa";
 import { openAttachment } from "../../utils/attachments";
@@ -105,7 +103,6 @@ export function PettyNav() {
     const access = getAccess();
     const items = [
         { to: "/petty-cash", label: "Dashboard", icon: FaMoneyBillWave, end: true },
-        { to: "/petty-cash/deposits", label: "Manage Deposits", icon: FaUniversity },
         ...(access.admin ? [{ to: "/petty-cash/email-settings", label: "Email Notifications", icon: FaEnvelope }] : [])
     ];
     return (
