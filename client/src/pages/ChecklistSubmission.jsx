@@ -604,50 +604,68 @@ function ChecklistSubmission() {
   // =========================================================
 
   const fetchQuestions = async ({ manual = false } = {}) => {
+    const previousQuestions = questions;
+
     try {
       setLoadingQuestions(true);
       if (manual) setRefreshingQuestions(true);
       setErrorMessage("");
 
+      // A manual refresh must really hit the server instead of allowing a
+      // browser/proxy cached response to make the button appear to do nothing.
+      const refreshToken = manual ? `&_refresh=${Date.now()}` : "";
+
       const response = await axios.get(
-        `${API}/api/checklist-submissions/form-options/questions?checklist_type_id=${encodeURIComponent(checklistTypeId)}`
+        `${API}/api/checklist-submissions/form-options/questions?checklist_type_id=${encodeURIComponent(checklistTypeId)}${refreshToken}`,
+        {
+          headers: manual
+            ? {
+                "Cache-Control": "no-cache",
+                Pragma: "no-cache",
+              }
+            : undefined,
+        }
       );
 
       const allQuestions = Array.isArray(response.data)
         ? response.data
         : response.data?.data || [];
 
-      const filteredQuestions = allQuestions.filter(
-        (question) => {
-          const questionChecklistId =
-            question.checklist_type_id ||
-            question.checklistTypeId;
+      const filteredQuestions = allQuestions.filter((question) => {
+        const questionChecklistId =
+          question.checklist_type_id ||
+          question.checklistTypeId;
 
-          return (
-            String(questionChecklistId) ===
-            String(checklistTypeId)
-          );
-        }
-      );
+        return (
+          String(questionChecklistId) ===
+          String(checklistTypeId)
+        );
+      });
 
       const finalQuestions =
         filteredQuestions.length > 0
           ? filteredQuestions
           : allQuestions;
 
+      // Refresh only replaces the question definitions/list.
+      // It NEVER clears answers, remarks, photos, selections or the draft.
       setQuestions(finalQuestions);
-      // IMPORTANT: never clear an in-progress draft when questions are fetched.
-      // Answers/remarks stay keyed by question id and survive navigation/reloads.
 
     } catch (error) {
-      console.error(
-        "Question Error:",
-        error
-      );
+      console.error("Question Error:", error);
 
-      setQuestions([]);
+      // Do not destroy a working form if a manual refresh request fails.
+      // The existing questions and their answers remain on screen.
+      if (!manual) {
+        setQuestions([]);
+      } else {
+        setQuestions(previousQuestions);
+      }
+
       setErrorMessage(
-        "Unable to load questions. Please try again."
+        manual
+          ? "Questions could not be refreshed. Your current answers were kept."
+          : "Unable to load questions. Please try again."
       );
     } finally {
       setLoadingQuestions(false);
@@ -655,9 +673,11 @@ function ChecklistSubmission() {
     }
   };
 
-  const refreshQuestionsManually = () => {
+  const refreshQuestionsManually = async () => {
     if (!basicDetailsComplete || loadingQuestions || refreshingQuestions) return;
-    fetchQuestions({ manual: true });
+
+    // Force a visible reload cycle while preserving the in-progress draft.
+    await fetchQuestions({ manual: true });
   };
 
   // =========================================================

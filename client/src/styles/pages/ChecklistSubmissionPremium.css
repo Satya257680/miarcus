@@ -1363,3 +1363,187 @@
         text-align: left;
     }
 }
+
+
+/* =========================================================
+   FINAL UI POLISH — COMPACT 3D CHECKLIST EXPERIENCE
+   ========================================================= */
+
+/* Compact the hero to feel closer to the Dashboard welcome card. */
+.cs-premium .cs-hero {
+    min-height: 150px;
+    padding: 18px 22px;
+    border-radius: 20px;
+    grid-template-columns: minmax(0, 1fr) 190px 270px;
+    gap: 14px;
+    box-shadow:
+        0 20px 42px rgba(77, 55, 170, 0.12),
+        0 5px 12px rgba(77, 55, 170, 0.07),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transform: translateZ(0);
+}
+
+.cs-premium .cs-title-row {
+    margin: 6px 0 7px;
+    gap: 10px;
+}
+
+.cs-premium .cs-title-row h1 {
+    font-size: 34px;
+    letter-spacing: -0.65px;
+}
+
+.cs-premium .cs-hero-text p {
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.cs-premium .cs-hero-art {
+    height: 155px;
+    margin: -18px 0 -18px;
+}
+
+.cs-premium .cs-quote {
+    padding: 15px 16px;
+    border-radius: 16px;
+    box-shadow:
+        0 13px 28px rgba(84, 60, 190, 0.10),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.cs-premium .cs-quote img {
+    width: 42px;
+}
+
+.cs-premium .cs-quote p {
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.cs-premium .cs-draft-status {
+    margin-top: 8px;
+    padding: 7px 10px;
+    border-radius: 10px;
+}
+
+.cs-premium .cs-draft-status-dot {
+    width: 21px;
+    height: 21px;
+    font-size: 11px;
+}
+
+.cs-premium .cs-draft-status strong {
+    font-size: 11px;
+}
+
+.cs-premium .cs-draft-status small {
+    font-size: 9px;
+}
+
+.cs-premium .cs-hero-tools {
+    gap: 5px;
+}
+
+.cs-premium .cs-refresh-btn {
+    min-height: 43px;
+    border-radius: 12px;
+    box-shadow:
+        0 9px 18px rgba(91, 33, 182, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.cs-premium .cs-refresh-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99);
+    box-shadow: 0 5px 11px rgba(91, 33, 182, 0.12);
+}
+
+/* Give the main content a soft dimensional / dashboard-card appearance. */
+.cs-premium .cs-stepper-card,
+.cs-premium .cs-details-card,
+.cs-premium .questions-section {
+    border: 1px solid rgba(224, 217, 250, 0.95);
+    box-shadow:
+        0 22px 44px rgba(54, 37, 133, 0.08),
+        0 5px 13px rgba(54, 37, 133, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    transform: translateZ(0);
+}
+
+.cs-premium .cs-stepper-card {
+    padding: 21px 19px 19px;
+    border-radius: 20px;
+}
+
+.cs-premium .cs-details-card {
+    border-radius: 18px;
+    padding: 18px 20px;
+}
+
+.cs-premium .questions-section {
+    border-radius: 20px;
+    background:
+        linear-gradient(180deg, #ffffff 0%, #fcfbff 100%);
+}
+
+/* Question cards get a subtle lifted 3D treatment. */
+.cs-premium .question-list > * {
+    border-radius: 17px;
+    border: 1px solid #e7e0fb;
+    box-shadow:
+        0 13px 26px rgba(65, 45, 145, 0.07),
+        0 3px 8px rgba(65, 45, 145, 0.045),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.cs-premium .question-list > *:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 18px 32px rgba(65, 45, 145, 0.10),
+        0 5px 10px rgba(65, 45, 145, 0.06);
+}
+
+@media (max-width: 1400px) {
+    .cs-premium .cs-hero {
+        grid-template-columns: minmax(0, 1fr) 190px;
+    }
+
+    .cs-premium .cs-hero-tools {
+        grid-column: 2;
+        grid-row: 1;
+        max-width: none;
+        justify-self: stretch;
+    }
+
+    .cs-premium .cs-quote {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+}
+
+@media (max-width: 820px) {
+    .cs-premium .cs-hero {
+        min-height: 0;
+        grid-template-columns: 1fr;
+        padding: 18px;
+    }
+
+    .cs-premium .cs-title-row h1 {
+        font-size: 30px;
+    }
+
+    .cs-premium .cs-hero-art {
+        height: 135px;
+        margin: -8px auto;
+    }
+
+    .cs-premium .cs-hero-tools {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .cs-premium .cs-quote {
+        grid-column: auto;
+        grid-row: auto;
+    }
+}
