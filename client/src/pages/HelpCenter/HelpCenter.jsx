@@ -11,7 +11,7 @@ import {
     askZarvis, askPublicZarvis, createHelpTicket, getAdminHelpArticles,
     getPublicHelpArticles, getHelpArticles, getHelpTicket, getMyHelpTickets, replyHelpTicket,
     createAdminHelpArticle, updateAdminHelpArticle, deleteAdminHelpArticle,
-    getZarvisHistory, clearZarvisHistory
+    getZarvisHistory, clearZarvisHistory, getAdminHelpTickets, updateAdminHelpTicket
 } from "../../services/helpCenterService";
 import "../../styles/pages/HelpCenter.css";
 
@@ -74,6 +74,8 @@ function HelpCenter({ publicMode = false }) {
     const [articles, setArticles] = useState([]);
     const [adminArticles, setAdminArticles] = useState([]);
     const [tickets, setTickets] = useState([]);
+    const [adminTickets, setAdminTickets] = useState([]);
+    const [selectedAdminTicket, setSelectedAdminTicket] = useState(null);
     const [search, setSearch] = useState("");
     const [category, setCategory] = useState("All");
     const [openId, setOpenId] = useState(null);
@@ -114,11 +116,11 @@ function HelpCenter({ publicMode = false }) {
                 : [
                     getHelpArticles(),
                     getMyHelpTickets(),
-                    ...(isAdmin ? [getAdminHelpArticles()] : [])
+                    ...(isAdmin ? [getAdminHelpArticles(), getAdminHelpTickets()] : [])
                 ];
 
             const results = await Promise.allSettled(requests);
-            const [articlesResult, ticketsResult, adminArticlesResult] = results;
+            const [articlesResult, ticketsResult, adminArticlesResult, adminTicketsResult] = results;
 
             if (articlesResult?.status === "fulfilled") {
                 setArticles(articlesResult.value?.data?.articles || []);
@@ -135,6 +137,16 @@ function HelpCenter({ publicMode = false }) {
             if (!publicMode && isAdmin) {
                 if (adminArticlesResult?.status === "fulfilled") {
                     setAdminArticles(adminArticlesResult.value?.data?.articles || []);
+                }
+                if (adminTicketsResult?.status === "fulfilled") {
+                    const nextAdminTickets = adminTicketsResult.value?.data?.tickets || [];
+                    setAdminTickets(nextAdminTickets);
+                    if (selectedAdminTicket?.id) {
+                        const fresh = nextAdminTickets.find((item) => Number(item.id) === Number(selectedAdminTicket.id));
+                        if (fresh) {
+                            getHelpTicket(fresh.id).then((r) => setSelectedAdminTicket(r.data?.ticket || fresh)).catch(() => {});
+                        }
+                    }
                 }
             }
 
@@ -280,6 +292,23 @@ function HelpCenter({ publicMode = false }) {
         try { const r = await replyHelpTicket(selectedTicket.id, ticketReply.trim()); setSelectedTicket(r.data.ticket); setTicketReply(""); await load(); }
         catch (e) { setToast(e?.response?.data?.message || "Reply failed."); }
     };
+    const adminReplyTicket = async (message) => {
+        if (!selectedAdminTicket || !message.trim() || ["resolved", "closed"].includes(selectedAdminTicket.status)) return;
+        try {
+            const r = await replyHelpTicket(selectedAdminTicket.id, message.trim());
+            setSelectedAdminTicket(r.data.ticket);
+            await load();
+        } catch (e) { setToast(e?.response?.data?.message || "Support reply failed."); }
+    };
+    const adminSetTicketStatus = async (status) => {
+        if (!selectedAdminTicket) return;
+        try {
+            const r = await updateAdminHelpTicket(selectedAdminTicket.id, { status, priority: selectedAdminTicket.priority });
+            setSelectedAdminTicket(r.data.ticket);
+            await load();
+            setToast(status === "resolved" || status === "closed" ? "Support conversation closed with a final conclusion." : "Support status updated.");
+        } catch (e) { setToast(e?.response?.data?.message || "Could not update support status."); }
+    };
     const saveArticle = async () => {
         try {
             if (editingArticle) await updateAdminHelpArticle(editingArticle.id, articleForm); else await createAdminHelpArticle(articleForm);
@@ -326,6 +355,22 @@ function HelpCenter({ publicMode = false }) {
                 <div className="hc-published-table-wrap">
                     <table className="hc-published-table"><thead><tr><th>#</th><th>Title</th><th>Question</th><th>Category</th><th>Audience</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>{publishedArticles.length ? publishedArticles.map((a,index)=><tr key={a.id}><td>{index+1}</td><td><strong>{a.title}</strong></td><td>{a.question}</td><td>{a.category || "General"}</td><td>{a.audience === "both" ? "Employees + Customers" : a.audience === "employee" ? "Employees" : "Customers"}</td><td><span className={`hc-status-pill ${String(a.status || "").toLowerCase()}`}>{a.status}</span></td><td><div className="hc-published-actions"><button className="edit" onClick={()=>startEdit(a)}><FaEdit /> Edit</button><button className="delete" onClick={()=>removeArticle(a.id)}><FaTrash /> Delete</button></div></td></tr>) : <tr><td colSpan="7"><div className="hc-published-empty"><FaSearch/><strong>No published answers found</strong><span>Publish a new answer or change the search/filter.</span></div></td></tr>}</tbody></table>
+                </div>
+            </div>
+            <div className="hc-admin-support-grid">
+                <div className="hc-panel hc-admin-support-list">
+                    <div className="hc-panel-title"><span>Human support requests</span><span className="hc-count">{adminTickets.length}</span></div>
+                    {adminTickets.length ? adminTickets.map((ticket) => (
+                        <button key={ticket.id} className={`hc-admin-ticket-item ${selectedAdminTicket?.id === ticket.id ? "selected" : ""}`} onClick={() => getHelpTicket(ticket.id).then((r) => setSelectedAdminTicket(r.data.ticket)).catch(() => setToast("Could not open support request."))}>
+                            <span className={`hc-ticket-status-dot ${ticket.status}`}></span>
+                            <div><strong>{ticket.subject}</strong><small>{ticket.user_name || "Employee"} · {String(ticket.status).replace("_", " ")} · {new Date(ticket.last_message_at).toLocaleString()}</small></div>
+                            <FaArrowRight />
+                        </button>
+                    )) : <div className="hc-admin-support-empty"><FaHeadset/><strong>No support requests</strong><span>Human support requests will appear here.</span></div>}
+                </div>
+                <div className="hc-panel hc-admin-support-conversation">
+                    <div className="hc-panel-title"><span>Human support conversation</span>{selectedAdminTicket && <span className={`hc-status-pill ${selectedAdminTicket.status}`}>{String(selectedAdminTicket.status).replace("_", " ")}</span>}</div>
+                    {selectedAdminTicket ? <AdminTicketView ticket={selectedAdminTicket} onReply={adminReplyTicket} onStatus={adminSetTicketStatus} /> : <div className="hc-admin-support-empty"><FaHeadset/><h3>Select a support request</h3><p>Reply to the employee, then resolve or close the conversation when support is finished.</p></div>}
                 </div>
             </div>
         </section>
@@ -449,7 +494,7 @@ function HelpCenter({ publicMode = false }) {
     return <div className="help-center-page">
         <div className="hc-hero hc-hero-luna">
             <div className="hc-hero-copy"><div className="hc-kicker"><FaBolt/> MIARCUS CARE DESK</div><h1>Ask anything. Get it explained <em>clearly.</em></h1><p>{publicMode ? "Zarvis helps customers with administrator-approved answers and Miarcus product guidance, 24×7." : "Zarvis understands natural language, remembers the current conversation, explains Miarcus workflows, answers general questions and coding topics, and can hand you to a human when needed."}</p><div className="hc-hero-actions"><button onClick={()=>setTab("zarvis")} className="hc-hero-btn"><FaRobot/> Ask Zarvis <FaArrowRight/></button>{!publicMode&&<button onClick={()=>setTab("support")} className="hc-hero-link"><FaHeadset/> Human support</button>}</div></div>
-            <div className="hc-hero-art"><img src="/help-center/zarvis-hero.svg" alt="Zarvis assistant"/><div className="hc-hero-status"><strong>Zarvis</strong><span><i/>24 × 7</span></div></div>
+            <div className="hc-hero-art"><img src="/help-center/zarvis-hero-premium.svg" alt="Zarvis assistant"/><div className="hc-hero-status"><strong>Zarvis</strong><span><i/>24 × 7</span></div></div>
         </div>
         <div className="hc-tabs"><button className={tab==="home"?'active':''} onClick={()=>setTab("home")}><FaBookOpen/> Help Center</button><button className={tab==="zarvis"?'active':''} onClick={()=>setTab("zarvis")}><FaRobot/> Ask Zarvis</button>{!publicMode&&<button className={tab==="history"?'active':''} onClick={()=>setTab("history")}><FaHistory/> My History</button>}{!publicMode&&<button className={tab==="support"?'active':''} onClick={()=>setTab("support")}><FaHeadset/> My Support</button>}{isAdmin&&!publicMode&&<button className={tab==="admin"?'active':''} onClick={()=>setTab("admin")}><FaShieldAlt/> Admin Console</button>}</div>
         {toast && <div className="hc-toast" onClick={()=>setToast("")}>{toast}<FaTimes/></div>}
@@ -481,7 +526,26 @@ function HelpCenter({ publicMode = false }) {
     </div>;
 }
 
-function TicketConversation({ticket, reply, setReply, onSend}) { return <div className="hc-conversation"><div className="hc-conversation-meta"><span>#{ticket.id} · {ticket.status.replace("_"," ")}</span><b className={`priority ${ticket.priority}`}>{ticket.priority}</b></div><div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_type==='zarvis'?'Zarvis':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}</div><div className="hc-chat-input"><input value={reply} onChange={e=>setReply(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();onSend()}}} placeholder="Reply to support…"/><button onClick={onSend}><FaPaperPlane/></button></div></div>; }
-function AdminTicketView({ticket,onReply,onStatus}) { const [msg,setMsg]=useState(""); if(!ticket)return <div className="hc-admin-ticket-empty"><FaHeadset/><h3>Select a request</h3><p>Choose a support request to reply manually as Zarvis Support.</p></div>; return <div className="hc-admin-ticket"><div className="hc-conversation-meta"><div><strong>#{ticket.id} · {ticket.subject}</strong><small>{ticket.user_name} · {ticket.user_email}</small></div><select value={ticket.status} onChange={e=>onStatus(e.target.value)}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div><div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}</div><div className="hc-chat-input"><input value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Write a manual Zarvis Support reply…"/><button onClick={()=>{if(msg.trim()){onReply(msg.trim());setMsg("")}}}><FaPaperPlane/></button></div></div>; }
+function TicketConversation({ticket, reply, setReply, onSend}) {
+    const ended = ["resolved", "closed"].includes(ticket.status);
+    return <div className="hc-conversation">
+        <div className="hc-conversation-meta"><span>#{ticket.id} · {ticket.status.replace("_"," ")}</span><b className={`priority ${ticket.priority}`}>{ticket.priority}</b></div>
+        <div className="hc-conversation-scroll">
+            {(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_type==='zarvis'?'Zarvis':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}
+            {ended && <div className="hc-support-ended"><div><FaCheck /></div><strong>Support conversation ended</strong><span>Thank you for contacting Miarcus Support. This request is now closed. If you need help with a new issue, please create a new support request.</span></div>}
+        </div>
+        {ended ? <div className="hc-support-locked"><FaCheck /> This conversation is finished.</div> : <div className="hc-chat-input"><input value={reply} onChange={e=>setReply(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();onSend()}}} placeholder="Reply to support…"/><button onClick={onSend}><FaPaperPlane/></button></div>}
+    </div>;
+}
+function AdminTicketView({ticket,onReply,onStatus}) {
+    const [msg,setMsg]=useState("");
+    const ended=["resolved","closed"].includes(ticket.status);
+    if(!ticket)return <div className="hc-admin-ticket-empty"><FaHeadset/><h3>Select a request</h3><p>Choose a support request to reply manually as Zarvis Support.</p></div>;
+    return <div className="hc-admin-ticket">
+        <div className="hc-conversation-meta"><div><strong>#{ticket.id} · {ticket.subject}</strong><small>{ticket.user_name} · {ticket.user_email}</small></div><select value={ticket.status} onChange={e=>onStatus(e.target.value)}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div>
+        <div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}{ended&&<div className="hc-support-ended"><div><FaCheck/></div><strong>Conversation finished</strong><span>The final support conclusion has been sent. No further replies are needed on this request.</span></div>}</div>
+        {!ended&&<div className="hc-chat-input"><input value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Write a manual Zarvis Support reply…"/><button onClick={()=>{if(msg.trim()){onReply(msg.trim());setMsg("")}}}><FaPaperPlane/></button></div>}
+    </div>;
+}
 
 export default HelpCenter;
