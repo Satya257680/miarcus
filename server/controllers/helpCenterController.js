@@ -383,6 +383,23 @@ exports.updateTicket = async (req, res, next) => {
         const assignedTo = req.body?.assigned_to ? Number(req.body.assigned_to) : null;
         const ticket = await Model.updateTicket(req.params.id, { status, priority, assignedTo });
         if (!ticket) return res.status(404).json({ success: false, message: "Support request not found." });
-        res.json({ success: true, ticket });
+        if (["resolved", "closed"].includes(status)) {
+            const alreadyConcluded = (ticket.messages || []).some((item) =>
+                item.sender_type === "admin" && /support conversation (has been )?(ended|closed)|thank you for contacting miarcus support/i.test(String(item.message || ""))
+            );
+            if (!alreadyConcluded) {
+                await Model.addTicketSystemMessage(ticket.id, "Thank you for contacting Miarcus Support. Your support request has been resolved and this conversation is now over. If you need help with a new issue, please create a new support request.");
+            }
+        }
+        const finalTicket = await Model.getTicket(ticket.id, null, true);
+        try {
+            await Notification.createNotification({
+                user_id: ticket.user_id, module_name: "Help Center", action_name: ["resolved", "closed"].includes(status) ? "Support Conversation Closed" : "Support Status Updated",
+                entity_id: ticket.id, link: "/help-center?tab=support", type: "success",
+                title: ["resolved", "closed"].includes(status) ? "Support conversation finished" : "Support status updated",
+                message: ["resolved", "closed"].includes(status) ? "Thank you for contacting Miarcus Support. Your request is now resolved." : `Your support request is now ${status.replace("_", " ")}.`
+            });
+        } catch (e) { console.error("Help status notification:", e.message); }
+        res.json({ success: true, ticket: finalTicket });
     } catch (error) { next(error); }
 };
