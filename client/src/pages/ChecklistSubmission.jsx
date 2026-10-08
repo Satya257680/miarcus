@@ -604,26 +604,22 @@ function ChecklistSubmission() {
   // =========================================================
 
   const fetchQuestions = async ({ manual = false } = {}) => {
-    const previousQuestions = questions;
-
     try {
-      setLoadingQuestions(true);
+      // Initial load uses the page loader. Manual refresh keeps the
+      // question cards visible while their definitions are reloaded.
+      setLoadingQuestions(!manual);
       if (manual) setRefreshingQuestions(true);
       setErrorMessage("");
 
-      // A manual refresh must really hit the server instead of allowing a
-      // browser/proxy cached response to make the button appear to do nothing.
       const refreshToken = manual ? `&_refresh=${Date.now()}` : "";
 
       const response = await axios.get(
         `${API}/api/checklist-submissions/form-options/questions?checklist_type_id=${encodeURIComponent(checklistTypeId)}${refreshToken}`,
         {
-          headers: manual
-            ? {
-                "Cache-Control": "no-cache",
-                Pragma: "no-cache",
-              }
-            : undefined,
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
         }
       );
 
@@ -647,24 +643,19 @@ function ChecklistSubmission() {
           ? filteredQuestions
           : allQuestions;
 
-      // Refresh only replaces the question definitions/list.
-      // It NEVER clears answers, remarks, photos, selections or the draft.
       setQuestions(finalQuestions);
-
     } catch (error) {
       console.error("Question Error:", error);
 
-      // Do not destroy a working form if a manual refresh request fails.
-      // The existing questions and their answers remain on screen.
+      // A manual refresh intentionally clears the old form values first.
+      // Never restore the old answers/photos/remarks after a refresh failure.
       if (!manual) {
         setQuestions([]);
-      } else {
-        setQuestions(previousQuestions);
       }
 
       setErrorMessage(
         manual
-          ? "Questions could not be refreshed. Your current answers were kept."
+          ? "Questions could not be refreshed. The form was cleared as requested; please try Refresh Questions again."
           : "Unable to load questions. Please try again."
       );
     } finally {
@@ -676,8 +667,29 @@ function ChecklistSubmission() {
   const refreshQuestionsManually = async () => {
     if (!basicDetailsComplete || loadingQuestions || refreshingQuestions) return;
 
-    // Force a visible reload cycle while preserving the in-progress draft.
+    // TRUE REFRESH:
+    // Keep Checklist Type + Store + Date.
+    // Clear every answer, remark, question photo/evidence and attachment
+    // immediately, then fetch the latest question definitions without
+    // reloading the browser.
+    setAnswers({});
+    setRemarks({});
+    clearPhotos();
+    setAttachmentFile(null);
+    setDraftRestored(false);
+    setErrorMessage("");
+
+    const fileInput = document.getElementById("checklist-attachment");
+    if (fileInput) fileInput.value = "";
+
     await fetchQuestions({ manual: true });
+
+    requestAnimationFrame(() => {
+      document.getElementById("cs-questions")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   // =========================================================
@@ -1445,19 +1457,6 @@ function ChecklistSubmission() {
           )}
         </div>
         <img className="cs-hero-art" src={checklistHeroArt} alt="" draggable="false" />
-        <div className="cs-hero-tools">
-          <button
-            type="button"
-            className="cs-refresh-btn"
-            onClick={refreshQuestionsManually}
-            disabled={!basicDetailsComplete || loadingQuestions || refreshingQuestions}
-            title="Reload checklist questions without clearing your answers"
-          >
-            <FaSyncAlt className={refreshingQuestions ? "cs-spin" : ""} />
-            {refreshingQuestions ? "Refreshing…" : "Refresh"}
-          </button>
-          <small>Refresh only when you choose to reload the questions.</small>
-        </div>
         <div className="cs-quote">
           <img src={checklistBulb} alt="" draggable="false" />
           <p>“Accurate checklists help maintain quality and drive better operations.”</p>
@@ -1796,14 +1795,26 @@ function ChecklistSubmission() {
                   </div>
                 </div>
 
-                <div className="question-count">
-                  <strong>
-                    {questions.length}
-                  </strong>
+                <div className="cs-question-header-actions">
+                  <div className="question-count">
+                    <strong>{questions.length}</strong>
+                    <span>Questions</span>
+                  </div>
 
-                  <span>
-                    Questions
-                  </span>
+                  <button
+                    type="button"
+                    className="cs-question-refresh-btn"
+                    onClick={refreshQuestionsManually}
+                    disabled={refreshingQuestions || loadingQuestions}
+                    title="Reload the latest questions and clear all current answers, remarks and evidence"
+                  >
+                    <FaSyncAlt className={refreshingQuestions ? "cs-spin" : ""} />
+                    {refreshingQuestions ? "Refreshing…" : "Refresh Questions"}
+                  </button>
+
+                  <small className="cs-question-refresh-help">
+                    Clears current answers and evidence, then reloads the latest questions.
+                  </small>
                 </div>
 
               </div>

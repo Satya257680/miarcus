@@ -57,6 +57,17 @@ const isEmptyValue = (value) => {
 
 exports.getQuestions = (req, res) => {
 
+    // Checklist questions are master data and must never be served from
+    // a browser/proxy cache. The frontend also sends a cache-busting token
+    // for an explicit "Refresh Questions" action.
+    res.set({
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "Surrogate-Control": "no-store"
+    });
+
+
     const {
         checklist_type_id,
         department_id,
