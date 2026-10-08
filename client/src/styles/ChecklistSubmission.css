@@ -1446,3 +1446,56 @@ textarea:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* =========================================================
+   CHECKLIST SUBMISSION WINDOWS
+   Opening: 08:00–14:00 IST | Closing: 20:00–24:00 IST
+   ========================================================= */
+.cs-submission-window {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e0f7;
+  background: #faf9ff;
+}
+.cs-submission-window > span {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  font-weight: 800;
+}
+.cs-submission-window > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cs-submission-window strong {
+  font-size: 11px;
+  color: #2f2460;
+}
+.cs-submission-window small {
+  font-size: 9px;
+  color: #6b7280;
+}
+.cs-submission-window.is-open {
+  border-color: #bfe8cf;
+  background: #f0fbf4;
+}
+.cs-submission-window.is-open > span {
+  color: #15803d;
+  background: #dcfce7;
+}
+.cs-submission-window.is-closed {
+  border-color: #fed7aa;
+  background: #fff8ed;
+}
+.cs-submission-window.is-closed > span {
+  color: #c2410c;
+  background: #ffedd5;
+}

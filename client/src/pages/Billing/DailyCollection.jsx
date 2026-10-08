@@ -68,9 +68,7 @@ const readAccess = () => {
 };
 
 const emptyEntry = () => ({
-    upi_amount: "",
     cash_amount: "",
-    bank_transfer_amount: "",
     card_amount: "",
     notes: ""
 });
@@ -257,9 +255,9 @@ export default function DailyCollection() {
                 report_id: Number(report.id),
                 store_id: Number(report.store_id),
                 report_date: report.report_date || date,
-                upi_amount: Number(values.upi_amount || 0),
+                upi_amount: 0,
                 cash_amount: Number(values.cash_amount || 0),
-                bank_transfer_amount: Number(values.bank_transfer_amount || 0),
+                bank_transfer_amount: 0,
                 card_amount: Number(values.card_amount || 0),
                 notes: values.notes || ""
             });
@@ -398,7 +396,7 @@ export default function DailyCollection() {
                 badgeTone={admin ? "gold" : "mint"}
                 subtitle={admin
                     ? "Enter and manage Daily Collection for any active store."
-                    : "Enter today's UPI, cash, bank transfer and card collection for your assigned store."}
+                    : "Enter today's cash and card collection for your assigned store."}
                 meta={[
                     { label: "Date", value: date },
                     { label: "Stores", value: String(stores.length) },
@@ -501,9 +499,7 @@ export default function DailyCollection() {
                         const values = entries[report.id] || emptyEntry();
                         const billed = Number(report.summary?.total_billed ?? report.total_billed ?? 0);
                         const entered =
-                            Number(values.upi_amount || 0) +
                             Number(values.cash_amount || 0) +
-                            Number(values.bank_transfer_amount || 0) +
                             Number(values.card_amount || 0);
                         const variance = entered - billed;
                         const isSubmitted = report.status === "submitted";
@@ -542,18 +538,6 @@ export default function DailyCollection() {
 
                                 <div className="daily-payment-grid">
                                     <label>
-                                        <span><FaMoneyBillWave /> UPI</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={values.upi_amount}
-                                            onChange={(e) => updateEntry(report.id, "upi_amount", e.target.value)}
-                                            disabled={disabled}
-                                            placeholder="0.00"
-                                        />
-                                    </label>
-                                    <label>
                                         <span><FaMoneyBillWave /> Cash</span>
                                         <input
                                             type="number"
@@ -561,18 +545,6 @@ export default function DailyCollection() {
                                             step="0.01"
                                             value={values.cash_amount}
                                             onChange={(e) => updateEntry(report.id, "cash_amount", e.target.value)}
-                                            disabled={disabled}
-                                            placeholder="0.00"
-                                        />
-                                    </label>
-                                    <label>
-                                        <span><FaMoneyBillWave /> Bank Transfer</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={values.bank_transfer_amount}
-                                            onChange={(e) => updateEntry(report.id, "bank_transfer_amount", e.target.value)}
                                             disabled={disabled}
                                             placeholder="0.00"
                                         />

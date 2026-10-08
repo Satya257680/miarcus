@@ -29,9 +29,7 @@ export default function DailyCollectionViewModal({ report, onClose }) {
         ["Status", statusLabel(report.status)],
         ["Bill Count", Number(summary.bill_count ?? report.bill_count ?? 0)],
         ["System Billed", money(billed)],
-        ["UPI", money(report.upi_amount)],
         ["Cash", money(report.cash_amount)],
-        ["Bank Transfer", money(report.bank_transfer_amount)],
         ["Card", money(report.card_amount)],
         ["Total Collected", money(collected)],
         ["Variance", money(variance)],
@@ -44,7 +42,7 @@ export default function DailyCollectionViewModal({ report, onClose }) {
             isOpen
             onClose={onClose}
             title="Daily Collection Record"
-            subtitle="Read-only view of the selected store report."
+            subtitle="Read-only view of the selected store report. Cash and card are the available collection methods."
             icon="◉"
             size="large"
             scrollable

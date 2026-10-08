@@ -105,11 +105,7 @@ export function PettyNav() {
     const access = getAccess();
     const items = [
         { to: "/petty-cash", label: "Dashboard", icon: FaMoneyBillWave, end: true },
-        ...(access.canAdd ? [{ to: "/petty-cash/new", label: "New Advance", icon: FaPlusCircle }] : []),
-        { to: "/petty-cash/advances", label: "Manage Advances", icon: FaListAlt },
-        { to: "/petty-cash/expenses", label: "Manage Expenses", icon: FaReceipt },
         { to: "/petty-cash/deposits", label: "Manage Deposits", icon: FaUniversity },
-        { to: "/petty-cash/audit-trail", label: "Audit Trail", icon: FaHistory },
         ...(access.admin ? [{ to: "/petty-cash/email-settings", label: "Email Notifications", icon: FaEnvelope }] : [])
     ];
     return (

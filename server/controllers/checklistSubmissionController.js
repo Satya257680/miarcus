@@ -3,6 +3,10 @@ const ChecklistSubmission = require(
     "../models/checklistSubmissionModel"
 );
 
+const ChecklistType = require(
+    "../models/checklistTypeModel"
+);
+
 const inspectionService = require(
     "../services/inspectionService"
 );
@@ -53,6 +57,59 @@ const Audit = require(
 // 10. Notification/activity is created
 // 11. Report/Dashboard can use the submission
 // ======================================================
+
+const getChecklistTypeByIdAsync = (id) =>
+    new Promise((resolve, reject) => {
+        ChecklistType.getChecklistTypeById(id, (err, rows) => {
+            if (err) return reject(err);
+            resolve(Array.isArray(rows) ? rows[0] : null);
+        });
+    });
+
+const getIndiaMinutes = () => {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+    }).formatToParts(new Date());
+
+    const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
+    const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
+    return hour * 60 + minute;
+};
+
+const validateChecklistSubmissionWindow = (checklistType) => {
+    const name = String(
+        checklistType?.checklist_name ||
+        checklistType?.name ||
+        ""
+    ).toLowerCase();
+
+    const minutes = getIndiaMinutes();
+
+    if (name.includes("opening")) {
+        if (minutes < 480 || minutes >= 840) {
+            const error = new Error(
+                "Opening Checklist submissions are allowed only between 08:00 AM and 02:00 PM (IST)."
+            );
+            error.status = 403;
+            return error;
+        }
+    }
+
+    if (name.includes("closing")) {
+        if (minutes < 1200 || minutes >= 1440) {
+            const error = new Error(
+                "Closing Checklist submissions are allowed only between 08:00 PM and 12:00 AM (IST)."
+            );
+            error.status = 403;
+            return error;
+        }
+    }
+
+    return null;
+};
 
 exports.createSubmission = async (req, res) => {
 
@@ -259,6 +316,32 @@ exports.createSubmission = async (req, res) => {
 
         }
 
+
+        // ==================================================
+        // ENFORCE CHECKLIST SUBMISSION TIME WINDOW
+        // ==================================================
+        // Opening: 08:00–14:00 IST
+        // Closing: 20:00–24:00 IST
+        // This is enforced server-side so the rule cannot be
+        // bypassed by calling the API directly.
+        const checklistType = await getChecklistTypeByIdAsync(
+            Number(checklist_type_id)
+        );
+
+        if (!checklistType) {
+            return res.status(404).json({
+                success: false,
+                message: "Checklist Type was not found."
+            });
+        }
+
+        const windowError = validateChecklistSubmissionWindow(checklistType);
+        if (windowError) {
+            return res.status(windowError.status || 403).json({
+                success: false,
+                message: windowError.message
+            });
+        }
 
         // ==================================================
         // VALIDATE ANSWERS

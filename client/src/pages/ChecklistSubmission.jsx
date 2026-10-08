@@ -119,6 +119,39 @@ const answerToText = (value) => {
   return String(value).trim();
 };
 
+// Fixed submission windows use India Standard Time (Asia/Kolkata).
+// Opening Checklist: 08:00 AM–02:00 PM. Closing Checklist: 08:00 PM–12:00 AM.
+const getChecklistWindowStatus = (checklistName, now = new Date()) => {
+  const name = String(checklistName || "").toLowerCase();
+  const isOpening = name.includes("opening");
+  const isClosing = name.includes("closing");
+  if (!isOpening && !isClosing) return { restricted: false, allowed: true, label: "" };
+
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
+  const minutes = hour * 60 + minute;
+
+  if (isOpening) {
+    return {
+      restricted: true,
+      allowed: minutes >= 480 && minutes < 840,
+      label: "Opening Checklist · 08:00 AM–02:00 PM",
+    };
+  }
+
+  return {
+    restricted: true,
+    allowed: minutes >= 1200 && minutes < 1440,
+    label: "Closing Checklist · 08:00 PM–12:00 AM",
+  };
+};
+
 
 // ---------------------------------------------------------
 // SEARCHABLE SELECT
@@ -346,6 +379,13 @@ function ChecklistSubmission() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Refresh the current IST submission window while the page stays open.
+  const [windowClock, setWindowClock] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setWindowClock(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   // =========================================================
   // RBAC
   // =========================================================
@@ -386,6 +426,16 @@ function ChecklistSubmission() {
   // =========================================================
   // CHECK WHETHER BASIC DETAILS ARE COMPLETE
   // =========================================================
+
+  const selectedChecklistType = checklistTypes.find(
+    (item) => String(item.id || item.checklist_type_id) === String(checklistTypeId)
+  );
+  const checklistWindow = getChecklistWindowStatus(
+    selectedChecklistType?.checklist_name ||
+      selectedChecklistType?.name ||
+      selectedChecklistType?.title,
+    new Date(windowClock)
+  );
 
   const basicDetailsComplete =
     Boolean(checklistTypeId) &&
@@ -899,6 +949,11 @@ function ChecklistSubmission() {
       alert(
         "You don't have permission to submit checklists."
       );
+      return;
+    }
+
+    if (checklistWindow.restricted && !checklistWindow.allowed) {
+      alert(`${checklistWindow.label} is currently closed. You can submit only during the allowed time window.`);
       return;
     }
 
@@ -1526,6 +1581,20 @@ function ChecklistSubmission() {
             </div>
           )}
 
+          {checklistWindow.restricted && (
+            <div className={`cs-submission-window ${checklistWindow.allowed ? "is-open" : "is-closed"}`}>
+              <span>{checklistWindow.allowed ? "✓" : "⏰"}</span>
+              <div>
+                <strong>{checklistWindow.label}</strong>
+                <small>
+                  {checklistWindow.allowed
+                    ? "Submission is currently allowed."
+                    : "Submission is currently locked. Please return during the allowed window."}
+                </small>
+              </div>
+            </div>
+          )}
+
           <div className="cs-actions">
             <button type="button" className="cs-btn cs-btn-ghost" onClick={resetSubmission} disabled={submitting}>
               <FaRedoAlt /> Reset
@@ -1779,7 +1848,8 @@ function ChecklistSubmission() {
                   className="submit-checklist-btn"
                   disabled={
                     !canAdd ||
-                    submitting
+                    submitting ||
+                    (checklistWindow.restricted && !checklistWindow.allowed)
                   }
                 >
                   {submitting ? (
