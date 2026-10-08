@@ -331,6 +331,61 @@ function HelpCenter({ publicMode = false }) {
         </section>
     );
 
+    const renderHome = () => (
+        <section className="hc-home-luna">
+            <div className="hc-home-main">
+                <div className="hc-category-row hc-category-luna">
+                    {["General", "Modules", "How To", "Account & Access", "Reports", "Technical", "FAQ"].map((c, i) => (
+                        <button key={c} className={(category === (i === 0 ? "All" : c) ? "active" : "")} onClick={() => setCategory(i === 0 ? "All" : c)}>
+                            {c === "General" ? <FaComments /> : c === "Modules" ? <FaBookOpen /> : c === "How To" ? <FaMagic /> : c === "Account & Access" ? <FaShieldAlt /> : c === "Reports" ? <FaClock /> : c === "Technical" ? <FaMagic /> : <FaSearch />}
+                            {c}
+                        </button>
+                    ))}
+                </div>
+                <div className="hc-home-cards">
+                    {[
+                        ["Explain the Miarcus project", "Get a complete overview of modules, features and workflow.", "blue"],
+                        ["How does NSO work in detail?", "Learn the NSO process, roles and submission flow.", "green"],
+                        ["How do I create an Action Point?", "Step by step guide to create, assign and track action points.", "orange"],
+                        ["How do I reset my password?", "Reset or change your account password easily.", "purple"],
+                        ["Where can I see reports?", "Find and export Checklist, Attendance and other reports.", "red"],
+                        ["Troubleshoot an issue", "Get help to solve common problems and errors.", "teal"],
+                    ].map(([title, desc, tone]) => (
+                        <button key={title} className="hc-home-card" onClick={() => { setBotQuestion(title); setTab("zarvis"); setTimeout(() => inputRef.current?.focus(), 50); }}>
+                            <span className={`hc-home-card-icon ${tone}`}><FaBookOpen /></span>
+                            <span className="hc-home-card-copy"><strong>{title}</strong><small>{desc}</small></span>
+                            <span className="hc-home-card-arrow"><FaArrowRight /></span>
+                        </button>
+                    ))}
+                </div>
+                <div className="hc-home-input">
+                    <div className="hc-home-input-note"><FaRegLightbulb /> Ask anything — Miarcus, coding, history, geography, science or everyday questions. Zarvis can answer in your selected language.<b>Voice ready</b></div>
+                    <form onSubmit={(e) => { e.preventDefault(); if (botQuestion.trim()) setTab("zarvis"); }}>
+                        <button type="button" onClick={() => { setTab("zarvis"); setTimeout(() => inputRef.current?.focus(), 50); }}><FaMicrophone /></button>
+                        <input value={botQuestion} onChange={e => setBotQuestion(e.target.value)} placeholder="Message Zarvis…" />
+                        <button type="submit"><FaPaperPlane /></button>
+                    </form>
+                </div>
+            </div>
+            <aside className="hc-home-side">
+                <div className="hc-side-panel">
+                    <div className="hc-side-title"><span className="hc-side-icon blue"><FaShieldAlt /></span><h3>How Zarvis helps</h3></div>
+                    {[
+                        "Checks administrator-approved answers.",
+                        "If needed, checks the safe Miarcus project knowledge.",
+                        "Uses conversation context for short follow-ups.",
+                        "Answers general knowledge and coding questions through AI, while Miarcus facts remain grounded in project knowledge.",
+                        "Choose a language or use Auto detect. Voice recognition availability depends on the browser and installed language support."
+                    ].map((text, i) => <div className="hc-help-step" key={i}><b>{i + 1}</b><span>{text}</span></div>)}
+                </div>
+                <div className="hc-side-panel hc-try-panel">
+                    <div className="hc-side-title"><span className="hc-side-icon yellow">💡</span><h3>Try asking</h3></div>
+                    {SUGGESTIONS.map(q => <button key={q} onClick={() => { setBotQuestion(q); setTab("zarvis"); setTimeout(() => inputRef.current?.focus(), 50); }}>{q}<FaArrowRight /></button>)}
+                </div>
+            </aside>
+        </section>
+    );
+
     const renderHistory = () => (
         <section className="hc-history-page">
             <div className="hc-history-hero">
@@ -393,18 +448,13 @@ function HelpCenter({ publicMode = false }) {
 
     return <div className="help-center-page">
         <div className="hc-hero hc-hero-luna">
-            <div className="hc-hero-copy"><div className="hc-kicker"><FaBolt/> MIARCUS CARE DESK</div><h1>Ask anything. Get it explained clearly.</h1><p>{publicMode ? "Zarvis helps customers with administrator-approved answers and Miarcus product guidance, 24×7." : "Zarvis understands natural language, remembers the current conversation, explains Miarcus workflows, answers general questions and coding topics, and can hand you to a human when needed."}</p><div className="hc-hero-actions"><button onClick={()=>setTab("zarvis")} className="hc-hero-btn"><FaRobot/> Ask Zarvis <FaArrowRight/></button>{!publicMode&&<button onClick={()=>setTab("support")} className="hc-hero-link"><FaHeadset/> Human support</button>}</div></div>
-            <div className="hc-orb"><div className="hc-orb-inner"><span className="hc-orb-z">Z</span><strong>Zarvis</strong><span>24×7</span></div></div>
+            <div className="hc-hero-copy"><div className="hc-kicker"><FaBolt/> MIARCUS CARE DESK</div><h1>Ask anything. Get it explained <em>clearly.</em></h1><p>{publicMode ? "Zarvis helps customers with administrator-approved answers and Miarcus product guidance, 24×7." : "Zarvis understands natural language, remembers the current conversation, explains Miarcus workflows, answers general questions and coding topics, and can hand you to a human when needed."}</p><div className="hc-hero-actions"><button onClick={()=>setTab("zarvis")} className="hc-hero-btn"><FaRobot/> Ask Zarvis <FaArrowRight/></button>{!publicMode&&<button onClick={()=>setTab("support")} className="hc-hero-link"><FaHeadset/> Human support</button>}</div></div>
+            <div className="hc-hero-art"><img src="/help-center/zarvis-hero.svg" alt="Zarvis assistant"/><div className="hc-hero-status"><strong>Zarvis</strong><span><i/>24 × 7</span></div></div>
         </div>
         <div className="hc-tabs"><button className={tab==="home"?'active':''} onClick={()=>setTab("home")}><FaBookOpen/> Help Center</button><button className={tab==="zarvis"?'active':''} onClick={()=>setTab("zarvis")}><FaRobot/> Ask Zarvis</button>{!publicMode&&<button className={tab==="history"?'active':''} onClick={()=>setTab("history")}><FaHistory/> My History</button>}{!publicMode&&<button className={tab==="support"?'active':''} onClick={()=>setTab("support")}><FaHeadset/> My Support</button>}{isAdmin&&!publicMode&&<button className={tab==="admin"?'active':''} onClick={()=>setTab("admin")}><FaShieldAlt/> Admin Console</button>}</div>
         {toast && <div className="hc-toast" onClick={()=>setToast("")}>{toast}<FaTimes/></div>}
         {loading ? <div className="hc-loading"><PremiumLoader compact title="Loading your Help Center" /></div> : <>
-            {tab==="home" && <>
-                <div className="hc-search-wrap"><FaSearch/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search guides, policies, how-to answers…"/><span>{filtered.length} guides</span></div>
-                <div className="hc-category-row">{categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c}</button>)}</div>
-                <div className="hc-feature-row"><div><FaRobot/><div><strong>Natural-language Zarvis</strong><span>Ask normally. Small spelling mistakes and common wording are handled.</span></div></div><div><FaMagic/><div><strong>Project-aware</strong><span>Explains Miarcus modules, screens, workflows and safe project structure.</span></div></div><div><FaUserTie/><div><strong>Human when needed</strong><span>Open a support request and continue the conversation with an administrator.</span></div></div></div>
-                <div className="hc-articles">{filtered.map(a=><article className={`hc-faq ${openId===a.id?'open':''}`} key={a.id}><button onClick={()=>setOpenId(openId===a.id?null:a.id)}><span className="hc-faq-icon"><FaBookOpen/></span><span><small>{a.category}</small><strong>{a.question}</strong></span><FaChevronDown/></button>{openId===a.id&&<div className="hc-answer"><p>{a.answer}</p><button onClick={()=>{setBotQuestion(a.question);setTab("zarvis")}}>Ask Zarvis about this <FaArrowRight/></button></div>}</article>)}{!filtered.length&&<div className="hc-empty"><FaSearch/><h3>No matching guide</h3><p>Try asking Zarvis in your own words. It can also explain the project structure and workflows.</p><button onClick={()=>setTab("zarvis")} className="hc-primary">Ask Zarvis</button></div>}</div>
-            </>}
+            {tab==="home" && renderHome()}
             {tab==="zarvis" && <div className="hc-zarvis">
                 <div className="hc-chat-card hc-chat-card-luna">
                     <div className="hc-chat-head"><div className="hc-avatar hc-avatar-z"><span>Z</span></div><div><strong>Zarvis</strong><span><i/> Online · Miarcus project assistant</span></div><div className="hc-chat-head-actions"><label className="hc-language-picker" title="Answer language"><FaGlobe/><select value={language} onChange={(e)=>setLanguage(e.target.value)} aria-label="Zarvis answer language">{ZARVIS_LANGUAGES.map((item)=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label><button className={`hc-voice-toggle ${autoSpeak ? "active" : ""}`} onClick={()=>setAutoSpeak(v=>!v)} title={autoSpeak ? "Turn off automatic voice answers" : "Turn on automatic voice answers"}><FaVolumeUp/> {autoSpeak ? "Voice on" : "Voice"}</button><button onClick={clearChat} title="New chat"><FaHistory/> New chat</button><span className="hc-24">24×7</span></div></div>
