@@ -330,15 +330,6 @@ const getTicketsForAdmin = async (status = "all") => {
     return rows.map((row) => ({ ...mapTicket(row), message_count: Number(row.message_count || 0) }));
 };
 
-const addTicketSystemMessage = async (ticketId, message) => {
-    const result = await db.query(`
-        INSERT INTO help_ticket_messages (ticket_id, sender_id, sender_type, message)
-        VALUES (?, NULL, 'admin', ?)
-    `, [ticketId, message]);
-    await db.query(`UPDATE help_tickets SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?`, [ticketId]);
-    return Number(result.insertId);
-};
-
 const updateTicket = async (id, data) => {
     await db.query(`
         UPDATE help_tickets
@@ -398,7 +389,6 @@ module.exports = {
     searchArticles,
     createTicket,
     addTicketMessage,
-    addTicketSystemMessage,
     getTicket,
     getTicketsForUser,
     getTicketsForAdmin,
