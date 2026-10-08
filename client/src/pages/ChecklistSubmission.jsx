@@ -12,6 +12,7 @@ import {
   FaCheck,
   FaInfoCircle,
   FaRedoAlt,
+  FaSyncAlt,
   FaArrowRight,
 } from "react-icons/fa";
 import checklistHeroArt from "../assets/premium/checklist-hero.png";
@@ -340,6 +341,9 @@ function ChecklistSubmission() {
 
   const [answers, setAnswers] = useState({});
   const [remarks, setRemarks] = useState({});
+  const [draftHydrated, setDraftHydrated] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [refreshingQuestions, setRefreshingQuestions] = useState(false);
   const [attachmentFile, setAttachmentFile] = useState(null);
 
   // Per-question photo evidence: { [questionId]: [{ id, kind, file|url, preview }] }
@@ -391,6 +395,7 @@ function ChecklistSubmission() {
   // =========================================================
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const draftStorageKey = `miarcus:checklist-submission:draft:${user.id || user.user_id || "current"}`;
 
   const permissions = JSON.parse(
     localStorage.getItem("permissions") || "{}"
@@ -441,6 +446,70 @@ function ChecklistSubmission() {
     Boolean(checklistTypeId) &&
     Boolean(storeId) &&
     Boolean(submissionDate);
+
+  // =========================================================
+  // DRAFT PERSISTENCE
+  // Keep the in-progress checklist when the user navigates to
+  // another module, switches browser tabs, or the mobile browser
+  // is interrupted by a phone call. Reset is the only action that
+  // intentionally removes this draft.
+  // =========================================================
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft?.checklistTypeId) setChecklistTypeId(String(draft.checklistTypeId));
+        if (draft?.storeId) setStoreId(String(draft.storeId));
+        if (draft?.submissionDate) setSubmissionDate(String(draft.submissionDate));
+        if (draft?.answers && typeof draft.answers === "object") setAnswers(draft.answers);
+        if (draft?.remarks && typeof draft.remarks === "object") setRemarks(draft.remarks);
+        setDraftRestored(Boolean(draft?.checklistTypeId || draft?.storeId || Object.keys(draft?.answers || {}).length));
+      }
+    } catch (error) {
+      console.warn("Unable to restore checklist draft:", error);
+    } finally {
+      setDraftHydrated(true);
+    }
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+    try {
+      const hasDraft = Boolean(
+        checklistTypeId ||
+        storeId ||
+        Object.keys(answers).length ||
+        Object.keys(remarks).length
+      );
+      if (!hasDraft) {
+        localStorage.removeItem(draftStorageKey);
+        return;
+      }
+      localStorage.setItem(
+        draftStorageKey,
+        JSON.stringify({
+          version: 1,
+          checklistTypeId,
+          storeId,
+          submissionDate,
+          answers,
+          remarks,
+          savedAt: Date.now(),
+        })
+      );
+    } catch (error) {
+      console.warn("Unable to save checklist draft:", error);
+    }
+  }, [
+    draftHydrated,
+    draftStorageKey,
+    checklistTypeId,
+    storeId,
+    submissionDate,
+    answers,
+    remarks,
+  ]);
 
   // =========================================================
   // LOAD CHECKLIST TYPES + STORES
@@ -505,11 +574,11 @@ function ChecklistSubmission() {
   // =========================================================
 
   useEffect(() => {
+    if (!draftHydrated) return;
+
     if (!canView) {
       setQuestions([]);
-      setAnswers({});
       clearPhotos();
-      setRemarks({});
       return;
     }
 
@@ -517,9 +586,6 @@ function ChecklistSubmission() {
     // submission fields are completed.
     if (!basicDetailsComplete) {
       setQuestions([]);
-      setAnswers({});
-      clearPhotos();
-      setRemarks({});
       setLoadingQuestions(false);
       return;
     }
@@ -530,15 +596,17 @@ function ChecklistSubmission() {
     storeId,
     submissionDate,
     canView,
+    draftHydrated,
   ]);
 
   // =========================================================
   // FETCH QUESTIONS
   // =========================================================
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async ({ manual = false } = {}) => {
     try {
       setLoadingQuestions(true);
+      if (manual) setRefreshingQuestions(true);
       setErrorMessage("");
 
       const response = await axios.get(
@@ -568,9 +636,9 @@ function ChecklistSubmission() {
           : allQuestions;
 
       setQuestions(finalQuestions);
-      setAnswers({});
-      clearPhotos();
-      setRemarks({});
+      // IMPORTANT: never clear an in-progress draft when questions are fetched.
+      // Answers/remarks stay keyed by question id and survive navigation/reloads.
+
     } catch (error) {
       console.error(
         "Question Error:",
@@ -583,7 +651,13 @@ function ChecklistSubmission() {
       );
     } finally {
       setLoadingQuestions(false);
+      setRefreshingQuestions(false);
     }
+  };
+
+  const refreshQuestionsManually = () => {
+    if (!basicDetailsComplete || loadingQuestions || refreshingQuestions) return;
+    fetchQuestions({ manual: true });
   };
 
   // =========================================================
@@ -1201,6 +1275,13 @@ function ChecklistSubmission() {
         "Checklist submitted successfully!"
       );
 
+      try {
+        localStorage.removeItem(draftStorageKey);
+      } catch (error) {
+        console.warn("Unable to clear submitted checklist draft:", error);
+      }
+      setDraftRestored(false);
+
       // -----------------------------------------------------
       // RESET
       // -----------------------------------------------------
@@ -1296,6 +1377,12 @@ function ChecklistSubmission() {
   };
 
   const resetSubmission = () => {
+    try {
+      localStorage.removeItem(draftStorageKey);
+    } catch (error) {
+      console.warn("Unable to clear checklist draft:", error);
+    }
+    setDraftRestored(false);
     setChecklistTypeId("");
     setStoreId("");
     setSubmissionDate(new Date().toISOString().split("T")[0]);
@@ -1330,8 +1417,27 @@ function ChecklistSubmission() {
             <span className="cs-live"><i /> Live</span>
           </div>
           <p>Complete the required details and submit your store checklist.</p>
+          {draftRestored && (
+            <div className="cs-draft-status" role="status">
+              <span className="cs-draft-status-dot">✓</span>
+              <span><strong>In Progress — Preserved</strong><small>Your selections and answers stay saved when you leave and return.</small></span>
+            </div>
+          )}
         </div>
         <img className="cs-hero-art" src={checklistHeroArt} alt="" draggable="false" />
+        <div className="cs-hero-tools">
+          <button
+            type="button"
+            className="cs-refresh-btn"
+            onClick={refreshQuestionsManually}
+            disabled={!basicDetailsComplete || loadingQuestions || refreshingQuestions}
+            title="Reload checklist questions without clearing your answers"
+          >
+            <FaSyncAlt className={refreshingQuestions ? "cs-spin" : ""} />
+            {refreshingQuestions ? "Refreshing…" : "Refresh"}
+          </button>
+          <small>Refresh only when you choose to reload the questions.</small>
+        </div>
         <div className="cs-quote">
           <img src={checklistBulb} alt="" draggable="false" />
           <p>“Accurate checklists help maintain quality and drive better operations.”</p>
@@ -1578,6 +1684,14 @@ function ChecklistSubmission() {
                 {totalPhotos > 0 && <> · <strong>{totalPhotos}</strong> photo{totalPhotos > 1 ? "s" : ""}</>}
                 {requiredLeft > 0 ? <> · <strong>{requiredLeft}</strong> required remaining</> : " · all required questions answered"}
               </span>
+            </div>
+          )}
+
+          {draftRestored && (
+            <div className="cs-draft-restored-banner">
+              <span className="cs-draft-restored-icon"><FaCheck /></span>
+              <span><strong>Form restored successfully</strong><small>Your previous selections, answers and remarks are still intact.</small></span>
+              <span className="cs-draft-restored-note">Navigation or a phone call will not reset this form.</span>
             </div>
           )}
 
