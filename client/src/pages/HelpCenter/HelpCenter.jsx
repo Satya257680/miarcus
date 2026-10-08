@@ -8,9 +8,9 @@ import {
     FaCheck, FaCircleNotch, FaGlobe
 } from "react-icons/fa";
 import {
-    askZarvis, askPublicZarvis, createHelpTicket, getAdminHelpArticles, getAdminHelpTickets,
+    askZarvis, askPublicZarvis, createHelpTicket, getAdminHelpArticles,
     getPublicHelpArticles, getHelpArticles, getHelpTicket, getMyHelpTickets, replyHelpTicket,
-    createAdminHelpArticle, updateAdminHelpArticle, deleteAdminHelpArticle, updateAdminHelpTicket,
+    createAdminHelpArticle, updateAdminHelpArticle, deleteAdminHelpArticle,
     getZarvisHistory, clearZarvisHistory
 } from "../../services/helpCenterService";
 import "../../styles/pages/HelpCenter.css";
@@ -74,7 +74,6 @@ function HelpCenter({ publicMode = false }) {
     const [articles, setArticles] = useState([]);
     const [adminArticles, setAdminArticles] = useState([]);
     const [tickets, setTickets] = useState([]);
-    const [adminTickets, setAdminTickets] = useState([]);
     const [search, setSearch] = useState("");
     const [category, setCategory] = useState("All");
     const [openId, setOpenId] = useState(null);
@@ -90,7 +89,8 @@ function HelpCenter({ publicMode = false }) {
     const [ticketPriority, setTicketPriority] = useState("normal");
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [ticketReply, setTicketReply] = useState("");
-    const [adminStatus, setAdminStatus] = useState("all");
+    const [publishedSearch, setPublishedSearch] = useState("");
+    const [publishedCategory, setPublishedCategory] = useState("All");
     const [articleForm, setArticleForm] = useState(emptyForm);
     const [editingArticle, setEditingArticle] = useState(null);
     const [toast, setToast] = useState("");
@@ -114,11 +114,11 @@ function HelpCenter({ publicMode = false }) {
                 : [
                     getHelpArticles(),
                     getMyHelpTickets(),
-                    ...(isAdmin ? [getAdminHelpArticles(), getAdminHelpTickets(adminStatus)] : [])
+                    ...(isAdmin ? [getAdminHelpArticles()] : [])
                 ];
 
             const results = await Promise.allSettled(requests);
-            const [articlesResult, ticketsResult, adminArticlesResult, adminTicketsResult] = results;
+            const [articlesResult, ticketsResult, adminArticlesResult] = results;
 
             if (articlesResult?.status === "fulfilled") {
                 setArticles(articlesResult.value?.data?.articles || []);
@@ -135,9 +135,6 @@ function HelpCenter({ publicMode = false }) {
             if (!publicMode && isAdmin) {
                 if (adminArticlesResult?.status === "fulfilled") {
                     setAdminArticles(adminArticlesResult.value?.data?.articles || []);
-                }
-                if (adminTicketsResult?.status === "fulfilled") {
-                    setAdminTickets(adminTicketsResult.value?.data?.tickets || []);
                 }
             }
 
@@ -156,7 +153,7 @@ function HelpCenter({ publicMode = false }) {
         }
     };
 
-    useEffect(() => { load(); }, [adminStatus]);
+    useEffect(() => { load(); }, []);
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [botMessages]);
     useEffect(() => {
         if (publicMode || tab !== "history") return;
@@ -198,6 +195,11 @@ function HelpCenter({ publicMode = false }) {
         const hay = `${a.title} ${a.question} ${a.answer} ${a.keywords || ""}`.toLowerCase();
         return (category === "All" || a.category === category) && (!search.trim() || hay.includes(search.toLowerCase().trim()));
     }), [articles, category, search]);
+    const adminCategories = useMemo(() => ["All", ...new Set(adminArticles.map(a => a.category).filter(Boolean))], [adminArticles]);
+    const publishedArticles = useMemo(() => adminArticles.filter(a => {
+        const hay = `${a.title} ${a.question} ${a.answer} ${a.keywords || ""} ${a.category || ""}`.toLowerCase();
+        return (publishedCategory === "All" || a.category === publishedCategory) && (!publishedSearch.trim() || hay.includes(publishedSearch.toLowerCase().trim()));
+    }), [adminArticles, publishedCategory, publishedSearch]);
 
     const toggleVoiceInput = () => {
         if (!voiceSupported) { setToast("Voice input is not supported by this browser. Chrome or Edge works best."); return; }
@@ -285,14 +287,16 @@ function HelpCenter({ publicMode = false }) {
         } catch (e) { setToast(e?.response?.data?.message || "Could not save help answer."); }
     };
     const removeArticle = async (id) => { if (!window.confirm("Delete this Help Center answer?")) return; try { await deleteAdminHelpArticle(id); await load(); setToast("Help answer deleted."); } catch { setToast("Could not delete answer."); } };
-    const startEdit = (a) => { setEditingArticle(a); setArticleForm({ title:a.title, question:a.question, answer:a.answer, category:a.category, keywords:a.keywords || "", audience:a.audience, status:a.status, sort_order:a.sort_order }); window.scrollTo({top:0, behavior:"smooth"}); };
-    const updateTicket = async (ticket, patch) => { try { await updateAdminHelpTicket(ticket.id, { status: patch.status || ticket.status, priority: patch.priority || ticket.priority, assigned_to: ticket.assigned_to }); await load(); if (selectedTicket?.id === ticket.id) await openTicket(ticket.id); } catch { setToast("Could not update support request."); } };
+    const startEdit = (a) => { setEditingArticle(a); setArticleForm({ title:a.title, question:a.question, answer:a.answer, category:a.category, keywords:a.keywords || "", audience:a.audience, status:a.status, sort_order:a.sort_order }); document.querySelector(".hc-admin-form-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
     const renderAdmin = () => (
         <section className="hc-admin">
-            <div className="hc-section-head"><div><span className="hc-eyebrow">ADMIN CONTROL ROOM</span><h2>Knowledge & Support</h2><p>Teach Zarvis once, then let it answer natural-language questions from the approved knowledge.</p></div><div className="hc-live"><span />24×7 HELP CENTER</div></div>
+            <div className="hc-section-head">
+                <div><span className="hc-eyebrow">ADMIN CONTROL ROOM</span><h2>Knowledge & Support</h2><p>Teach Zarvis once, then manage every approved answer from one premium workspace.</p></div>
+                <div className="hc-live"><span />24×7 HELP CENTER</div>
+            </div>
             <div className="hc-admin-grid">
-                <div className="hc-panel">
+                <div className="hc-panel hc-admin-form-panel">
                     <div className="hc-panel-title"><span>{editingArticle ? "Edit verified answer" : "Add verified answer"}</span>{editingArticle && <button className="hc-icon-btn" onClick={() => {setEditingArticle(null);setArticleForm(emptyForm)}}><FaTimes /></button>}</div>
                     <div className="hc-form-grid">
                         <label>Title<input value={articleForm.title} onChange={e=>setArticleForm({...articleForm,title:e.target.value})} placeholder="e.g. How do I reset my password?" /></label>
@@ -305,13 +309,24 @@ function HelpCenter({ publicMode = false }) {
                     </div>
                     <button className="hc-primary" onClick={saveArticle}><FaPlus /> {editingArticle ? "Update Answer" : "Publish Answer"}</button>
                 </div>
-                <div className="hc-panel">
+                <div className="hc-panel hc-knowledge-summary">
                     <div className="hc-panel-title"><span>Knowledge base</span><span className="hc-count">{adminArticles.length} answers</span></div>
-                    <div className="hc-admin-list">{adminArticles.map(a=><div className="hc-admin-row" key={a.id}><div><strong>{a.title}</strong><small>{a.category} · {a.audience} · {a.status}</small></div><div className="hc-row-actions"><button onClick={()=>startEdit(a)} title="Edit"><FaEdit/></button><button onClick={()=>removeArticle(a.id)} title="Delete"><FaTrash/></button></div></div>)}</div>
+                    <div className="hc-knowledge-empty"><div className="hc-knowledge-art"><FaBookOpen /></div><h3>{adminArticles.length ? "Manage your published knowledge" : "No knowledge articles yet"}</h3><p>{adminArticles.length ? "All verified questions and answers that Zarvis uses are managed below." : "Publish a verified answer to give Zarvis accurate, consistent support."}</p></div>
                 </div>
             </div>
-            <div className="hc-panel hc-ticket-panel"><div className="hc-panel-title"><span>Manual Zarvis support queue</span><select value={adminStatus} onChange={e=>setAdminStatus(e.target.value)}><option value="all">All statuses</option><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div>
-                <div className="hc-ticket-admin-grid"><div className="hc-ticket-list">{adminTickets.map(t=><button key={t.id} className={`hc-ticket-item ${selectedTicket?.id===t.id?'selected':''}`} onClick={()=>openTicket(t.id)}><span>#{t.id}</span><div><strong>{t.subject}</strong><small>{t.user_name} · {t.status.replace("_"," ")}</small></div><b className={`priority ${t.priority}`}>{t.priority}</b></button>)}</div><AdminTicketView ticket={selectedTicket} onReply={async (msg)=>{try{const r=await replyHelpTicket(selectedTicket.id,msg);setSelectedTicket(r.data.ticket);await load()}catch{setToast("Reply failed.")}}} onStatus={(s)=>selectedTicket && updateTicket(selectedTicket,{status:s})}/></div>
+            <div className="hc-panel hc-published-panel">
+                <div className="hc-published-head">
+                    <div><span className="hc-published-kicker"><FaBookOpen /> PUBLISHED KNOWLEDGE</span><h3>Manage published answers</h3><p>Edit or delete any approved question directly from this report.</p></div>
+                    <div className="hc-published-count">{publishedArticles.length} shown</div>
+                </div>
+                <div className="hc-published-tools">
+                    <div className="hc-published-search"><FaSearch /><input value={publishedSearch} onChange={e=>setPublishedSearch(e.target.value)} placeholder="Search questions, keywords, or category…" /></div>
+                    <select value={publishedCategory} onChange={e=>setPublishedCategory(e.target.value)}>{adminCategories.map(c=><option key={c} value={c}>{c === "All" ? "All Categories" : c}</option>)}</select>
+                </div>
+                <div className="hc-published-table-wrap">
+                    <table className="hc-published-table"><thead><tr><th>#</th><th>Title</th><th>Question</th><th>Category</th><th>Audience</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody>{publishedArticles.length ? publishedArticles.map((a,index)=><tr key={a.id}><td>{index+1}</td><td><strong>{a.title}</strong></td><td>{a.question}</td><td>{a.category || "General"}</td><td>{a.audience === "both" ? "Employees + Customers" : a.audience === "employee" ? "Employees" : "Customers"}</td><td><span className={`hc-status-pill ${String(a.status || "").toLowerCase()}`}>{a.status}</span></td><td><div className="hc-published-actions"><button className="edit" onClick={()=>startEdit(a)}><FaEdit /> Edit</button><button className="delete" onClick={()=>removeArticle(a.id)}><FaTrash /> Delete</button></div></td></tr>) : <tr><td colSpan="7"><div className="hc-published-empty"><FaSearch/><strong>No published answers found</strong><span>Publish a new answer or change the search/filter.</span></div></td></tr>}</tbody></table>
+                </div>
             </div>
         </section>
     );
