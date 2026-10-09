@@ -2,6 +2,16 @@ const db = require("../config/db");
 
 const NewStoreOpening = {};
 
+// Optional numeric form fields arrive as empty strings when the user leaves
+// them blank. MySQL DECIMAL/INT columns reject "" in strict mode, so bind NULL
+// for blanks while preserving supplied values. Do not apply this to free-text
+// fields such as electricity_kva, which may contain values like "10KVA".
+const emptyNumericToNull = (value) => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === "string" && value.trim() === "") return null;
+    return value;
+};
+
 // ======================================================
 // GET ALL NEW STORE OPENINGS
 // SEARCH + PAGINATION
@@ -731,14 +741,14 @@ db.query(
     [
         data.location,
         data.city,
-        data.sb_area,
-        data.carpet_area,
-        data.cam,
-        data.mg,
+        emptyNumericToNull(data.sb_area),
+        emptyNumericToNull(data.carpet_area),
+        emptyNumericToNull(data.cam),
+        emptyNumericToNull(data.mg),
         data.electricity_kva,
-        data.revenue_share,
-        data.escalation,
-        data.expected_sale,
+        emptyNumericToNull(data.revenue_share),
+        emptyNumericToNull(data.escalation),
+        emptyNumericToNull(data.expected_sale),
 
         data.possession_date_loi,
         data.possession_date_broker,
@@ -748,7 +758,7 @@ db.query(
         data.operation_head_email,
         data.asm_assigned,
         data.asm_email,
-        data.deal_days,
+        emptyNumericToNull(data.deal_days),
         data.actual_possession_date,
         data.remarks,
         data.attachment ?? null,
@@ -945,14 +955,14 @@ NewStoreOpening.update = (
     [
         data.location,
         data.city,
-        data.sb_area,
-        data.carpet_area,
-        data.cam,
-        data.mg,
+        emptyNumericToNull(data.sb_area),
+        emptyNumericToNull(data.carpet_area),
+        emptyNumericToNull(data.cam),
+        emptyNumericToNull(data.mg),
         data.electricity_kva,
-        data.revenue_share,
-        data.escalation,
-        data.expected_sale,
+        emptyNumericToNull(data.revenue_share),
+        emptyNumericToNull(data.escalation),
+        emptyNumericToNull(data.expected_sale),
 
         data.possession_date_loi,
         data.possession_date_broker,
@@ -962,13 +972,13 @@ NewStoreOpening.update = (
         data.operation_head_email,
         data.asm_assigned,
         data.asm_email,
-        data.deal_days,
+        emptyNumericToNull(data.deal_days),
         data.actual_possession_date,
         data.remarks,
         data.attachment,
-        data.delay_loi_vs_broker,
+        emptyNumericToNull(data.delay_loi_vs_broker),
 
-        data.possession_delay,
+        emptyNumericToNull(data.possession_delay),
         data.received_by_nso,
         data.layout_by_nso,
         data.revised_layout_by_nso,
