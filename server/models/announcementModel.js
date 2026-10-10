@@ -365,6 +365,27 @@ const addRecipients = (announcementId, users, callback) => {
     `, [values], callback);
 };
 
+// Current recipient user ids - used to add/remove only the difference
+// when an announcement's audience is edited.
+const getRecipientUserIds = (announcementId, callback) => {
+    db.query(
+        `SELECT user_id FROM announcement_recipients WHERE announcement_id=?`,
+        [announcementId],
+        callback
+    );
+};
+
+const removeRecipientsByUserIds = (announcementId, userIds, callback) => {
+    const ids = (userIds || []).map(Number).filter(Number.isInteger);
+    if (!ids.length) return callback(null);
+    db.query(
+        `DELETE FROM announcement_recipients
+         WHERE announcement_id=? AND user_id IN (${ids.map(() => "?").join(",")})`,
+        [announcementId, ...ids],
+        callback
+    );
+};
+
 const markRead = (announcementId, userId, callback) => {
     db.query(`
         UPDATE announcement_recipients
@@ -427,7 +448,9 @@ const updateEmailStatus = (recipientId, status, reason, callback) => {
     };
     if (!map[status]) return callback(new Error("Invalid email status"));
     const params = status === "failed" ? [reason || "Email failed", recipientId] : [recipientId];
-    db.query(`UPDATE announcement_recipients SET ${map[status]} WHERE id=?`, params, callback);
+    // "delivered" is only valid for an email that was already sent.
+    const guard = status === "delivered" ? " AND email_status IN ('sent','delivered')" : "";
+    db.query(`UPDATE announcement_recipients SET ${map[status]} WHERE id=?${guard}`, params, callback);
 };
 
 const getUsers = (search, callback) => {
@@ -515,7 +538,7 @@ const deleteAllAnnouncements = (ids, callback) => {
 
 module.exports = {
     createTables, getAll, getById, getUsersForAudience, create, update,
-    addRecipients, deleteRecipients, markRead, userCanViewAttachment, getAttachment,
+    addRecipients, deleteRecipients, getRecipientUserIds, removeRecipientsByUserIds, markRead, userCanViewAttachment, getAttachment,
     getRecipientsForEmail,
     updateEmailStatus, getUsers, getRecipientUsers, getCounts, unpinOthers, deleteAnnouncement,
     getAllForExport, getAttachmentPaths, deleteAllAnnouncements

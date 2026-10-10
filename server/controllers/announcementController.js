@@ -140,6 +140,80 @@ const verifyAnnouncementAttachmentToken = (token, announcementId) => {
     return claims;
 };
 
+// ======================================================
+// BACKGROUND EMAIL DELIVERY
+//
+// Emails are sent AFTER the HTTP response has been returned so a
+// large audience can no longer cause request time-outs. Every
+// recipient's result is still recorded in announcement_recipients.
+// onlyUserIds (optional) limits sending to newly added recipients.
+// ======================================================
+
+const setEmailStatus = (recipientId, status, reason = null) =>
+    new Promise((resolve, reject) => {
+        Announcement.updateEmailStatus(
+            recipientId,
+            status,
+            reason,
+            (err) => (err ? reject(err) : resolve())
+        );
+    });
+
+const sendEmailsInBackground = (announcementId, onlyUserIds = null) => {
+    setImmediate(() => {
+        Announcement.getRecipientsForEmail(
+            announcementId,
+            async (lookupErr, recipients) => {
+                if (lookupErr) {
+                    console.error(
+                        "Announcement email lookup:",
+                        lookupErr
+                    );
+                    return;
+                }
+
+                const allowed = Array.isArray(onlyUserIds)
+                    ? new Set(onlyUserIds.map(Number))
+                    : null;
+
+                const targets = allowed
+                    ? recipients.filter((r) => allowed.has(Number(r.user_id)))
+                    : recipients;
+
+                if (!targets.length) return;
+
+                const emailAttachment =
+                    await getAnnouncementEmailAttachment(announcementId);
+
+                for (const recipient of targets) {
+                    try {
+                        await sendAnnouncementEmail(recipient, emailAttachment);
+                        await setEmailStatus(recipient.recipient_id, "sent");
+                    } catch (mailErr) {
+                        try {
+                            await setEmailStatus(
+                                recipient.recipient_id,
+                                "failed",
+                                mailErr.message
+                            );
+                        } catch (statusErr) {
+                            console.error(
+                                "Announcement email status:",
+                                statusErr
+                            );
+                        }
+                    }
+                }
+            }
+        );
+    });
+};
+
+const toPositiveInt = (value) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0 ? n : null;
+};
+
 const getAnnouncementAttachmentToken = (req, res) => {
     const id = Number(req.params.id);
 
@@ -420,9 +494,11 @@ const createAnnouncement = (req, res) => {
                 Announcement.addRecipients(announcementId, users, (recipientErr) => {
                     if (recipientErr) {
                         console.error(recipientErr);
+                        // Roll back so no recipient-less announcement is left behind.
+                        Announcement.deleteAnnouncement(announcementId, () => {});
                         return res.status(500).json({
                             success: false,
-                            message: "Announcement created but recipients could not be created"
+                            message: "Unable to create announcement recipients"
                         });
                     }
 
@@ -458,55 +534,16 @@ const createAnnouncement = (req, res) => {
                             );
                         }
 
-                        Announcement.getRecipientsForEmail(
+                        // Respond immediately; emails continue in the background.
+                        sendEmailsInBackground(announcementId);
+
+                        return res.status(201).json({
+                            success: true,
+                            message: "Announcement published successfully. Emails are being sent in the background.",
                             announcementId,
-                            async (lookupErr, recipients) => {
-                        if (lookupErr) {
-                            return res.status(201).json({
-                                success: true,
-                                message: "Announcement published; email processing could not start",
-                                announcementId,
-                                recipients: users.length
-                            });
-                        }
-
-                        let emailSent = 0;
-                        let emailFailed = 0;
-                        const emailAttachment = await getAnnouncementEmailAttachment(announcementId);
-
-                        for (const recipient of recipients) {
-                            try {
-                                await sendAnnouncementEmail(recipient, emailAttachment);
-                                await new Promise((resolve, reject) => {
-                                    Announcement.updateEmailStatus(
-                                        recipient.recipient_id,
-                                        "sent",
-                                        null,
-                                        err => err ? reject(err) : resolve()
-                                    );
-                                });
-                                emailSent++;
-                            } catch (mailErr) {
-                                emailFailed++;
-                                Announcement.updateEmailStatus(
-                                    recipient.recipient_id,
-                                    "failed",
-                                    mailErr.message,
-                                    () => {}
-                                );
-                            }
-                        }
-
-                                res.status(201).json({
-                                    success: true,
-                                    message: "Announcement published successfully",
-                                    announcementId,
-                                    recipients: users.length,
-                                    emailSent,
-                                    emailFailed
-                                });
-                            }
-                        );
+                            recipients: users.length,
+                            emailsQueued: users.length
+                        });
                     })();
                 });
             });
@@ -571,26 +608,34 @@ const updateAnnouncement = (req, res) => {
         return res.status(400).json({ success: false, message: "Select at least one user" });
     }
 
+    const cleanupUpload = () => {
+        if (req.file?.path) fs.unlink(req.file.path, () => {});
+    };
+
     Announcement.getById(id, (findErr, existing) => {
         if (findErr) {
-            if (req.file?.path) fs.unlink(req.file.path, () => {});
+            cleanupUpload();
             console.error("Announcement getById:", findErr);
             return res.status(500).json({ success: false, message: "Unable to load announcement" });
         }
 
         if (!existing) {
-            if (req.file?.path) fs.unlink(req.file.path, () => {});
+            cleanupUpload();
             return res.status(404).json({ success: false, message: "Announcement not found" });
         }
 
         const audienceChanged = String(existing.audience) !== audience;
+        // "specific" can change its selected users without changing the
+        // audience type, so it must always be re-synced.
+        const recipientsNeedSync = audienceChanged || audience === "specific";
         const oldAttachment = existing.attachment_path;
         const newAttachmentPath = req.file?.filename ||
             (removeAttachment ? null : existing.attachment_path);
         const newAttachmentName = req.file?.originalname ||
             (removeAttachment ? null : existing.attachment_original_name);
 
-        const saveUpdate = () => {
+        // plan = { toAdd: [users], toRemoveIds: [userIds] } or null
+        const saveUpdate = (plan) => {
             Announcement.update(id, {
                 title,
                 content,
@@ -607,12 +652,12 @@ const updateAnnouncement = (req, res) => {
                     : (removeAttachment ? null : undefined)
             }, (updateErr) => {
                 if (updateErr) {
-                    if (req.file?.path) fs.unlink(req.file.path, () => {});
+                    cleanupUpload();
                     console.error("Announcement update:", updateErr);
                     return res.status(500).json({ success: false, message: "Unable to update announcement" });
                 }
 
-                const cleanupOldAttachment = () => {
+                const finish = () => {
                     if (
                         oldAttachment &&
                         (req.file || removeAttachment) &&
@@ -623,10 +668,6 @@ const updateAnnouncement = (req, res) => {
                             () => {}
                         );
                     }
-                };
-
-                const finish = () => {
-                    cleanupOldAttachment();
                     return res.json({
                         success: true,
                         message: isPinned
@@ -635,97 +676,121 @@ const updateAnnouncement = (req, res) => {
                     });
                 };
 
-                if (!audienceChanged) {
+                if (!plan || (!plan.toAdd.length && !plan.toRemoveIds.length)) {
                     return finish();
                 }
 
-                Announcement.getUsersForAudience(audience, specificIds, (usersErr, users) => {
-                    if (usersErr) {
+                const removeStep = (next) =>
+                    plan.toRemoveIds.length
+                        ? Announcement.removeRecipientsByUserIds(id, plan.toRemoveIds, next)
+                        : next(null);
+
+                const addStep = (next) =>
+                    plan.toAdd.length
+                        ? Announcement.addRecipients(id, plan.toAdd, next)
+                        : next(null);
+
+                removeStep((removeErr) => {
+                    if (removeErr) {
+                        console.error("Announcement remove recipients:", removeErr);
                         return res.status(500).json({
                             success: false,
-                            message: "Announcement updated but recipients could not be loaded"
+                            message: "Announcement updated but removed recipients could not be saved"
                         });
                     }
 
-                    if (!users.length) {
-                        return res.status(400).json({
-                            success: false,
-                            message: "Announcement updated but no active recipients were found"
-                        });
-                    }
-
-                    Announcement.deleteRecipients(id, deleteErr => {
-                        if (deleteErr) {
+                    addStep((addErr) => {
+                        if (addErr) {
+                            console.error("Announcement add recipients:", addErr);
                             return res.status(500).json({
                                 success: false,
-                                message: "Announcement updated but old recipients could not be replaced"
+                                message: "Announcement updated but new recipients could not be saved"
                             });
                         }
 
-                        Announcement.addRecipients(id, users, addErr => {
-                            if (addErr) {
-                                return res.status(500).json({
-                                    success: false,
-                                    message: "Announcement updated but new recipients could not be created"
-                                });
-                            }
+                        // Only people who were NOT already recipients are emailed.
+                        // Existing recipients keep their read / email status.
+                        if (plan.toAdd.length) {
+                            sendEmailsInBackground(
+                                id,
+                                plan.toAdd.map((u) => u.id)
+                            );
+                        }
 
-                            // Email the newly selected audience. Errors are recorded per recipient
-                            // and do not make the announcement update fail.
-                            Announcement.getRecipientsForEmail(id, async (emailLookupErr, recipients) => {
-                                if (!emailLookupErr) {
-                                    const emailAttachment = await getAnnouncementEmailAttachment(id);
-                                    for (const recipient of recipients) {
-                                        try {
-                                            await sendAnnouncementEmail(recipient, emailAttachment);
-                                            Announcement.updateEmailStatus(
-                                                recipient.recipient_id,
-                                                "sent",
-                                                null,
-                                                () => {}
-                                            );
-                                        } catch (mailErr) {
-                                            Announcement.updateEmailStatus(
-                                                recipient.recipient_id,
-                                                "failed",
-                                                mailErr.message,
-                                                () => {}
-                                            );
-                                        }
-                                    }
-                                }
-                                finish();
-                            });
-                        });
+                        finish();
                     });
                 });
             });
         };
 
-        if (isPinned) {
-            Announcement.unpinOthers(unpinErr => {
+        const runUpdate = (plan) => {
+            if (!isPinned) return saveUpdate(plan);
+
+            Announcement.unpinOthers((unpinErr) => {
                 if (unpinErr) {
-                    if (req.file?.path) fs.unlink(req.file.path, () => {});
+                    cleanupUpload();
                     console.error("Unpin before update:", unpinErr);
                     return res.status(500).json({ success: false, message: "Unable to update pinned announcement" });
                 }
-                saveUpdate();
+                saveUpdate(plan);
             });
-        } else {
-            saveUpdate();
-        }
+        };
+
+        // Recipients are resolved and validated BEFORE anything is saved,
+        // so a bad audience can no longer leave a half-updated announcement.
+        if (!recipientsNeedSync) return runUpdate(null);
+
+        Announcement.getUsersForAudience(audience, specificIds, (usersErr, users) => {
+            if (usersErr) {
+                cleanupUpload();
+                console.error("Announcement audience:", usersErr);
+                return res.status(500).json({ success: false, message: "Unable to determine recipients" });
+            }
+
+            if (!users.length) {
+                cleanupUpload();
+                return res.status(400).json({ success: false, message: "No active recipients found" });
+            }
+
+            Announcement.getRecipientUserIds(id, (idsErr, rows) => {
+                if (idsErr) {
+                    cleanupUpload();
+                    console.error("Announcement current recipients:", idsErr);
+                    return res.status(500).json({ success: false, message: "Unable to load current recipients" });
+                }
+
+                const current = new Set(rows.map((r) => Number(r.user_id)));
+                const target = new Set(users.map((u) => Number(u.id)));
+
+                runUpdate({
+                    toAdd: users.filter((u) => !current.has(Number(u.id))),
+                    toRemoveIds: [...current].filter((uid) => !target.has(uid))
+                });
+            });
+        });
     });
 };
 
 const markRead = (req, res) => {
-    Announcement.markRead(req.params.id, req.user.id, err => {
+    const id = toPositiveInt(req.params.id);
+    if (!id) {
+        return res.status(400).json({ success: false, message: "Invalid announcement id" });
+    }
+
+    // Scoped to the logged-in user's own recipient row inside the model.
+    Announcement.markRead(id, req.user.id, err => {
         if (err) return res.status(500).json({ success: false, message: "Unable to mark as read" });
         res.json({ success: true });
     });
 };
 
 const getRecipientUsers = (req, res) => {
-    Announcement.getRecipientUsers(req.params.id, (err, users) => {
+    const id = toPositiveInt(req.params.id);
+    if (!id) {
+        return res.status(400).json({ success: false, message: "Invalid announcement id" });
+    }
+
+    Announcement.getRecipientUsers(id, (err, users) => {
         if (err) {
             console.error("Announcement recipients:", err);
             return res.status(500).json({ success: false, message: "Unable to load announcement recipients" });
@@ -735,15 +800,34 @@ const getRecipientUsers = (req, res) => {
 };
 
 const getCounts = (req, res) => {
-    Announcement.getCounts(req.params.id, (err, rows) => {
+    const id = toPositiveInt(req.params.id);
+    if (!id) {
+        return res.status(400).json({ success: false, message: "Invalid announcement id" });
+    }
+
+    Announcement.getCounts(id, (err, rows) => {
         if (err) return res.status(500).json({ success: false, message: "Unable to load counts" });
         res.json({ success: true, counts: rows[0] || {} });
     });
 };
 
 const markEmailDelivered = (req, res) => {
-    Announcement.updateEmailStatus(req.params.recipientId, "delivered", null, err => {
+    const recipientId = toPositiveInt(req.params.recipientId);
+    if (!recipientId) {
+        return res.status(400).json({ success: false, message: "Invalid recipient id" });
+    }
+
+    Announcement.updateEmailStatus(recipientId, "delivered", null, (err, result) => {
         if (err) return res.status(500).json({ success: false, message: "Unable to update email status" });
+
+        // Only an email that was actually sent can become "delivered".
+        if (!result || result.affectedRows === 0) {
+            return res.status(409).json({
+                success: false,
+                message: "Recipient not found or email has not been sent"
+            });
+        }
+
         res.json({ success: true });
     });
 };

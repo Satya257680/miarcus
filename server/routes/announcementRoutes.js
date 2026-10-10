@@ -228,6 +228,10 @@ router.put(
 
 // ======================================================
 // GET COUNTS
+//
+// Delivery / read statistics are management data, so this needs
+// Edit access (it was View, which exposed counts of announcements
+// the caller was never sent).
 // ======================================================
 
 router.get(
@@ -235,7 +239,7 @@ router.get(
     authMiddleware,
     permissionMiddleware(
         "Announcements",
-        "View"
+        "Edit"
     ),
     getCounts
 );
