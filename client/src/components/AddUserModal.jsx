@@ -111,10 +111,10 @@ function AddUserModal({
   const [showPassword, setShowPassword] = useState(false);
 
   // Matches the server-side rule in config/security.js:
-  // 8-10 characters, at least one uppercase, one lowercase,
+  // 8-64 characters, at least one uppercase, one lowercase,
   // one number and one special character.
   const PASSWORD_RULE =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,10}$/;
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,64}$/;
 
   const generatePassword = () => {
     const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -790,7 +790,7 @@ function AddUserModal({
 
         if (!PASSWORD_RULE.test(password)) {
           alert(
-            "Password must be 8-10 characters and include an uppercase letter, a lowercase letter, a number and a special character."
+            "Password must be 8-64 characters and include an uppercase letter, a lowercase letter, a number and a special character."
           );
           return false;
         }
@@ -1253,9 +1253,9 @@ function AddUserModal({
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="8-10 characters"
+                placeholder="8-64 characters"
                 autoComplete="new-password"
-                maxLength={10}
+                maxLength={64}
               />
 
               <button
@@ -1290,7 +1290,7 @@ function AddUserModal({
                 }
                 placeholder="Re-enter password"
                 autoComplete="new-password"
-                maxLength={10}
+                maxLength={64}
               />
             </div>
           </div>
@@ -1308,7 +1308,7 @@ function AddUserModal({
             </button>
 
             <p className="user-password-hint">
-              Must be 8-10 characters with at least one uppercase
+              Must be 8-64 characters with at least one uppercase
               letter, one lowercase letter, one number and one
               special character.
             </p>

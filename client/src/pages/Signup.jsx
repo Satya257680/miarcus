@@ -602,15 +602,15 @@ function Signup() {
 
             // ----------------------------------------------
             // PASSWORD
-            // 8–10 characters
+            // 8–64 characters
             // At least: uppercase + lowercase + number + special character
             // ----------------------------------------------
             const passwordPattern =
-                /^(?=.{8,10}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
+                /^(?=.{8,64}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
 
             if (!passwordPattern.test(password)) {
                 alert(
-                    "Password must contain 8–10 characters, one uppercase letter, one lowercase letter, one number, and one special character."
+                    "Password must contain 8–64 characters, one uppercase letter, one lowercase letter, one number, and one special character."
                 );
                 return false;
             }

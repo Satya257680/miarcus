@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import {
     BrowserRouter,
     Routes,
@@ -11,138 +12,159 @@ import {
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import ModulePermissionRoute from "./components/layout/ModulePermissionRoute";
-import PettyCashEmailSettings from "./pages/PettyCash/PettyCashEmailSettings";
+const PettyCashEmailSettings = lazy(() => import("./pages/PettyCash/PettyCashEmailSettings"));
 
 // ======================================================
 // PUBLIC PAGES
 // ======================================================
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import VerifyOTP from "./pages/VerifyOTP";
-import ResetPassword from "./pages/ResetPassword";
-import ActivateAccount from "./pages/ActivateAccount";
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const VerifyOTP = lazy(() => import("./pages/VerifyOTP"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const ActivateAccount = lazy(() => import("./pages/ActivateAccount"));
 
 // NEW: PUBLIC LEGAL PAGES
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Terms from "./pages/Terms";
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 // ======================================================
 // DASHBOARD
 // ======================================================
-import Dashboard from "./pages/Dashboard/Dashboard/Dashboard";
-import DashboardAnalytics from "./pages/Dashboard/Dashboard/DashboardAnalytics";
+const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard/Dashboard"));
+const DashboardAnalytics = lazy(() => import("./pages/Dashboard/Dashboard/DashboardAnalytics"));
 
 // ======================================================
 // CHECKLIST
 // ======================================================
-import ChecklistSubmission from "./pages/ChecklistSubmission";
-import ChecklistReports from "./pages/ChecklistReports";
-import ChecklistTracker from "./pages/ChecklistTracker";
-import ActionPoints from "./pages/ActionPoints";
-import Announcements from "./pages/Announcements";
-import Gallery from "./pages/Gallery";
-import GalleryMobile from "./pages/GalleryMobile";
-import EmployeeLocation from "./pages/EmployeeLocation";
-import EmployeeLocationReports from "./pages/EmployeeLocationReports";
+const ChecklistSubmission = lazy(() => import("./pages/ChecklistSubmission"));
+const ChecklistReports = lazy(() => import("./pages/ChecklistReports"));
+const ChecklistTracker = lazy(() => import("./pages/ChecklistTracker"));
+const ActionPoints = lazy(() => import("./pages/ActionPoints"));
+const Announcements = lazy(() => import("./pages/Announcements"));
+const Gallery = lazy(() => import("./pages/Gallery"));
+const GalleryMobile = lazy(() => import("./pages/GalleryMobile"));
+const EmployeeLocation = lazy(() => import("./pages/EmployeeLocation"));
+const EmployeeLocationReports = lazy(() => import("./pages/EmployeeLocationReports"));
 
 // ======================================================
 // ADMIN / SETTINGS MODULES
 // ======================================================
-import Users from "./pages/Users";
-import PasswordManagement from "./pages/PasswordManagement";
-import StoreStatus from "./pages/StoreStatus";
-import Departments from "./pages/Departments";
-import Designations from "./pages/Designations";
-import StoreManagement from "./pages/StoreManagement";
-import ChecklistTypes from "./pages/ChecklistTypes";
-import Questions from "./pages/Questions";
-import ReportsTo from "./pages/ReportsTo";
+const Users = lazy(() => import("./pages/Users"));
+const PasswordManagement = lazy(() => import("./pages/PasswordManagement"));
+const StoreStatus = lazy(() => import("./pages/StoreStatus"));
+const Departments = lazy(() => import("./pages/Departments"));
+const Designations = lazy(() => import("./pages/Designations"));
+const StoreManagement = lazy(() => import("./pages/StoreManagement"));
+const ChecklistTypes = lazy(() => import("./pages/ChecklistTypes"));
+const Questions = lazy(() => import("./pages/Questions"));
+const ReportsTo = lazy(() => import("./pages/ReportsTo"));
 
 // ======================================================
 // NEW STORE OPENING
 // ======================================================
-import NSORules from "./pages/NSORules";
-import NewStoreOpenings from "./pages/NewStoreOpenings";
-import NSOTracking from "./pages/NSOTracking";
+const NSORules = lazy(() => import("./pages/NSORules"));
+const NewStoreOpenings = lazy(() => import("./pages/NewStoreOpenings"));
+const NSOTracking = lazy(() => import("./pages/NSOTracking"));
 
 // ======================================================
 // PROFILE & SETTINGS
 // ======================================================
-import Profile from "./pages/Profile";
-import Settings from "./pages/Settings/Settings";
-import Appearance from "./pages/Settings/Appearance";
-import NSOEmailSettings from "./pages/Settings/NSOEmailSettings";
-import DailyCollectionEmailSettings from "./pages/Settings/DailyCollectionEmailSettings";
-import BlockedStores from "./pages/DailyCollection/BlockedStores";
-import NSOTrackingDetails from "./pages/NSOTrackingDetails";
-import NSOTrackingEdit from "./pages/NSOTrackingEdit";
-import ChecklistEmailSettings from "./pages/Settings/ChecklistEmailSettings";
-import ActionPointEmailSettings from "./pages/Settings/ActionPointEmailSettings";
-import TravelPlanEmailSettings from "./pages/Settings/TravelPlanEmailSettings";
+const Profile = lazy(() => import("./pages/Profile"));
+const Settings = lazy(() => import("./pages/Settings/Settings"));
+const Appearance = lazy(() => import("./pages/Settings/Appearance"));
+const NSOEmailSettings = lazy(() => import("./pages/Settings/NSOEmailSettings"));
+const DailyCollectionEmailSettings = lazy(() => import("./pages/Settings/DailyCollectionEmailSettings"));
+const BlockedStores = lazy(() => import("./pages/DailyCollection/BlockedStores"));
+const NSOTrackingDetails = lazy(() => import("./pages/NSOTrackingDetails"));
+const NSOTrackingEdit = lazy(() => import("./pages/NSOTrackingEdit"));
+const ChecklistEmailSettings = lazy(() => import("./pages/Settings/ChecklistEmailSettings"));
+const ActionPointEmailSettings = lazy(() => import("./pages/Settings/ActionPointEmailSettings"));
+const TravelPlanEmailSettings = lazy(() => import("./pages/Settings/TravelPlanEmailSettings"));
 
 // ======================================================
 // ACTIVITY CENTER
 // ======================================================
-import ActivityCenter from "./pages/ActivityCenter/ActivityCenter";
-import ActivityDetails from "./pages/ActivityCenter/ActivityDetails";
+const ActivityCenter = lazy(() => import("./pages/ActivityCenter/ActivityCenter"));
+const ActivityDetails = lazy(() => import("./pages/ActivityCenter/ActivityDetails"));
 
 // ======================================================
 // QUIZ
 // ======================================================
-import QuizSetup from "./pages/Quiz/QuizSetup";
-import TakeQuiz from "./pages/Quiz/TakeQuiz";
-import TrainingReport from "./pages/Quiz/TrainingReport";
-import EmailSettings from "./pages/Quiz/EmailSettings";
-import PublicQuiz from "./pages/Quiz/PublicQuiz";
+const QuizSetup = lazy(() => import("./pages/Quiz/QuizSetup"));
+const TakeQuiz = lazy(() => import("./pages/Quiz/TakeQuiz"));
+const TrainingReport = lazy(() => import("./pages/Quiz/TrainingReport"));
+const EmailSettings = lazy(() => import("./pages/Quiz/EmailSettings"));
+const PublicQuiz = lazy(() => import("./pages/Quiz/PublicQuiz"));
 
 // ======================================================
 // EXPENSES
 // ======================================================
-import ExpenseEntry from "./pages/Expenses/ExpensesEntry";
-import TrackExpenses from "./pages/Expenses/TrackExpenses";
-import ApproveExpenses from "./pages/Expenses/ApproveExpenses";
-import PettyCash from "./pages/PettyCash/PettyCash";
-import PettyCashDetail from "./pages/PettyCash/PettyCashDetail";
-import PettyCashAdvanceForm from "./pages/PettyCash/PettyCashAdvanceForm";
-import { PettyCashExpenses, PettyCashDeposits, PettyCashAuditTrail } from "./pages/PettyCash/PettyCashRegisters";
+const ExpenseEntry = lazy(() => import("./pages/Expenses/ExpensesEntry"));
+const TrackExpenses = lazy(() => import("./pages/Expenses/TrackExpenses"));
+const ApproveExpenses = lazy(() => import("./pages/Expenses/ApproveExpenses"));
+const PettyCash = lazy(() => import("./pages/PettyCash/PettyCash"));
+const PettyCashDetail = lazy(() => import("./pages/PettyCash/PettyCashDetail"));
+const PettyCashAdvanceForm = lazy(() => import("./pages/PettyCash/PettyCashAdvanceForm"));
+const PettyCashRegisters = () => import("./pages/PettyCash/PettyCashRegisters");
+const PettyCashExpenses = lazy(() => PettyCashRegisters().then((m) => ({ default: m.PettyCashExpenses })));
+const PettyCashDeposits = lazy(() => PettyCashRegisters().then((m) => ({ default: m.PettyCashDeposits })));
+const PettyCashAuditTrail = lazy(() => PettyCashRegisters().then((m) => ({ default: m.PettyCashAuditTrail })));
 
 // ======================================================
 // BILLING
 // ======================================================
-import BillingEntry from "./pages/Billing/BillingEntry";
-import Bills from "./pages/Billing/Bills";
-import DailyBillingReport from "./pages/Billing/DailyBillingReport";
-import DailyCollection from "./pages/Billing/DailyCollection";
-import DailyCollectionReport from "./pages/DailyCollection/DailyCollectionReport";
-import CollectionReports from "./pages/DailyCollection/CollectionReports";
-import BillingAudit from "./pages/Billing/BillingAudit";
-import VisitPlanner from "./pages/SalesTeam/VisitPlanner";
-import TravelPlan from "./pages/SalesTeam/TravelPlan";
-import TravelPlanApprovals from "./pages/SalesTeam/TravelPlanApprovals";
-import SalesReview from "./pages/SalesTeam/SalesReview";
-import ListingTracker from "./pages/ListingTracker";
-import Attendance from "./pages/Attendance";
-import AttendanceReports from "./pages/AttendanceReports";
-import AssetManagement from "./pages/AssetManagement";
-import ERPDataUpload from "./pages/InventoryPlanning/ERPDataUpload";
-import InventoryPlanning from "./pages/InventoryPlanning/InventoryPlanning";
-import {
-    ProductList as CollectionTracking,
-    AddProduct as CollectionAddProduct,
-    Details as CollectionDetails,
-    MasterData as CollectionMasterData,
-    Insight as CollectionInsight,
-    Requests as CollectionRequests,
-    Permissions as CollectionPermissions
-} from "./pages/CollectionTracking/CollectionTracking";
-import Chat from "./pages/Chat/Chat";
-import HelpCenter from "./pages/HelpCenter/HelpCenter";
+const BillingEntry = lazy(() => import("./pages/Billing/BillingEntry"));
+const Bills = lazy(() => import("./pages/Billing/Bills"));
+const DailyBillingReport = lazy(() => import("./pages/Billing/DailyBillingReport"));
+const DailyCollection = lazy(() => import("./pages/Billing/DailyCollection"));
+const DailyCollectionReport = lazy(() => import("./pages/DailyCollection/DailyCollectionReport"));
+const CollectionReports = lazy(() => import("./pages/DailyCollection/CollectionReports"));
+const BillingAudit = lazy(() => import("./pages/Billing/BillingAudit"));
+const VisitPlanner = lazy(() => import("./pages/SalesTeam/VisitPlanner"));
+const TravelPlan = lazy(() => import("./pages/SalesTeam/TravelPlan"));
+const TravelPlanApprovals = lazy(() => import("./pages/SalesTeam/TravelPlanApprovals"));
+const SalesReview = lazy(() => import("./pages/SalesTeam/SalesReview"));
+const ListingTracker = lazy(() => import("./pages/ListingTracker"));
+const Attendance = lazy(() => import("./pages/Attendance"));
+const AttendanceReports = lazy(() => import("./pages/AttendanceReports"));
+const AssetManagement = lazy(() => import("./pages/AssetManagement"));
+const ERPDataUpload = lazy(() => import("./pages/InventoryPlanning/ERPDataUpload"));
+const InventoryPlanning = lazy(() => import("./pages/InventoryPlanning/InventoryPlanning"));
+const CollectionModule = () => import("./pages/CollectionTracking/CollectionTracking");
+const CollectionTracking = lazy(() => CollectionModule().then((m) => ({ default: m.ProductList })));
+const CollectionAddProduct = lazy(() => CollectionModule().then((m) => ({ default: m.AddProduct })));
+const CollectionDetails = lazy(() => CollectionModule().then((m) => ({ default: m.Details })));
+const CollectionMasterData = lazy(() => CollectionModule().then((m) => ({ default: m.MasterData })));
+const CollectionInsight = lazy(() => CollectionModule().then((m) => ({ default: m.Insight })));
+const CollectionRequests = lazy(() => CollectionModule().then((m) => ({ default: m.Requests })));
+const CollectionPermissions = lazy(() => CollectionModule().then((m) => ({ default: m.Permissions })));
+const Chat = lazy(() => import("./pages/Chat/Chat"));
+const HelpCenter = lazy(() => import("./pages/HelpCenter/HelpCenter"));
 
 
 function App() {
     return (
         <BrowserRouter>
+
+            <Suspense
+                fallback={
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        style={{
+                            minHeight: "100vh",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontFamily: "sans-serif",
+                            color: "#64748b"
+                        }}
+                    >
+                        Loading…
+                    </div>
+                }
+            >
 
             <Routes>
 
@@ -1160,6 +1182,8 @@ function App() {
                 />
 
             </Routes>
+
+            </Suspense>
 
         </BrowserRouter>
     );

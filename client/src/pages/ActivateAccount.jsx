@@ -80,10 +80,10 @@ function ActivateAccount() {
 
         }
 
-        const passwordPolicy = /^(?=.{8,10}$)(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
+        const passwordPolicy = /^(?=.{8,64}$)(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
 
         if (!passwordPolicy.test(password)) {
-            return alert("Password must be 8–10 characters and include uppercase, lowercase, number, and special character.");
+            return alert("Password must be 8–64 characters and include uppercase, lowercase, number, and special character.");
         }
 
         if (password !== confirmPassword) {
@@ -148,7 +148,7 @@ function ActivateAccount() {
 
         if (!password) return "";
 
-        const checks = [password.length >= 8 && password.length <= 10, /[A-Z]/.test(password), /[a-z]/.test(password), /\d/.test(password), /[^A-Za-z0-9]/.test(password)];
+        const checks = [password.length >= 8 && password.length <= 64, /[A-Z]/.test(password), /[a-z]/.test(password), /\d/.test(password), /[^A-Za-z0-9]/.test(password)];
         const score = checks.filter(Boolean).length;
         return score < 3 ? "Weak Password" : score < 5 ? "Almost Ready" : "Strong Password";
 
@@ -356,9 +356,9 @@ function ActivateAccount() {
 
                 <div className="password-requirements" aria-live="polite">
                     <strong>Password requirements</strong>
-                    <p>8–10 characters, with all of the following:</p>
+                    <p>8–64 characters, with all of the following:</p>
                     <ul>
-                        <li className={password.length >= 8 && password.length <= 10 ? "valid" : ""}>8–10 characters</li>
+                        <li className={password.length >= 8 && password.length <= 64 ? "valid" : ""}>8–64 characters</li>
                         <li className={/[A-Z]/.test(password) ? "valid" : ""}>Uppercase letter</li>
                         <li className={/[a-z]/.test(password) ? "valid" : ""}>Lowercase letter</li>
                         <li className={/\d/.test(password) ? "valid" : ""}>Number</li>

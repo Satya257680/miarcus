@@ -142,8 +142,14 @@ const dbConfig = {
                       ? { ca: caCertificate }
                       : {}),
 
+                  // Fail CLOSED: certificate verification stays ON even
+                  // when no CA file is present (system trust store is
+                  // used). Disable only explicitly via
+                  // DB_SSL_REJECT_UNAUTHORIZED=false (not recommended).
                   rejectUnauthorized:
-                      Boolean(caCertificate),
+                      String(
+                          process.env.DB_SSL_REJECT_UNAUTHORIZED || "true"
+                      ).toLowerCase() !== "false",
 
                   minVersion: "TLSv1.2",
 
@@ -193,7 +199,8 @@ console.log(
 
 console.log(
     "SSL Verify     :",
-    DB_SSL && caCertificate
+    DB_SSL &&
+    String(process.env.DB_SSL_REJECT_UNAUTHORIZED || "true").toLowerCase() !== "false"
         ? "ENABLED"
         : "DISABLED"
 );
@@ -268,9 +275,12 @@ function query(sql, params = [], callback) {
 
     if (typeof callback === "function") {
 
-        resultPromise
-            .then((rows) => callback(null, rows))
-            .catch((err) => callback(err));
+        // Two-argument form of .then so an exception thrown inside the
+        // callback can never invoke the callback a second time.
+        resultPromise.then(
+            (rows) => callback(null, rows),
+            (err) => callback(err)
+        );
 
         return undefined;
     }
@@ -296,9 +306,12 @@ function execute(sql, params = [], callback) {
 
     if (typeof callback === "function") {
 
-        resultPromise
-            .then((rows) => callback(null, rows))
-            .catch((err) => callback(err));
+        // Two-argument form of .then so an exception thrown inside the
+        // callback can never invoke the callback a second time.
+        resultPromise.then(
+            (rows) => callback(null, rows),
+            (err) => callback(err)
+        );
 
         return undefined;
     }

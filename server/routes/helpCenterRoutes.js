@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require("../middleware/authMiddleware");
 const Model = require("../models/helpCenterModel");
 const C = require("../controllers/helpCenterController");
+const { publicAiLimiter } = require("../middleware/apiRateLimit");
 
 const adminOnly = (req, res, next) => {
     if (Number(req.user?.is_admin) === 1 || req.user?.is_admin === true) return next();
@@ -14,7 +15,7 @@ router.use(C.ensure);
 
 // Public FAQ feed: only customer-facing published content is exposed.
 router.get("/public/articles", C.publicArticles);
-router.post("/public/zarvis/ask", C.publicAskZarvis);
+router.post("/public/zarvis/ask", publicAiLimiter, C.publicAskZarvis);
 
 router.use(auth);
 

@@ -422,14 +422,15 @@ function Announcements() {
             return;
         }
 
-        const safeTitle =
-            String(
-                item.title ||
-                    "Announcement"
-            )
+        const escapeHtml = (value) =>
+            String(value ?? "")
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+
+        const safeTitle = escapeHtml(item.title || "Announcement");
 
         const safeContent =
             String(item.content || "")
@@ -456,7 +457,7 @@ function Announcements() {
                             )
                                 ? `
                                     <img
-                                        src="${attachment}"
+                                        src="${escapeHtml(attachment)}"
                                         style="
                                             max-width:100%;
                                             max-height:700px;
@@ -480,7 +481,7 @@ function Announcements() {
                                             margin:auto;
                                         "
                                     >
-                                        <source src="${attachment}" />
+                                        <source src="${escapeHtml(attachment)}" />
                                         Your browser does not support this video format.
                                     </video>
                                 `
@@ -490,19 +491,13 @@ function Announcements() {
                                 ? `
                                     <p>
                                         Attachment:
-                                        ${
-                                            item.attachment_original_name ||
-                                            "PDF"
-                                        }
+                                        ${escapeHtml(item.attachment_original_name || "PDF")}
                                     </p>
                                 `
                                 : `
                                     <p>
                                         Attachment:
-                                        ${
-                                            item.attachment_original_name ||
-                                            "File"
-                                        }
+                                        ${escapeHtml(item.attachment_original_name || "File")}
                                     </p>
                                 `
                         }

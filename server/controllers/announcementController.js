@@ -11,6 +11,19 @@ const announcementEmail = require("../utils/emailTemplates/announcementEmail");
 const Notification = require("../services/notificationService");
 const { UPLOAD_DIR } = require("../config/storage");
 const { getAppUrl } = require("../config/appUrl");
+
+// SECURITY: uploaded file names are user-controlled and are rendered in
+// HTML elsewhere. Strip markup/control characters and path parts before
+// storing them.
+const sanitizeOriginalName = (name) => {
+    if (!name) return name;
+    return String(name)
+        .replace(/[\u0000-\u001f\u007f]/g, "")
+        .replace(/[<>"'`&\\/]/g, "_")
+        .trim()
+        .slice(0, 200);
+};
+
 const {
     JWT_SECRET,
     JWT_ALGORITHM,
@@ -476,7 +489,7 @@ const createAnnouncement = (req, res) => {
                 audience,
                 isPinned,
                 createdBy: req.user.id,
-                attachmentOriginalName: req.file?.originalname,
+                attachmentOriginalName: sanitizeOriginalName(req.file?.originalname),
                 attachmentPath: req.file?.filename,
                 attachmentData: req.file
                     ? fs.readFileSync(req.file.path)
@@ -631,7 +644,7 @@ const updateAnnouncement = (req, res) => {
         const oldAttachment = existing.attachment_path;
         const newAttachmentPath = req.file?.filename ||
             (removeAttachment ? null : existing.attachment_path);
-        const newAttachmentName = req.file?.originalname ||
+        const newAttachmentName = sanitizeOriginalName(req.file?.originalname) ||
             (removeAttachment ? null : existing.attachment_original_name);
 
         // plan = { toAdd: [users], toRemoveIds: [userIds] } or null

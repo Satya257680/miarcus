@@ -720,7 +720,17 @@ const resetPassword = async (req, res) => {
 
                         }
 
-                        await incrementTokenVersion(result[0].id);
+                        // SECURITY FIX: revoke sessions of the real user.
+                        // (result[0].id is the password_reset_otp row id,
+                        // NOT the users.id.)
+                        try {
+                            await db.query(
+                                "UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE email = ?",
+                                [email]
+                            );
+                        } catch (revokeErr) {
+                            console.error("Session revocation failed:", revokeErr.message);
+                        }
 
                         // ======================================
                         // Delete OTP

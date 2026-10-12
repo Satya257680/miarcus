@@ -9,7 +9,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const securityHeaders = require("./middleware/securityHeaders");
-const { requestId, originGuard, contentTypeGuard } = require("./middleware/requestSecurity");
+const { requestId, originGuard, contentTypeGuard, isAllowedBrowserOrigin } = require("./middleware/requestSecurity");
 const securityAudit = require("./middleware/securityAudit");
 const { apiLimiter, writeLimiter } = require("./middleware/apiRateLimit");
 const adminOnly = require("./middleware/adminOnly");
@@ -781,13 +781,6 @@ const allowedOrigins = [
     // Local Vite
     "http://localhost:5173",
 
-    // Local React
-    "http://localhost:3000",
-
-    // Production Vercel
-    "https://miarcus.vercel.app",
-    "https://rytual.miarcus.com",
-    "https://rytual-peach.vercel.app",
 
     // Public MIARCUS production domain
     "https://rytual2.miarcus.com",
@@ -871,32 +864,12 @@ app.use(
                     .replace(/\/+$/, "");
 
             // ------------------------------------------
-            // EXACT ORIGIN
+            // ALLOWED ORIGIN (shared with originGuard)
             // ------------------------------------------
 
             if (
-                uniqueAllowedOrigins.includes(
-                    normalizedOrigin
-                )
-            ) {
-
-                return callback(
-                    null,
-                    true
-                );
-
-            }
-
-            // ------------------------------------------
-            // VERCEL PREVIEW DEPLOYMENTS
-            // ------------------------------------------
-
-            if (
-
-                /^https:\/\/(?:miarcus|rytual)(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(
-                    normalizedOrigin
-                )
-
+                uniqueAllowedOrigins.includes(normalizedOrigin) ||
+                isAllowedBrowserOrigin(normalizedOrigin)
             ) {
 
                 return callback(
@@ -1177,15 +1150,23 @@ app.get(
 
     "/api/health",
 
-    (req, res) => {
+    async (req, res) => {
 
-        res.json({
+        let database = "up";
 
-            success: true,
+        try {
+            await db.query("SELECT 1");
+        } catch (error) {
+            database = "down";
+        }
+
+        res.status(database === "up" ? 200 : 503).json({
+
+            success: database === "up",
 
             server: "running",
 
-            database: "checking",
+            database,
 
             timestamp:
                 new Date().toISOString()
@@ -2307,6 +2288,31 @@ app.use(
                     message:
                         err.message
 
+                });
+
+        }
+
+        // ------------------------------------------
+        // DATABASE / INTERNAL ERRORS - never leak details
+        // ------------------------------------------
+
+        if (
+            err &&
+            (
+                err.sqlMessage ||
+                err.sqlState ||
+                (typeof err.code === "string" && /^(ER_|ECONN|ETIMEDOUT|PROTOCOL_)/.test(err.code))
+            )
+        ) {
+
+            console.error("Database error:", req.requestId || "", err.code, err.message);
+
+            return res
+                .status(500)
+                .json({
+                    success: false,
+                    message: "Internal server error.",
+                    requestId: req.requestId
                 });
 
         }

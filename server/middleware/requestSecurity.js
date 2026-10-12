@@ -2,11 +2,27 @@ const crypto = require("crypto");
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+// Single source of truth shared with the CORS config in server.js, so a
+// browser origin that passes CORS is never rejected by originGuard.
+const DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://rytual2.miarcus.com",
+];
+
 function getAllowedOrigins() {
-    return String(process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || "")
-        .split(",")
-        .map((value) => value.trim().replace(/\/+$/, ""))
-        .filter(Boolean);
+    const fromEnv = [
+        process.env.ALLOWED_ORIGINS,
+        process.env.FRONTEND_URL,
+    ]
+        .filter(Boolean)
+        .join(",")
+        .split(",");
+
+    return [...new Set(
+        [...DEFAULT_ALLOWED_ORIGINS, ...fromEnv]
+            .map((value) => String(value || "").trim().replace(/\/+$/, ""))
+            .filter(Boolean)
+    )];
 }
 
 function isAllowedBrowserOrigin(origin) {
@@ -15,8 +31,7 @@ function isAllowedBrowserOrigin(origin) {
     const exact = getAllowedOrigins();
     if (exact.includes(normalized)) return true;
 
-    // Only allow the explicitly supported Miarcus/Rytual Vercel preview pattern.
-    return /^https:\/\/(?:miarcus|rytual)(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(normalized);
+    return false;
 }
 
 const requestId = (req, res, next) => {
@@ -63,4 +78,5 @@ module.exports = {
     originGuard,
     contentTypeGuard,
     isAllowedBrowserOrigin,
+    getAllowedOrigins,
 };

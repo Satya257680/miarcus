@@ -282,10 +282,14 @@ axios.interceptors.request.use(
         // DEBUG INFORMATION
         // ==================================================
 
-        console.log(
-            "MIARCUS API REQUEST:",
-            `${config.baseURL}${config.url}`
-        );
+        // Request URLs can contain ?token= values, so they are only
+        // logged in development builds, with the query string removed.
+        if (import.meta.env.DEV) {
+            console.debug(
+                "MIARCUS API REQUEST:",
+                `${config.baseURL || ""}${String(config.url || "").split("?")[0]}`
+            );
+        }
 
 
         // ==================================================

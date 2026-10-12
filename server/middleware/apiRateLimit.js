@@ -93,4 +93,15 @@ const writeLimiter = rateLimit({
     ...standard,
 });
 
-module.exports = { apiLimiter, writeLimiter };
+// Strict limiter for the UNAUTHENTICATED endpoint that calls the paid
+// Gemini API (POST /api/help-center/public/zarvis/ask). Without this, any
+// anonymous client could burn the AI quota up to the global limit.
+const publicAiLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    limit: Number(process.env.PUBLIC_AI_RATE_LIMIT || 20),
+    keyGenerator: (req) =>
+        `ai-ip:${ipKeyGenerator(req.ip || req.socket?.remoteAddress || "unknown")}`,
+    ...standard,
+});
+
+module.exports = { apiLimiter, writeLimiter, publicAiLimiter };

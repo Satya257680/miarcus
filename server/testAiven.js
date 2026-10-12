@@ -28,7 +28,7 @@ async function testAiven() {
 
     const caPath = process.env.DB_SSL_CA_PATH
         ? path.resolve(process.env.DB_SSL_CA_PATH)
-        : path.resolve(__dirname, "../config/ca.pem");
+        : path.resolve(__dirname, "certs", "ca.pem");
 
     if (!fs.existsSync(caPath)) {
         console.error("\n❌ Aiven CA certificate was not found.");

@@ -27,13 +27,13 @@ import "../styles/PasswordManagement.css";
 // to Edit/Delete — is what was missing.
 //
 // Matches the server-side rule in server/config/security.js:
-// 8-10 characters, at least one uppercase, one lowercase, one
+// 8-64 characters, at least one uppercase, one lowercase, one
 // number and one special character. (Same rule + generator already
 // used when creating a new user — see AddUserModal.jsx.)
 // =================================================================
 
 const PASSWORD_RULE =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,10}$/;
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,64}$/;
 
 function generateStrongPassword() {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -89,7 +89,7 @@ function SetVaultUserPasswordModal({ user, onClose, onSaved }) {
 
     if (!PASSWORD_RULE.test(password)) {
       setError(
-        "Password must be 8-10 characters and include an uppercase letter, a lowercase letter, a number and a special character."
+        "Password must be 8-64 characters and include an uppercase letter, a lowercase letter, a number and a special character."
       );
       return;
     }
@@ -215,7 +215,7 @@ function SetVaultUserPasswordModal({ user, onClose, onSaved }) {
         </div>
 
         <p className="pwd-mgmt-modal-hint">
-          8-10 characters, with at least one uppercase letter, one lowercase
+          8-64 characters, with at least one uppercase letter, one lowercase
           letter, one number and one special character. This user does not
           choose their own password — once saved, the new password is
           emailed to them directly, exactly like when their account was

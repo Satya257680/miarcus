@@ -842,11 +842,48 @@ const updateUser = (
     // ------------------------------------------------------
 
     const actorIsAdministrator = Number(req.user?.is_admin) === 1;
-    const user = prepareUserPayload(
-        sanitizeUserSecurityFields(req.body, actorIsAdministrator),
-        actorIsAdministrator
-    );
 
+    // ------------------------------------------------------
+    // SECURITY: a non-admin editor must never modify an
+    // administrator / super-admin account (prevents account
+    // takeover via e-mail change + Forgot Password).
+    // ------------------------------------------------------
+
+    const targetId = Number(req.params.id);
+
+    if (!Number.isInteger(targetId) || targetId <= 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid user id"
+        });
+    }
+
+    const runUpdate = (existing) => {
+
+        const safeBody = sanitizeUserSecurityFields(
+            req.body,
+            actorIsAdministrator
+        );
+
+        // Non-admin editors can never change admin status,
+        // so keep whatever the account already has.
+        if (!actorIsAdministrator && existing) {
+            safeBody.is_admin = Number(existing.is_admin) === 1 ? 1 : 0;
+        }
+
+        const user = prepareUserPayload(
+            safeBody,
+            actorIsAdministrator
+        );
+
+        if (!actorIsAdministrator && existing) {
+            user.administrator = Number(existing.is_admin) === 1;
+        }
+
+        performUpdate(user);
+    };
+
+    const performUpdate = (user) => {
 
     User.updateUser(
 
@@ -946,6 +983,45 @@ const updateUser = (
                     : "User Updated Successfully, but the email could not be sent."
 
             });
+        }
+    );
+    };
+
+    db.query(
+        "SELECT id, email, is_admin, is_super_admin FROM users WHERE id = ? LIMIT 1",
+        [targetId],
+        (lookupErr, rows) => {
+
+            if (lookupErr) {
+                console.error("updateUser target lookup failed:", lookupErr.message);
+                return res.status(500).json({
+                    success: false,
+                    message: "Update Failed"
+                });
+            }
+
+            const existing = rows && rows[0];
+
+            if (!existing) {
+                return res.status(404).json({
+                    success: false,
+                    message: "User not found"
+                });
+            }
+
+            const targetIsPrivileged =
+                Number(existing.is_admin) === 1 ||
+                Number(existing.is_super_admin) === 1 ||
+                PasswordVault.isEnvSuperAdmin(existing.email);
+
+            if (!actorIsAdministrator && targetIsPrivileged) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Only an administrator can modify an administrator account."
+                });
+            }
+
+            return runUpdate(existing);
         }
     );
 };

@@ -137,11 +137,12 @@ function validatePassword(password) {
     const value = String(password || "");
 
     if (value.length < 8) {
-        return "Password must be 8–10 characters long.";
+        return "Password must be 8–64 characters long.";
     }
 
-    if (value.length > 10) {
-        return "Password must be 8–10 characters long.";
+    // bcrypt only uses the first 72 BYTES; cap well below that.
+    if (value.length > 64 || Buffer.byteLength(value, "utf8") > 72) {
+        return "Password must be 8–64 characters long.";
     }
 
     if (!/[A-Z]/.test(value)) {
