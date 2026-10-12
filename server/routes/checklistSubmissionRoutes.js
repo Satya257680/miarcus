@@ -193,7 +193,22 @@ router.get(
 
     ),
 
-    getStores
+    async (req, res, next) => {
+        try {
+            const { getStoreScope } = require("../services/notificationAudience");
+            const scope = await getStoreScope(req.user?.id);
+            if (scope.allStores) return getStores(req, res, next);
+            const Store = require("../models/storeModel");
+            Store.getAllStores((err, rows) => {
+                if (err) return res.status(500).json({ success: false, message: "Failed to fetch stores" });
+                const allowed = new Set(scope.storeIds.map(Number));
+                const data = (rows || []).filter((store) => allowed.has(Number(store.id)));
+                return res.status(200).json({ success: true, count: data.length, data });
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
 
 );
 

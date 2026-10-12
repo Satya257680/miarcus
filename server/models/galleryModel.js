@@ -106,7 +106,7 @@ const Gallery = {
         await addColumnIfMissing("gallery_mobile_sessions", "store_id", "INT NULL");
     },
 
-    async list({ search = "", category = "", locationType = "", storeId = "", from = "", to = "", page = 1, limit = 24 }) {
+    async list({ search = "", category = "", locationType = "", storeId = "", storeIds = null, from = "", to = "", page = 1, limit = 24 }) {
         const safePage = Math.max(Number(page) || 1, 1);
         const safeLimit = Math.min(Math.max(Number(limit) || 24, 1), 100);
         const offset = (safePage - 1) * safeLimit;
@@ -132,6 +132,17 @@ const Gallery = {
         if (locationType) {
             where.push(`g.location_type = ?`);
             params.push(locationType);
+        }
+        if (Array.isArray(storeIds)) {
+            const allowedIds = [...new Set(storeIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+            if (allowedIds.length) {
+                where.push(`g.location_type = 'store' AND g.store_id IN (${allowedIds.map(() => "?").join(",")})`);
+                params.push(...allowedIds);
+            } else {
+                // A store-scoped user with no assigned stores must not see
+                // head-office or other-store images.
+                where.push("1 = 0");
+            }
         }
         if (storeId) {
             where.push(`g.store_id = ?`);
@@ -359,7 +370,7 @@ const Gallery = {
 
     async getFile(id) {
         const rows = await db.query(`
-            SELECT id, file_name, file_path, mime_type, file_size, file_data
+            SELECT id, file_name, file_path, mime_type, file_size, file_data, location_type, store_id
             FROM gallery_photos
             WHERE id = ? AND status = 'active'
             LIMIT 1

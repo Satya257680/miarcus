@@ -14,6 +14,7 @@ const inspectionService = require(
 const checklistEmailService = require(
     "../services/checklistEmailService"
 );
+const { getStoreScope } = require("../services/notificationAudience");
 
 // ======================================================
 // ACTIVITY + AUDIT
@@ -777,8 +778,9 @@ exports.createSubmission = async (req, res) => {
 // GET /api/checklist-submissions
 // ======================================================
 
-exports.getAllSubmissions = (req, res) => {
+exports.getAllSubmissions = async (req, res) => {
 
+    const scope = await getStoreScope(req.user?.id);
     const filters = {
 
         search:
@@ -788,7 +790,8 @@ exports.getAllSubmissions = (req, res) => {
             Number(req.query.page) || 1,
 
         limit:
-            Number(req.query.limit) || 10
+            Number(req.query.limit) || 10,
+        storeIds: scope.allStores ? undefined : scope.storeIds
 
     };
 

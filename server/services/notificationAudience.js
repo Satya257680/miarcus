@@ -309,9 +309,17 @@ async function getAudience({
     return [...recipients].filter((id) => activeIds.has(id));
 }
 
+async function getStoreScope(userId) {
+    const id = Number(userId);
+    const profile = (await loadProfiles()).find((item) => item.id === id);
+    if (!profile) return { allStores: false, storeIds: [] };
+    return { allStores: Boolean(profile.allStores || profile.admin), storeIds: [...profile.stores] };
+}
+
 module.exports = {
     getAudience,
     getRecordStoreId,
+    getStoreScope,
     isStoreScoped,
     permissionsFor,
     isAllStoreDesignation,

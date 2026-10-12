@@ -1,25 +1,4 @@
-// ==========================================================
-// MI ARCUS MAILER
-// Gmail API OAuth2 ONLY
-// ==========================================================
-//
-// Required .env:
-//
-// GMAIL_CLIENT_ID=...
-// GMAIL_CLIENT_SECRET=...
-// GMAIL_REFRESH_TOKEN=...
-// GMAIL_USER=miarcus.notifications@gmail.com
-// MAIL_TRANSPORT=gmail_api
-//
-// This mailer:
-// - Uses Gmail API over HTTPS
-// - Uses ONLY gmail.send OAuth authorization
-// - Does NOT use Gmail SMTP
-// - Does NOT use Resend
-// - Does NOT read Gmail inbox
-// - Does NOT search Gmail
-// - Does NOT modify/delete Gmail messages
-// ==========================================================
+
 
 const nodemailer = require("nodemailer");
 const { google } = require("googleapis");
@@ -536,6 +515,37 @@ async function verifyMailer() {
 // SEND EMAIL
 // ==========================================================
 
+// Retry transient Gmail API/network errors with bounded exponential backoff.
+// Authentication, permission, recipient and content errors are not retried.
+const isRetryableMailError = (error) => {
+  const status = Number(error?.status || error?.statusCode || error?.response?.status || 0);
+  const code = String(error?.code || "").toUpperCase();
+  return (
+    status === 429 ||
+    status >= 500 ||
+    ["ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "EAI_AGAIN", "ENOTFOUND",
+      "ECONNABORTED", "ESOCKETTIMEDOUT", "GMAIL_API_RATE_LIMIT"].includes(code) ||
+    /rate limit|temporarily unavailable|backend error|socket hang up|timed out|network error/i.test(String(error?.message || ""))
+  );
+};
+
+async function sendThroughGmailApiWithRetry(mailOptions, normalizedTo) {
+  const maxAttempts = Math.max(1, Math.min(Number(process.env.MAIL_MAX_ATTEMPTS) || 3, 5));
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await sendThroughGmailApi(mailOptions, normalizedTo);
+    } catch (error) {
+      lastError = normalizeMailerError(error);
+      if (attempt >= maxAttempts || !isRetryableMailError(lastError)) throw lastError;
+      const delayMs = Math.min(1000 * (2 ** (attempt - 1)), 8000);
+      console.warn(`Transient email failure (attempt ${attempt}/${maxAttempts}); retrying in ${delayMs}ms: ${lastError.message}`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw lastError;
+}
+
 async function sendMail(
   mailOptions = {}
 ) {
@@ -613,7 +623,7 @@ async function sendMail(
 
   try {
     const result =
-      await sendThroughGmailApi(
+      await sendThroughGmailApiWithRetry(
         mailOptions,
         normalizedTo
       );

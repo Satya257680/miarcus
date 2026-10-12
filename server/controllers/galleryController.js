@@ -5,6 +5,7 @@ const fs = require("fs");
 const Gallery = require("../models/galleryModel");
 const db = require("../config/db");
 const notificationService = require("../services/notificationService");
+const { getStoreScope } = require("../services/notificationAudience");
 
 const publicFilePath = (filePath) => {
     const normalized = String(filePath || "").replace(/\\/g, "/");
@@ -135,7 +136,11 @@ const hashToken = (token) => crypto.createHash("sha256").update(token).digest("h
 
 const getAll = async (req, res) => {
     try {
+        const scope = await getStoreScope(req.user?.id);
         const result = await Gallery.list({
+            // Store users can only query photos for their assigned stores.
+            // Admin/all-store access remains global.
+            storeIds: scope.allStores ? null : scope.storeIds,
             search: String(req.query.search || "").trim(),
             category: String(req.query.category || "").trim(),
             locationType: String(req.query.location_type || "").trim(),
@@ -370,6 +375,14 @@ const servePhoto = async (req, res) => {
         const photo = await Gallery.getFile(id);
         if (!photo) {
             return res.status(404).json({ success: false, message: "Photo not found" });
+        }
+
+        const scope = await getStoreScope(req.user?.id);
+        if (!scope.allStores) {
+            const assigned = new Set(scope.storeIds.map(Number));
+            if (photo.location_type !== "store" || !assigned.has(Number(photo.store_id))) {
+                return res.status(404).json({ success: false, message: "Photo not found" });
+            }
         }
 
         let buffer = photo.file_data;

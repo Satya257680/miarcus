@@ -4,34 +4,7 @@ const db = require("../config/db");
 const ChecklistSubmission = {};
 
 
-// ======================================================
-// EXACT SUBMISSION DATE/TIME
-// ======================================================
-//
-// BUG FIX ("Submitted At always shows 00:00:00"): submission_date used
-// to be a plain DATE column (see ensureSubmissionDateTime() below for
-// the migration that upgrades it), and the Checklist Submission page's
-// date input only ever sends a bare "YYYY-MM-DD" — so every
-// submission's time-of-day was silently discarded before it even
-// reached the database, and every report row showed midnight
-// regardless of when it was actually submitted.
-//
-// submission_date is now a DATETIME column, and this helper makes
-// sure a real, exact time is always attached to it:
-//
-//   - A bulk-upload row that already resolved a full "YYYY-MM-DD
-//     HH:MM:SS" (from the Excel file's own "Actual Submission Time"
-//     column — see parseSubmissionDate() in
-//     services/checklistReportService.js) is used exactly as given,
-//     second-for-second, instead of being truncated back to a bare
-//     date.
-//   - A bare date (from the manual Checklist Submission form, which
-//     only lets a user pick a DATE, never a time) is stamped with the
-//     actual current time, in the business's own timezone
-//     (Asia/Kolkata — same convention as indiaToday() in
-//     checklistReportService.js), so it reflects the real moment the
-//     submission was saved rather than a fabricated midnight.
-// ======================================================
+
 
 function currentIndiaTimeParts() {
 
@@ -858,6 +831,16 @@ ChecklistSubmission.getAll = (
 
     const params = [];
 
+    if (Array.isArray(filters.storeIds)) {
+        const allowedStoreIds = [...new Set(filters.storeIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+        if (allowedStoreIds.length) {
+            sql += ` AND cs.store_id IN (${allowedStoreIds.map(() => "?").join(",")}) `;
+            params.push(...allowedStoreIds);
+        } else {
+            sql += " AND 1 = 0 ";
+        }
+    }
+
     // ======================================
     // SEARCH
     // ======================================
@@ -1019,6 +1002,16 @@ ChecklistSubmission.countAll = (
     `;
 
     const params = [];
+
+    if (Array.isArray(filters.storeIds)) {
+        const allowedStoreIds = [...new Set(filters.storeIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+        if (allowedStoreIds.length) {
+            sql += ` AND cs.store_id IN (${allowedStoreIds.map(() => "?").join(",")}) `;
+            params.push(...allowedStoreIds);
+        } else {
+            sql += " AND 1 = 0 ";
+        }
+    }
 
     // ======================================
     // SEARCH
