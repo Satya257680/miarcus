@@ -493,11 +493,48 @@ export const ALWAYS_ON_MODULES = ["Profile", "Settings"];
 // FLAT LOOKUPS
 // -----------------------------------------------------------------
 
-export const RBAC_MODULES = RBAC_GROUPS.flatMap((group) =>
+// -----------------------------------------------------------------
+// OWNER-GATED MODULES
+// -----------------------------------------------------------------
+// "Learning & Development" is NOT part of RBAC_GROUPS, so it never
+// appears in the Add/Edit User access matrix. Its access is granted
+// ONLY by the owner from  L&D → Access Control  (/learning-development/access).
+//
+//   • Owner (e.g. Satyajit Nayak) → always Full.
+//   • Everyone else, INCLUDING administrators → hidden + blocked
+//     unless the owner granted them a level.
+//   • `ownerOnly` pages are visible to the owner and nobody else.
+// -----------------------------------------------------------------
+
+export const OWNER_GATED_MODULES = [
+  {
+    name: "Learning & Development",
+    icon: "learning",
+    description: "Role-based training, modules and certificates",
+    groupId: "training",
+    groupLabel: "Training",
+    ownerGated: true,
+    pages: [
+      { key: "lnd.home", label: "My Training", paths: ["/learning-development", "/learning-development/*"] },
+      { key: "lnd.manage", label: "Program Management", paths: ["/learning-development/manage"], min: "Edit" },
+      { key: "lnd.access", label: "Access Control", paths: ["/learning-development/access"], ownerOnly: true },
+    ],
+  },
+];
+
+export const GATED_MODULE_NAMES = OWNER_GATED_MODULES.map((module) => module.name);
+
+export const isGatedModule = (name) => GATED_MODULE_NAMES.includes(name);
+
+const GROUP_MODULES = RBAC_GROUPS.flatMap((group) =>
   group.modules.map((module) => ({ ...module, groupId: group.id, groupLabel: group.label }))
 );
 
-export const MODULE_NAMES = RBAC_MODULES.map((module) => module.name);
+// Used for lookups (routes, sidebar, guards).
+export const RBAC_MODULES = [...GROUP_MODULES, ...OWNER_GATED_MODULES];
+
+// Used for the access matrix — owner-gated modules are excluded.
+export const MODULE_NAMES = GROUP_MODULES.map((module) => module.name);
 
 export const ALL_MODULE_NAMES = [...MODULE_NAMES, ...ALWAYS_ON_MODULES];
 

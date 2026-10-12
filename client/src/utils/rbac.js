@@ -23,6 +23,7 @@ import {
   MODULE_ALIASES,
   MODULE_BY_NAME,
   PAGES,
+  isGatedModule,
   PAGE_BY_KEY,
   RBAC_MODULES,
 } from "../config/rbacCatalog";
@@ -107,8 +108,20 @@ export const isAdministratorUser = (user = getStoredUser()) =>
 
 export const levelRank = (level) => LEVEL_RANK[level] ?? 0;
 
+// Owner of Learning & Development (set by the server; never trusted
+// for security — every API re-checks it on the backend).
+export const isLndOwner = (user = getStoredUser()) => user?.lndOwner === true;
+
 export const getModuleLevel = (moduleName, session = null) => {
   const user = session?.user ?? getStoredUser();
+
+  // Owner-gated modules ignore administrator status completely.
+  if (isGatedModule(moduleName)) {
+    if (isLndOwner(user)) return "Full";
+
+    const granted = (session?.permissions ?? getStoredPermissions())?.[moduleName];
+    return LEVEL_RANK[granted] !== undefined ? granted : "None";
+  }
 
   if (isAdministratorUser(user)) {
     return "Full";
@@ -132,6 +145,15 @@ export const canAccessPage = (pageKey, session = null) => {
   if (!page) return false;
 
   const user = session?.user ?? getStoredUser();
+
+  // Owner-gated (Learning & Development): no administrator bypass.
+  if (isGatedModule(page.module)) {
+    if (page.ownerOnly) return isLndOwner(user);
+    if (isLndOwner(user)) return true;
+
+    return hasModuleLevel(page.module, page.min || "View", session);
+  }
+
   if (isAdministratorUser(user)) return true;
 
   const module = MODULE_BY_NAME[page.module];
@@ -231,7 +253,11 @@ export const refreshAccess = async () => {
       const user = getStoredUser();
       localStorage.setItem(
         "user",
-        JSON.stringify({ ...user, administrator: Boolean(data.administrator) })
+        JSON.stringify({
+          ...user,
+          administrator: Boolean(data.administrator),
+          lndOwner: Boolean(data.lndOwner),
+        })
       );
       localStorage.setItem(
         "permissions",

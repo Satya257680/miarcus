@@ -2,6 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 
 import AccessDenied from "./AccessDenied";
 import { useRbacVersion } from "../../hooks/usePermission";
+import { PAGE_BY_KEY, isGatedModule } from "../../config/rbacCatalog";
 import {
   canAccessModule,
   canAccessPage,
@@ -43,7 +44,13 @@ const ModulePermissionRoute = ({
     return <Navigate to="/login" replace />;
   }
 
-  if (isAdministratorUser()) {
+  // Owner-gated modules (Learning & Development) never get the
+  // administrator bypass.
+  const gated =
+    (page && isGatedModule(PAGE_BY_KEY[page]?.module)) ||
+    (moduleName && isGatedModule(moduleName));
+
+  if (!gated && isAdministratorUser()) {
     return children;
   }
 

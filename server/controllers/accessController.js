@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const PagePermission = require("../models/pagePermissionModel");
+const lnd = require("../utils/lndAccess");
 
 // ==========================================================
 // GET /api/users/me/access
@@ -38,6 +39,13 @@ const getMyAccess = async (req, res) => {
             permissions[row.module_name] = administrator ? "Full" : row.permission;
         });
 
+        // Learning & Development is owner-controlled: administrators
+        // do NOT get it automatically.
+        const lndOwner = await lnd.isOwner(userId);
+        permissions[lnd.MODULE_NAME] = lndOwner
+            ? "Full"
+            : await lnd.getGrantedLevel(userId);
+
         let pageAccess = {};
 
         if (!administrator) {
@@ -53,6 +61,7 @@ const getMyAccess = async (req, res) => {
         return res.json({
             success: true,
             administrator,
+            lndOwner,
             permissions,
             pageAccess,
         });

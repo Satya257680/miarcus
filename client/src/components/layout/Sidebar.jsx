@@ -48,6 +48,8 @@ import {
     FaStoreAlt,
     FaHistory,
     FaLock,
+    FaGraduationCap,
+    FaUserShield,
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -78,6 +80,10 @@ function Sidebar({ collapsed }) {
     const quizOpenByPath =
         location.pathname === "/quiz" ||
         location.pathname.startsWith("/quiz/");
+
+    const lndOpenByPath =
+        location.pathname === "/learning-development" ||
+        location.pathname.startsWith("/learning-development/");
 
     const billingOpenByPath =
         location.pathname === "/billing" ||
@@ -138,6 +144,9 @@ function Sidebar({ collapsed }) {
     const [quizOpen, setQuizOpen] =
         useState(quizOpenByPath);
 
+    const [lndOpen, setLndOpen] =
+        useState(lndOpenByPath);
+
     const [billingOpen, setBillingOpen] =
         useState(billingOpenByPath);
 
@@ -188,6 +197,12 @@ function Sidebar({ collapsed }) {
             setPettyCashOpen(true);
         }
     }, [pettyCashOpenByPath]);
+
+    useEffect(() => {
+        if (lndOpenByPath) {
+            setLndOpen(true);
+        }
+    }, [lndOpenByPath]);
 
     useEffect(() => {
         if (quizOpenByPath) {
@@ -301,6 +316,13 @@ function Sidebar({ collapsed }) {
     const canQuizReport = can("quiz.report");
     const canQuizEmail = can("quiz.email");
     const canAccessQuiz = canTakeQuiz || canQuizSetup || canQuizReport || canQuizEmail;
+
+    // Learning & Development — OWNER CONTROLLED. Hidden from everyone
+    // (admins included) unless the owner granted access.
+    const canLndHome = can("lnd.home");
+    const canLndManage = can("lnd.manage");
+    const canLndAccess = can("lnd.access");
+    const canAccessLnd = canLndHome || canLndManage || canLndAccess;
 
     // Sales Team
     const canSalesVisitPlanner = can("sales.visit");
@@ -1151,6 +1173,27 @@ function Sidebar({ collapsed }) {
 
                                 </div>
                             )}
+                    </div>
+                )}
+
+                {/* ==================================================
+                    LEARNING & DEVELOPMENT (owner-controlled)
+                ================================================== */}
+
+                {canAccessLnd && (
+                    <div className={`sidebar-group ${lndOpen ? "open" : ""}`}>
+                        <button type="button" className={`sidebar-group-toggle ${lndOpenByPath ? "has-active" : ""} ${lndOpen ? "is-open" : ""}`} onClick={() => setLndOpen((previous) => !previous)} aria-expanded={lndOpen}>
+                            <span className="sidebar-group-content"><FaGraduationCap />{!collapsed && <span>Learning & Development</span>}</span>
+                            {!collapsed && <FaChevronDown className={`submenu-chevron ${lndOpen ? "rotated" : ""}`} />}
+                        </button>
+                        {!collapsed && lndOpen && (
+                            <div className="sidebar-submenu">
+                                {canLndHome && <NavLink to="/learning-development" end className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaClipboardCheck /><span>My Training</span></NavLink>}
+                                {canLndHome && <NavLink to="/learning-development/certificates" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaGraduationCap /><span>Certificates</span></NavLink>}
+                                {canLndManage && <NavLink to="/learning-development/manage" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCog /><span>Program Management</span></NavLink>}
+                                {canLndAccess && <NavLink to="/learning-development/access" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaUserShield /><span>Access Control</span></NavLink>}
+                            </div>
+                        )}
                     </div>
                 )}
 

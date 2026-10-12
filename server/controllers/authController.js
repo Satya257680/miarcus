@@ -1,4 +1,5 @@
 const PagePermission = require("../models/pagePermissionModel");
+const lnd = require("../utils/lndAccess");
 const db = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -179,6 +180,19 @@ db.query(permissionSql, [user.id], async (permissionErr, permissionRows) => {
 
     });
 
+    // Learning & Development is owner-controlled (no admin bypass).
+    let lndOwner = false;
+
+    try {
+        lndOwner = await lnd.isOwner(user.id);
+        permissions[lnd.MODULE_NAME] = lndOwner
+            ? "Full"
+            : await lnd.getGrantedLevel(user.id);
+    } catch (lndError) {
+        console.error("L&D access lookup failed:", lndError.message);
+        permissions[lnd.MODULE_NAME] = "None";
+    }
+
     // Page-level (sub-module) access. Missing keys = allowed.
     let pageAccess = {};
 
@@ -242,7 +256,9 @@ const token = jwt.sign(
 
         designation_id: user.designation_id || null,
 
-        administrator: user.is_admin === 1
+        administrator: user.is_admin === 1,
+
+        lndOwner
 
     },
 

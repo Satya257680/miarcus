@@ -1596,6 +1596,26 @@ loadRoute(
 );
 
 // ======================================================
+// LEARNING & DEVELOPMENT ACCESS (OWNER ONLY)
+// ======================================================
+
+loadRoute(
+    "./routes/lndAccessRoutes",
+    "/api/lnd-access",
+    "L&D Access Routes"
+);
+
+// ======================================================
+// LEARNING & DEVELOPMENT (training programs, modules, exams)
+// ======================================================
+
+loadRoute(
+    "./routes/lndRoutes",
+    "/api/lnd",
+    "L&D Routes"
+);
+
+// ======================================================
 // PASSWORD VAULT (ADMIN PASSWORD MANAGEMENT)
 // ======================================================
 

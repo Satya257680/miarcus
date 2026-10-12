@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const lnd = require("../utils/lndAccess");
 
 // Some routes use a name that is not a stored RBAC module. Those
 // fall back to the module that owns them in the access screen, so
@@ -37,6 +38,38 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
         }
 
         const userId = req.user.id;
+
+        // ======================================================
+        // OWNER-GATED MODULES (Learning & Development)
+        // ======================================================
+        // Administrator bypass does NOT apply. Only the owner, or a
+        // user the owner explicitly granted, gets through.
+        // ======================================================
+
+        if (lnd.isGatedModule(moduleName)) {
+
+            return lnd
+                .getEffectiveLevel(userId)
+                .then((level) => {
+
+                    if (lnd.levelSatisfies(level, requiredPermission)) {
+                        return next();
+                    }
+
+                    return res.status(403).json({
+                        success: false,
+                        message: "Access Denied"
+                    });
+                })
+                .catch((error) => {
+                    console.error("L&D permission check failed:", error);
+
+                    return res.status(500).json({
+                        success: false,
+                        message: "Permission Check Failed"
+                    });
+                });
+        }
 
         // ======================================================
         // ADMINISTRATOR BYPASS

@@ -97,6 +97,9 @@ const TakeQuiz = lazy(() => import("./pages/Quiz/TakeQuiz"));
 const TrainingReport = lazy(() => import("./pages/Quiz/TrainingReport"));
 const EmailSettings = lazy(() => import("./pages/Quiz/EmailSettings"));
 const PublicQuiz = lazy(() => import("./pages/Quiz/PublicQuiz"));
+const LearningDevelopment = lazy(() => import("./pages/LearningDevelopment"));
+const LndAccessControl = lazy(() => import("./pages/LndAccessControl"));
+const LndManage = lazy(() => import("./pages/LndManage"));
 
 // ======================================================
 // EXPENSES
@@ -739,6 +742,37 @@ function App() {
                         element={
                             <ModulePermissionRoute page="nso.tracking">
                                 <NSOTrackingEdit />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    {/* ==================================================
+                        LEARNING & DEVELOPMENT (owner-controlled)
+                    ================================================== */}
+
+                    <Route
+                        path="/learning-development/access"
+                        element={
+                            <ModulePermissionRoute page="lnd.access">
+                                <LndAccessControl />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/learning-development/manage"
+                        element={
+                            <ModulePermissionRoute page="lnd.manage">
+                                <LndManage />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/learning-development/*"
+                        element={
+                            <ModulePermissionRoute page="lnd.home">
+                                <LearningDevelopment />
                             </ModulePermissionRoute>
                         }
                     />

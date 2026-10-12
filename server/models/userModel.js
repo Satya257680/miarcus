@@ -1266,6 +1266,8 @@ const updateUserPermissions = (
 
             WHERE user_id = ?
 
+            AND module_name <> 'Learning & Development'
+
         `,
 
         [
