@@ -47,6 +47,7 @@ import {
     FaWifi,
     FaStoreAlt,
     FaHistory,
+    FaLock,
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -645,6 +646,26 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Checklist Tracker
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    CHECKLIST ACCESS CONTROL (ADMIN ONLY)
+                    Who may see / submit which checklist type.
+                ================================================== */}
+
+                {isAdministrator && (
+                    <NavLink
+                        to="/checklist-access-control"
+                        className={getMenuClass}
+                    >
+                        <FaLock />
+
+                        {!collapsed && (
+                            <span>
+                                Checklist Access Control
                             </span>
                         )}
                     </NavLink>

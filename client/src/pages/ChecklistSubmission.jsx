@@ -1554,8 +1554,7 @@ function ChecklistSubmission() {
               />
 
               <small>
-                Choose the checklist you want
-                to complete.
+                You can only see the checklist types assigned to you.
               </small>
 
               </div>

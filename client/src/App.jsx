@@ -38,6 +38,7 @@ const DashboardAnalytics = lazy(() => import("./pages/Dashboard/Dashboard/Dashbo
 // CHECKLIST
 // ======================================================
 const ChecklistSubmission = lazy(() => import("./pages/ChecklistSubmission"));
+const ChecklistAccessControl = lazy(() => import("./pages/ChecklistAccessControl"));
 const ChecklistReports = lazy(() => import("./pages/ChecklistReports"));
 const ChecklistTracker = lazy(() => import("./pages/ChecklistTracker"));
 const ActionPoints = lazy(() => import("./pages/ActionPoints"));
@@ -323,6 +324,15 @@ function App() {
                     {/* ==================================================
                         CHECKLIST
                     ================================================== */}
+
+                    <Route
+                        path="/checklist-access-control"
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <ChecklistAccessControl />
+                            </ModulePermissionRoute>
+                        }
+                    />
 
                     <Route
                         path="/checklist-submit"

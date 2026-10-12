@@ -15,6 +15,10 @@ const checklistEmailService = require(
     "../services/checklistEmailService"
 );
 const { getStoreScope } = require("../services/notificationAudience");
+const {
+    getUserAccess: getUserChecklistAccess,
+    canUseType: canUseChecklistType
+} = require("../services/checklistAccessService");
 
 // ======================================================
 // ACTIVITY + AUDIT
@@ -333,6 +337,16 @@ exports.createSubmission = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: "Checklist Type was not found."
+            });
+        }
+
+        // Checklist Access Control: enforced server-side so calling the
+        // API directly cannot bypass the filtered dropdown.
+        const checklistAccess = await getUserChecklistAccess(req.user?.id);
+        if (!canUseChecklistType(checklistAccess, checklistType.checklist_name)) {
+            return res.status(403).json({
+                success: false,
+                message: "You do not have access to submit this checklist."
             });
         }
 

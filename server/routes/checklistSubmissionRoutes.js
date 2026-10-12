@@ -175,7 +175,26 @@ router.get(
 
     ),
 
-    checklistTypeController.getChecklistTypes
+    (req, res) => {
+        const ChecklistType = require("../models/checklistTypeModel");
+        const access = require("../services/checklistAccessService");
+        ChecklistType.getAllChecklistTypes(async (err, rows) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ success: false, message: err.message });
+            }
+            try {
+                // Only the checklist types this user may submit
+                // (Checklist Access Control). Admins see everything.
+                const userAccess = await access.getUserAccess(req.user.id);
+                const data = rows.filter((row) => access.canUseType(userAccess, row.checklist_name));
+                return res.status(200).json({ success: true, count: data.length, data });
+            } catch (error) {
+                console.error("Checklist access check failed:", error.message);
+                return res.status(500).json({ success: false, message: "Failed to load checklist types" });
+            }
+        });
+    }
 
 );
 
@@ -246,6 +265,25 @@ router.get(
 
     },
 
+    async (req, res, next) => {
+        // Never expose the questions of a checklist the user may not submit.
+        try {
+            const access = require("../services/checklistAccessService");
+            const ChecklistType = require("../models/checklistTypeModel");
+            const userAccess = await access.getUserAccess(req.user.id);
+            if (userAccess.unrestricted) return next();
+            ChecklistType.getChecklistTypeById(Number(req.query.checklist_type_id), (err, rows) => {
+                if (err) return res.status(500).json({ success: false, message: "Failed to verify checklist access" });
+                const type = rows && rows[0];
+                if (type && !access.canUseType(userAccess, type.checklist_name)) {
+                    return res.status(403).json({ success: false, message: "You do not have access to this checklist." });
+                }
+                return next();
+            });
+        } catch (error) {
+            return next(error);
+        }
+    },
     questionController.getQuestions
 
 );

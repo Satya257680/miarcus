@@ -382,6 +382,16 @@ async function initializeDatabase() {
         }
 
         // --------------------------------------------------
+        // CHECKLIST ACCESS CONTROL
+        // --------------------------------------------------
+        try {
+            await require("./services/checklistAccessService").ensureTables();
+            console.log("✅ Checklist access control schema verified");
+        } catch (error) {
+            console.error("❌ Checklist access control schema initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
         // CHECKLIST EMAIL ROUTING
         // --------------------------------------------------
         try {
@@ -1741,6 +1751,15 @@ loadRoute(
     "./routes/checklistEmailSettingsRoutes",
     "/api/checklist-email-settings",
     "Checklist Email Settings Routes"
+);
+
+// ======================================================
+// CHECKLIST ACCESS CONTROL (Admin only)
+// ======================================================
+loadRoute(
+    "./routes/checklistAccessRoutes",
+    "/api/checklist-access",
+    "Checklist Access Routes"
 );
 
 // ======================================================
