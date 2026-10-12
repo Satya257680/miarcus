@@ -1,3 +1,4 @@
+const db = require("../config/db");
 const { readDeleteScope } = require("../utils/deleteScope");
 const NSORule = require("../models/nsoRuleModel");
 
@@ -14,6 +15,29 @@ const Activity = require("../models/activityModel");
 const Audit = require("../models/auditModel");
 
 
+
+// Persist per-rule and global Action Point generation switches.
+exports.setRuleActionPoint = (req, res) => {
+    const enabled = req.body?.enabled;
+    if (typeof enabled !== "boolean") return res.status(400).json({ success: false, message: "enabled must be true or false." });
+    db.query("UPDATE nso_rules SET create_action_point = ? WHERE id = ?", [enabled ? 1 : 0, req.params.id], (err, result) => {
+        if (err) return res.status(500).json({ success: false, message: "Failed to update Action Point setting." });
+        db.query("SELECT id FROM nso_rules WHERE id = ? LIMIT 1", [req.params.id], (checkErr, rows) => {
+            if (checkErr) return res.status(500).json({ success: false, message: "Could not verify rule." });
+            if (!rows.length) return res.status(404).json({ success: false, message: "Rule not found." });
+            return res.json({ success: true, id: Number(req.params.id), create_action_point: enabled ? 1 : 0 });
+        });
+    });
+};
+
+exports.setAllRulesActionPoints = (req, res) => {
+    const enabled = req.body?.enabled;
+    if (typeof enabled !== "boolean") return res.status(400).json({ success: false, message: "enabled must be true or false." });
+    db.query("UPDATE nso_rules SET create_action_point = ?", [enabled ? 1 : 0], (err, result) => {
+        if (err) return res.status(500).json({ success: false, message: "Failed to update Action Point settings." });
+        return res.json({ success: true, enabled, updated: result.affectedRows || 0, message: `Action Point generation ${enabled ? "enabled" : "disabled"} for all rules.` });
+    });
+};
 
 // ======================================================
 // GET ALL RULES

@@ -33,7 +33,9 @@ import {
 
     bulkUploadRules,
 
-    exportRules
+    exportRules,
+    setRuleActionPoint,
+    setAllRulesActionPoints
 
 } from "../services/nsoRuleService";
 
@@ -64,6 +66,7 @@ function NSORules() {
     // ======================================================
 
     const [rules, setRules] = useState([]);
+    const [actionPointBusy, setActionPointBusy] = useState(false);
 
     const [loading, setLoading] = useState(true);
 
@@ -444,6 +447,42 @@ const handleBulkUpload = async (file) => {
 
     };
 
+    const toggleOneActionPoint = async (rule) => {
+        if (!canEdit) return;
+        const enabled = !isOn(rule.create_action_point);
+        try {
+            setActionPointBusy(true);
+            await setRuleActionPoint(rule.id, enabled);
+            await fetchRules();
+            const refreshed = await getRules({ search: "", page: 1, limit: 1000 });
+            setSummaryRules(Array.isArray(refreshed?.data) ? refreshed.data : []);
+        } catch (err) {
+            alert(err.response?.data?.message || "Could not update Action Point setting.");
+        } finally {
+            setActionPointBusy(false);
+        }
+    };
+
+    const toggleAllActionPoints = async () => {
+        if (!canEdit || actionPointBusy || summary.total === 0) return;
+        const allEnabled = summary.actionPoints === summary.total;
+        const enabled = !allEnabled;
+        const confirmed = window.confirm(`${enabled ? "Enable" : "Disable"} Action Point generation for all ${summary.total} rules?`);
+        if (!confirmed) return;
+        try {
+            setActionPointBusy(true);
+            await setAllRulesActionPoints(enabled);
+            await fetchRules();
+            const refreshed = await getRules({ search: "", page: 1, limit: 1000 });
+            setSummaryRules(Array.isArray(refreshed?.data) ? refreshed.data : []);
+            alert(`Action Point generation ${enabled ? "enabled" : "disabled"} for all rules.`);
+        } catch (err) {
+            alert(err.response?.data?.message || "Could not update global Action Point setting.");
+        } finally {
+            setActionPointBusy(false);
+        }
+    };
+
     // ======================================================
     // CLEAR FILTERS
     // ======================================================
@@ -552,7 +591,7 @@ const columns = [
                             <span>
                                 {isOn(row.create_action_point)
                                     ? "raise an action point"
-                                    : "flag in NSO tracking"}
+                                    : "Action Point generation is OFF"}
                             </span>
                         </span>
 
@@ -608,7 +647,18 @@ const columns = [
         title: "Action Point",
         width: "130px",
         align: "center",
-        render: (row) => yesNoPill(row.create_action_point),
+        render: (row) => (
+            <button
+                type="button"
+                className={`pp-pill ${isOn(row.create_action_point) ? "pp-pill--green" : "pp-pill--slate"}`}
+                disabled={!canEdit || actionPointBusy}
+                title={canEdit ? "Click to toggle Action Point generation for this rule" : "Edit permission required"}
+                onClick={() => toggleOneActionPoint(row)}
+                style={{ cursor: canEdit ? "pointer" : "default", border: 0, opacity: actionPointBusy ? 0.65 : 1 }}
+            >
+                {isOn(row.create_action_point) ? "ON" : "OFF"}
+            </button>
+        ),
     },
 
     {
@@ -687,7 +737,7 @@ const columns = [
             <PremiumHero
                 icon={FaGavel}
                 eyebrow="Expansion · Admin workspace"
-                title="NSO Rules"
+                title="Action Point Rules"
                 badge="Admin only"
                 subtitle="The automation behind NSO tracking — which answers raise action points, how urgent they are and how long teams have to close them."
                 meta={[
@@ -721,7 +771,7 @@ const columns = [
 
                 showAdd={canAdd}
 
-                addText="Add NSO Rule"
+                addText="Add Action Point Rule"
 
                 onAdd={handleAdd}
 
@@ -741,6 +791,19 @@ const columns = [
 
             >
 
+                {canEdit && (
+                    <button
+                        type="button"
+                        className="toolbar-btn"
+                        onClick={toggleAllActionPoints}
+                        disabled={actionPointBusy || summary.total === 0}
+                        title="Enable or disable Action Point generation for every rule"
+                    >
+                        <FaBolt />
+                        {actionPointBusy ? "Updating…" : (summary.actionPoints === summary.total && summary.total > 0 ? "Turn All Action Points OFF" : "Turn All Action Points ON")}
+                    </button>
+                )}
+
                 {search && (
                     <button
                         type="button"
@@ -757,14 +820,14 @@ const columns = [
             {/* ======================================================
                 CARD
             ====================================================== */}
-<Card title="NSO Rule List" subtitle="Each rule watches one NSO checklist answer." className="pp-sticky-last">
+<Card title="Action Point Rule List" subtitle="Choose which checklist answers should generate Action Points." className="pp-sticky-last">
 
     <DataTable
         columns={columns}
         data={rules}
         loading={loading}
-        emptyTitle="No Rules Found"
-        emptyDescription="There are no NSO Rules available."
+        emptyTitle="No Action Point Rules Found"
+        emptyDescription="There are no Action Point Rules available."
     />
 
     <Pagination

@@ -763,7 +763,7 @@ function Sidebar({ collapsed }) {
 
                         {!collapsed && (
                             <span>
-                                NSO Rules
+                                Action Point Rules
                             </span>
                         )}
                     </NavLink>

@@ -34,7 +34,9 @@ const {
 
     deleteAllRules,
 
-    exportRules
+    exportRules,
+    setRuleActionPoint,
+    setAllRulesActionPoints
 
 } = require("../controllers/nsoRuleController");
 
@@ -74,6 +76,10 @@ router.param("id", (req, res, next, id) => {
 // BASE URL
 // /api/nso-rules
 // ======================================================
+
+// Action Point generation switches; Edit permission required.
+router.patch("/action-points", authMiddleware, permissionMiddleware("NSO Rules", "Edit"), setAllRulesActionPoints);
+router.patch("/:id/action-point", authMiddleware, permissionMiddleware("NSO Rules", "Edit"), setRuleActionPoint);
 
 // ======================================================
 // GET ALL RULES

@@ -121,6 +121,18 @@ export const updateRule = async (
 
 };
 
+// Toggle Action Point generation for one rule (persisted on the server).
+export const setRuleActionPoint = async (id, enabled) => {
+    const { data } = await axios.patch(`${API}/${id}/action-point`, { enabled: Boolean(enabled) }, authConfig());
+    return data;
+};
+
+// Enable or disable Action Point generation for every rule.
+export const setAllRulesActionPoints = async (enabled) => {
+    const { data } = await axios.patch(`${API}/action-points`, { enabled: Boolean(enabled) }, authConfig());
+    return data;
+};
+
 // ======================================================
 // DELETE SINGLE RULE
 // ======================================================
