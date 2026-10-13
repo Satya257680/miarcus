@@ -30,6 +30,26 @@ const {
     FILE_TOKEN_TTL
 } = require("../config/security");
 
+
+// Files up to this size are mirrored into the MySQL LONGBLOB column.
+// Larger files (e.g. videos) stay on disk only: loading them into memory
+// and sending them as one INSERT exceeds MySQL max_allowed_packet and
+// caused "Unable to create announcement" (HTTP 500).
+const DB_ATTACHMENT_MAX_BYTES =
+    Number(process.env.ANNOUNCEMENT_DB_ATTACHMENT_MAX_BYTES) > 0
+        ? Number(process.env.ANNOUNCEMENT_DB_ATTACHMENT_MAX_BYTES)
+        : 16 * 1024 * 1024;
+
+const readAttachmentForDb = (file) => {
+    if (!file || !file.path) return null;
+    if (Number(file.size) > DB_ATTACHMENT_MAX_BYTES) return null;
+    try {
+        return fs.readFileSync(file.path);
+    } catch (_) {
+        return null;
+    }
+};
+
 const escapeHtml = (value = "") =>
     String(value)
         .replace(/&/g, "&amp;")
@@ -338,29 +358,28 @@ const getAnnouncementAttachment = (req, res) => {
                     }
 
                     let buffer = row.attachment_data;
+                    let diskPath = null;
+                    let diskSize = 0;
 
-                    // Backward-compatible fallback for an attachment that
-                    // has not yet been migrated from the old disk storage.
-                    if (
-                        (!buffer || !buffer.length) &&
-                        row.attachment_path
-                    ) {
-                        const filename = path.basename(
-                            String(row.attachment_path)
-                        );
-                        const filePath = path.resolve(
+                    // Large attachments are stored on disk only; older ones
+                    // may also not have been migrated into the database yet.
+                    if ((!buffer || !buffer.length) && row.attachment_path) {
+                        const candidate = path.resolve(
                             UPLOAD_DIR,
-                            filename
+                            path.basename(String(row.attachment_path))
                         );
-
                         try {
-                            buffer = fs.readFileSync(filePath);
+                            const stat = fs.statSync(candidate);
+                            if (stat.isFile() && stat.size > 0) {
+                                diskPath = candidate;
+                                diskSize = stat.size;
+                            }
                         } catch (_) {
-                            buffer = null;
+                            diskPath = null;
                         }
                     }
 
-                    if (!buffer || !buffer.length) {
+                    if ((!buffer || !buffer.length) && !diskPath) {
                         return res.status(404).json({
                             success: false,
                             message: "Attachment file is no longer available"
@@ -390,7 +409,7 @@ const getAnnouncementAttachment = (req, res) => {
                     );
                     res.setHeader(
                         "Content-Length",
-                        String(buffer.length)
+                        String(diskPath ? diskSize : buffer.length)
                     );
                     res.setHeader(
                         "Content-Disposition",
@@ -420,6 +439,22 @@ const getAnnouncementAttachment = (req, res) => {
                         "Cache-Control",
                         "private, no-store, max-age=0"
                     );
+
+                    if (diskPath) {
+                        const stream = fs.createReadStream(diskPath);
+                        stream.on("error", (streamErr) => {
+                            console.error("Announcement attachment stream:", streamErr);
+                            if (!res.headersSent) {
+                                res.status(500).json({
+                                    success: false,
+                                    message: "Unable to load attachment"
+                                });
+                            } else {
+                                res.destroy(streamErr);
+                            }
+                        });
+                        return stream.pipe(res);
+                    }
 
                     return res.send(buffer);
                 }
@@ -491,9 +526,7 @@ const createAnnouncement = (req, res) => {
                 createdBy: req.user.id,
                 attachmentOriginalName: sanitizeOriginalName(req.file?.originalname),
                 attachmentPath: req.file?.filename,
-                attachmentData: req.file
-                    ? fs.readFileSync(req.file.path)
-                    : null,
+                attachmentData: readAttachmentForDb(req.file),
                 attachmentMimeType: req.file?.mimetype || null
             }, (createErr, result) => {
                 if (createErr) {
@@ -658,7 +691,7 @@ const updateAnnouncement = (req, res) => {
                 attachmentPath: newAttachmentPath,
                 attachmentChanged: Boolean(req.file) || removeAttachment,
                 attachmentData: req.file
-                    ? fs.readFileSync(req.file.path)
+                    ? readAttachmentForDb(req.file)
                     : (removeAttachment ? null : undefined),
                 attachmentMimeType: req.file
                     ? req.file.mimetype

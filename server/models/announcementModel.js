@@ -23,6 +23,11 @@ const addColumnIfMissing = async (table, column, definition) => {
     }
 };
 
+const DB_MIGRATE_MAX_BYTES =
+    Number(process.env.ANNOUNCEMENT_DB_ATTACHMENT_MAX_BYTES) > 0
+        ? Number(process.env.ANNOUNCEMENT_DB_ATTACHMENT_MAX_BYTES)
+        : 16 * 1024 * 1024;
+
 const migrateDiskAttachmentsToDatabase = async () => {
     const rows = await db.query(`
         SELECT id, attachment_path
@@ -42,6 +47,9 @@ const migrateDiskAttachmentsToDatabase = async () => {
         if (!fs.existsSync(filePath)) continue;
 
         try {
+            // Skip big files (videos): they are served from disk and must
+            // not be loaded into memory / a single SQL packet.
+            if (fs.statSync(filePath).size > DB_MIGRATE_MAX_BYTES) continue;
             const buffer = fs.readFileSync(filePath);
             const mimeType = (() => {
                 const ext = path.extname(filename).toLowerCase();

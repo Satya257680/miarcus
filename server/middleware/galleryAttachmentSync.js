@@ -140,6 +140,11 @@ const notifyAttachments = async ({
     }
 };
 
+const GALLERY_DB_MAX_BYTES =
+    Number(process.env.GALLERY_DB_ATTACHMENT_MAX_BYTES) > 0
+        ? Number(process.env.GALLERY_DB_ATTACHMENT_MAX_BYTES)
+        : 16 * 1024 * 1024;
+
 const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
     return (req, res, next) => {
         const files = getFiles(req);
@@ -150,12 +155,22 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
         // move/delete their temporary upload after saving the business record.
         // Keeping the bytes here makes Gallery synchronization reliable for
         // both diskStorage and memoryStorage multer configurations.
+        // Large files (videos) are NOT loaded into memory or the database;
+        // they are copied on disk and registered without file_data.
         const attachmentSnapshots = files.map((file) => {
             let buffer = null;
-            if (Buffer.isBuffer(file?.buffer)) buffer = file.buffer;
-            else if (file?.path && fs.existsSync(file.path)) buffer = fs.readFileSync(file.path);
-            return { file, buffer };
-        }).filter((item) => item.buffer && item.buffer.length);
+            let largeSourcePath = null;
+            let size = 0;
+            if (Buffer.isBuffer(file?.buffer)) {
+                buffer = file.buffer;
+                size = buffer.length;
+            } else if (file?.path && fs.existsSync(file.path)) {
+                size = Number(file.size) || fs.statSync(file.path).size;
+                if (size > GALLERY_DB_MAX_BYTES) largeSourcePath = file.path;
+                else buffer = fs.readFileSync(file.path);
+            }
+            return { file, buffer, largeSourcePath, size };
+        }).filter((item) => item.size > 0 && (item.buffer || item.largeSourcePath));
 
         if (!attachmentSnapshots.length) return next();
 
@@ -179,7 +194,7 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
                 const syncedNames = [];
                 let lastGalleryId = null;
 
-                for (const { file, buffer } of attachmentSnapshots) {
+                for (const { file, buffer, largeSourcePath, size } of attachmentSnapshots) {
                     try {
                         const extension = path.extname(file.originalname || file.filename || "").toLowerCase();
                         const now = new Date();
@@ -194,7 +209,8 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
 
                         const galleryFileName = `${Date.now()}-${crypto.randomBytes(12).toString("hex")}${extension}`;
                         const galleryAbsolutePath = path.join(galleryDir, galleryFileName);
-                        fs.writeFileSync(galleryAbsolutePath, buffer);
+                        if (largeSourcePath) fs.copyFileSync(largeSourcePath, galleryAbsolutePath);
+                        else fs.writeFileSync(galleryAbsolutePath, buffer);
 
                         const storeIdValue = req.body?.store_id ?? req.body?.storeId;
                         const storeId = Number.isInteger(Number(storeIdValue)) && Number(storeIdValue) > 0
@@ -209,8 +225,8 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
                             file_name: file.originalname || file.filename || galleryFileName,
                             file_path: path.relative(process.cwd(), galleryAbsolutePath).replace(/\\/g, "/"),
                             mime_type: file.mimetype || "application/octet-stream",
-                            file_size: buffer.length,
-                            file_data: buffer,
+                            file_size: size,
+                            file_data: largeSourcePath ? null : buffer,
                             uploaded_by: req.user?.id,
                             category: moduleName,
                             description: `${moduleName} attachment`,
