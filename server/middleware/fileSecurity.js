@@ -1,24 +1,15 @@
 const fs = require("fs");
 const path = require("path");
 
-// Application-wide upload ceiling — the single source of truth used
-// by every upload pipeline in the app (general attachments/gallery/
-// announcements here, plus middleware/bulkFileUpload.js and
-// middleware/csvUpload.js for bulk-import routes).
-//
-// Raised from 100 MB to 100 GB. Getting a single HTTP request that
-// large through the IIS reverse proxy in front of this app additionally
-// requires the chunked upload flow (middleware/chunkedUpload.js) —
-// IIS's own request-filtering module has a hard ~4 GB ceiling per
-// request that no amount of raising this number can get around. See
-// server/web.config for the full explanation.
-//
-// Configurable via MAX_UPLOAD_SIZE_BYTES so an operator can lower (or
-// raise, disk space permitting) this without a code change.
+// Keep application uploads capped at 1 GiB by default. IIS supports a
+// much larger request body (~4 GiB), but using that entire ceiling for a
+// single file can consume significant disk space and processing resources.
+// Override with MAX_UPLOAD_SIZE_BYTES if the server is prepared for a
+// different limit.
 const MAX_UPLOAD_SIZE =
     Number(process.env.MAX_UPLOAD_SIZE_BYTES) > 0
         ? Number(process.env.MAX_UPLOAD_SIZE_BYTES)
-        : 100 * 1024 * 1024 * 1024; // 100 GB
+        : 1024 * 1024 * 1024; // 1 GiB
 
 function readHeader(filePath, length = 16) {
     const fd = fs.openSync(filePath, "r");

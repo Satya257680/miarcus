@@ -33,7 +33,7 @@ import "../../styles/premium/AnnouncementComposer.css";
 
 const TITLE_MAX = 150;
 const MESSAGE_MAX = 5000;
-const MAX_FILE_MB = 50;
+const MAX_FILE_MB = 1024;
 
 const IMAGE_RE = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i;
 const VIDEO_RE = /\.(mp4|webm|mov|avi|mkv)$/i;
