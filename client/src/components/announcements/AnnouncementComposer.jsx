@@ -166,7 +166,11 @@ export default function AnnouncementComposer({ editingItem, onClose, onSuccess }
             else await announcementService.create(form);
             onSuccess();
         } catch (err) {
-            setError(err.response?.data?.message || (isEditing ? "Unable to update announcement." : "Unable to publish announcement."));
+            if (err.response?.status === 413) {
+                setError("The attachment is too large for the server to accept. Please choose a smaller file or compress the video and try again.");
+            } else {
+                setError(err.response?.data?.message || (isEditing ? "Unable to update announcement." : "Unable to publish announcement."));
+            }
         } finally {
             setSaving(false);
         }
