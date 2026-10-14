@@ -636,6 +636,16 @@ function Sidebar({ collapsed }) {
                 )}
 
                 {/* ==================================================
+                    ISSUE CONTROL CENTER
+                ================================================== */}
+                {canNsoRules && (
+                    <NavLink to="/issue-control-center" className={getMenuClass}>
+                        <FaClipboardCheck />
+                        {!collapsed && <span>Issue Control Center</span>}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
                     CHECKLIST REPORTS
                 ================================================== */}
 
@@ -747,16 +757,6 @@ function Sidebar({ collapsed }) {
                                 NSO Tracking
                             </span>
                         )}
-                    </NavLink>
-                )}
-
-                {/* ==================================================
-                    ISSUE CONTROL CENTER
-                ================================================== */}
-                {canNsoRules && (
-                    <NavLink to="/issue-control-center" className={getMenuClass}>
-                        <FaClipboardCheck />
-                        {!collapsed && <span>Issue Control Center</span>}
                     </NavLink>
                 )}
 
