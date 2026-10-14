@@ -728,6 +728,38 @@ function App() {
                             </ModulePermissionRoute>
                         }
                     />
+                    <Route
+                        path="/issue-control-center/new"
+                        element={
+                            <ModulePermissionRoute page="nso.rules">
+                                <IssueControlCenter />
+                            </ModulePermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/issue-control-center/:id/edit"
+                        element={
+                            <ModulePermissionRoute page="nso.rules">
+                                <IssueControlCenter />
+                            </ModulePermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/issue-control-center/new"
+                        element={
+                            <ModulePermissionRoute page="nso.rules">
+                                <IssueControlCenter />
+                            </ModulePermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/issue-control-center/:id/edit"
+                        element={
+                            <ModulePermissionRoute page="nso.rules">
+                                <IssueControlCenter />
+                            </ModulePermissionRoute>
+                        }
+                    />
 
                     <Route
                         path="/nso-tracking"
