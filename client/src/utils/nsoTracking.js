@@ -163,18 +163,27 @@ export const plannedDate = (project = {}) => toYmd(project.billing_start_date) |
 export const isCompletedStatus = (status) =>
     ["completed", "opened"].includes(String(status || "").toLowerCase());
 
+const actualOpeningReached = (project = {}) => {
+    const actual = toYmd(project.actual_store_opening_date);
+    return Boolean(actual && actual <= todayYmd());
+};
+
+const manuallyCompleted = (project = {}) =>
+    String(project.status_source || "").toLowerCase() === "manual" &&
+    isCompletedStatus(project.status);
+
 export const openingDate = (project = {}) =>
-    isCompletedStatus(project.status) ? toYmd(project.billing_start_date) || toYmd(project.updated_at) : "";
+    actualOpeningReached(project) ? toYmd(project.actual_store_opening_date) : "";
 
 // Completed / In Progress / Planning / Delayed / On Hold / Cancelled
 export const trackingStatus = (project = {}) => {
     const raw = String(project.status || "Planning").trim().toLowerCase();
-    if (isCompletedStatus(raw)) return "Completed";
+    if (manuallyCompleted(project) || actualOpeningReached(project)) return "Completed";
     if (raw === "cancelled") return "Cancelled";
     if (raw === "on hold") return "On Hold";
     const planned = plannedDate(project);
     if (planned && planned < todayYmd()) return "Delayed";
-    if (raw === "planning" || !raw) return "Planning";
+    if (raw === "planning" || !raw || isCompletedStatus(raw)) return "Planning";
     return "In Progress";
 };
 
@@ -187,8 +196,11 @@ export const milestoneState = (project = {}) => {
 };
 
 export const progressFor = (project = {}) => {
-    if (isCompletedStatus(project.status)) return 100;
-    const byStatus = STATUS_PROGRESS[String(project.status || "").toLowerCase()] ?? 5;
+    if (manuallyCompleted(project) || actualOpeningReached(project)) return 100;
+    const rawStatus = String(project.status || "").toLowerCase();
+    const byStatus = isCompletedStatus(rawStatus)
+        ? 88
+        : (STATUS_PROGRESS[rawStatus] ?? 5);
     const items = milestoneState(project).filter((item) => item.date);
     if (!items.length) return byStatus;
     const done = items.filter((item) => item.done).length;

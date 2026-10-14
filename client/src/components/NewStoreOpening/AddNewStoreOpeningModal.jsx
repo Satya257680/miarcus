@@ -125,6 +125,9 @@ const initialForm = {
     vm_handover_deadline: "",
     scanning_deadline: "",
     billing_start_date: "",
+    actual_store_opening_date: "",
+    status_source: "automatic",
+    status_before_auto_opening: "",
 
 
     /* ==================================================

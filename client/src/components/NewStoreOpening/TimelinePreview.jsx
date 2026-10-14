@@ -29,6 +29,11 @@ export default function TimelinePreview({ formData = {}, handleChange }) {
                 <button type="button" className={manual ? "active" : ""} onClick={() => setMode("manual")}><FaPen /> Manual</button>
             </div>
             {manual && <div className="nso-timeline-help">Manual mode keeps exactly the dates you enter and will not regenerate them when possession dates change.</div>}
+            <div className="nso-opening-date-field" style={{ margin: "16px 0", padding: "14px 16px", border: "1px solid #dbe4f0", borderRadius: "12px", background: "#f8fbff" }}>
+                <label htmlFor="actual_store_opening_date" style={{ display: "block", fontWeight: 700, marginBottom: 6 }}>Actual Store Opening Date</label>
+                <p style={{ margin: "0 0 10px", color: "#64748b", fontSize: 13 }}>Enter this only after the store actually opens. Billing start date alone will not mark the project as completed.</p>
+                <input id="actual_store_opening_date" className="nso-timeline-date" type="date" name="actual_store_opening_date" value={formData.actual_store_opening_date || ""} onChange={handleChange} />
+            </div>
             <div className="timeline-list">
                 {milestones.map(([id,title,field], index) => {
                     const value = formData[field];

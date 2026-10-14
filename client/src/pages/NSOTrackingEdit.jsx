@@ -267,6 +267,11 @@ export default function NSOTrackingEdit() {
                                 <input type="date" value={toYmd(form.actual_possession_date)} onChange={(e) => set("actual_possession_date", e.target.value)} />
                             </label>
                             <label className="nse-field">
+                                <span>Actual Store Opening Date</span>
+                                <input type="date" value={toYmd(form.actual_store_opening_date)} onChange={(e) => set("actual_store_opening_date", e.target.value)} />
+                                <small className="nse-hint">Enter only after the store has actually opened. This date drives automatic 100% completion.</small>
+                            </label>
+                            <label className="nse-field">
                                 <span>Broker Possession Date</span>
                                 <input type="date" value={toYmd(form.possession_date_broker)} onChange={(e) => set("possession_date_broker", e.target.value)} />
                             </label>
@@ -280,7 +285,7 @@ export default function NSOTrackingEdit() {
                         <div className="nse-form-grid">
                             <label className={`nse-field ${fieldErrors.status ? "has-error" : ""}`}>
                                 <span>Current Status <em>*</em></span>
-                                <select value={form.status || ""} onChange={(e) => set("status", e.target.value)}>
+                                <select value={form.status || ""} onChange={(e) => { set("status", e.target.value); set("status_source", "manual"); }}>
                                     {!STATUS_OPTIONS.includes(form.status) && form.status && <option value={form.status}>{form.status}</option>}
                                     {STATUS_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
                                 </select>

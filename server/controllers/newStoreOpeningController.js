@@ -291,6 +291,8 @@ exports.getAllNewStoreOpenings = async (
 
     try {
 
+        await require("../models/newStoreOpeningModel").syncAutomaticOpeningStatuses();
+
         const page =
 
             parseInt(req.query.page) || 1;
@@ -382,6 +384,8 @@ exports.getNewStoreOpeningById = async (
 ) => {
 
     try {
+
+        await require("../models/newStoreOpeningModel").syncAutomaticOpeningStatuses();
 
         const project =
 
@@ -478,7 +482,10 @@ exports.createNewStoreOpening = async (
 
                     req.body.received_by_nso
 
-                )
+                ),
+
+            actual_store_opening_date:
+                formatDate(req.body.actual_store_opening_date)
 
         };
 
@@ -585,7 +592,10 @@ exports.updateNewStoreOpening = async (
 
                     req.body.received_by_nso
 
-                )
+                ),
+
+            actual_store_opening_date:
+                formatDate(req.body.actual_store_opening_date)
 
         };
 

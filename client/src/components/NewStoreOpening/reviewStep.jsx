@@ -726,6 +726,12 @@ export default function ReviewStep({
                     />
 
                     <Item
+                        icon={<FaCalendarAlt />}
+                        label="Actual Store Opening Date"
+                        value={formatDate(formData.actual_store_opening_date)}
+                    />
+
+                    <Item
                         icon={<FaCheckCircle />}
                         label="Received By NSO"
                         value={formData.received_by_nso}

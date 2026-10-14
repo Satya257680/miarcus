@@ -1586,7 +1586,10 @@ NewStoreOpening.ensureColumns = async () => {
         ["approver_email", "VARCHAR(255) NULL"],
         ["construction_vendor_email", "VARCHAR(255) NULL"],
         ["project_taken_by_email", "VARCHAR(255) NULL"],
-        ["timeline_mode", "VARCHAR(20) NOT NULL DEFAULT 'automatic'"]
+        ["timeline_mode", "VARCHAR(20) NOT NULL DEFAULT 'automatic'"],
+        ["actual_store_opening_date", "DATE NULL"],
+        ["status_source", "VARCHAR(20) NOT NULL DEFAULT 'automatic'"],
+        ["status_before_auto_opening", "VARCHAR(60) NULL"]
     ];
     for (const [column, definition] of columns) {
         try {
@@ -1595,7 +1598,57 @@ NewStoreOpening.ensureColumns = async () => {
             if (error?.code !== "ER_DUP_FIELDNAME") throw error;
         }
     }
+    // Existing explicit Opened/Completed records are treated as manual
+    // confirmations so a later date edit cannot silently undo them.
+    await db.query(`
+        UPDATE new_store_openings
+        SET status_source = 'manual'
+        WHERE LOWER(COALESCE(status, '')) IN ('opened', 'completed')
+          AND actual_store_opening_date IS NULL
+          AND status_source = 'automatic'
+    `);
 };
+
+
+
+NewStoreOpening.syncAutomaticOpeningStatuses = () => new Promise((resolve, reject) => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const sql = `
+        UPDATE new_store_openings
+        SET status_before_auto_opening = CASE
+                WHEN LOWER(COALESCE(status, '')) IN ('opened', 'completed')
+                    THEN status_before_auto_opening
+                ELSE status
+            END,
+            status = 'Opened',
+            status_source = 'automatic',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE actual_store_opening_date IS NOT NULL
+          AND actual_store_opening_date <= ?
+          AND NOT (status_source = 'manual' AND LOWER(COALESCE(status, '')) IN ('opened', 'completed'))
+          AND (status_source <> 'automatic' OR LOWER(COALESCE(status, '')) NOT IN ('opened', 'completed'))
+    `;
+    db.query(sql, [today], (error, result) => error ? reject(error) : resolve(result));
+});
+
+NewStoreOpening.updateLifecycleMeta = (id, fields) => new Promise((resolve, reject) => {
+    const sql = `
+        UPDATE new_store_openings
+        SET status = ?,
+            actual_store_opening_date = ?,
+            status_source = ?,
+            status_before_auto_opening = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    db.query(sql, [
+        fields.status || "Planning",
+        fields.actual_store_opening_date || null,
+        fields.status_source || "automatic",
+        fields.status_before_auto_opening || null,
+        id
+    ], (error, result) => error ? reject(error) : resolve(result));
+});
 
 // ======================================================
 // UPDATE PROJECT STATUS ONLY

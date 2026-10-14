@@ -6,6 +6,58 @@ const statusService = require("./nsoStatusService");
 
 const historyService = require("./nsoHistoryService");
 const nsoEmailService = require("./nsoEmailService");
+const NewStoreOpening = require("../models/newStoreOpeningModel");
+
+const toYmd = (value) => {
+    if (!value) return "";
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+    const raw = String(value).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+};
+
+const todayInIndia = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+const isCompletedStatus = (value) => ["opened", "completed"].includes(String(value || "").trim().toLowerCase());
+const reached = (value) => Boolean(toYmd(value) && toYmd(value) <= todayInIndia());
+
+const applyOpeningLifecycle = (data, existing = null) => {
+    const actualOpening = toYmd(data.actual_store_opening_date);
+    const oldSource = String(existing?.status_source || data.status_source || "automatic").toLowerCase();
+    const oldStatus = String(existing?.status || "Planning");
+    const requestedSource = String(data.status_source || "").toLowerCase();
+    const existingSource = String(existing?.status_source || "").toLowerCase();
+    let source = String(
+        existing && requestedSource && requestedSource !== existingSource
+            ? requestedSource
+            : (existingSource || requestedSource || oldSource || "automatic")
+    ).toLowerCase();
+    let beforeAuto = existing?.status_before_auto_opening || data.status_before_auto_opening || null;
+    let status = String(data.status || oldStatus || "Planning");
+
+    // A status explicitly marked complete by a person is sticky until that
+    // person changes it. A recorded actual opening date drives automatic completion.
+    if (isCompletedStatus(status) && oldSource !== "automatic" && !existing) source = "manual";
+    if (existing && isCompletedStatus(data.status) && !isCompletedStatus(existing.status)) source = "manual";
+    if (source === "manual" && isCompletedStatus(status)) {
+        data.status = status;
+    } else if (actualOpening && reached(actualOpening)) {
+        if (!isCompletedStatus(oldStatus) || oldSource !== "automatic") beforeAuto = oldStatus;
+        status = "Opened";
+        source = "automatic";
+        data.status = status;
+    } else {
+        if (oldSource === "automatic" && isCompletedStatus(oldStatus)) {
+            status = beforeAuto || (toYmd(data.billing_start_date) && toYmd(data.billing_start_date) < todayInIndia() ? "Planning" : "Planning");
+        }
+        if (source !== "manual" || !isCompletedStatus(status)) source = "automatic";
+        data.status = status;
+        if (!actualOpening) beforeAuto = null;
+    }
+    data.actual_store_opening_date = actualOpening || null;
+    data.status_source = source;
+    data.status_before_auto_opening = beforeAuto;
+    return data;
+};
+
 
 
 // ======================================================
@@ -82,12 +134,20 @@ const createWorkflow = async (
     // CREATE PROJECT
     // ------------------------------------------
 
+    data = applyOpeningLifecycle(data, null);
+
+    const lifecycleStatus = data.status;
     const project =
         await nsoService.createProject(
             data,
             userId,
             file
         );
+
+    // createProject sets the initial status to Planning; restore the lifecycle
+    // result when saving the new opening-date metadata.
+    data.status = lifecycleStatus;
+    if (project?.id) await NewStoreOpening.updateLifecycleMeta(project.id, data);
 
 
     // ------------------------------------------
@@ -168,6 +228,11 @@ const updateWorkflow = async (
 
 
     // ------------------------------------------
+    // LOAD EXISTING STATUS SOURCE BEFORE RECOMPUTING
+    // ------------------------------------------
+    const existing = await nsoService.getProjectById(id);
+
+    // ------------------------------------------
     // BUSINESS LOGIC
     // ------------------------------------------
 
@@ -188,13 +253,13 @@ const updateWorkflow = async (
 
 
     // ------------------------------------------
-    // STATUS
+    // STATUS + OPENING-DATE LIFECYCLE
     // ------------------------------------------
 
-    data.status =
-        statusService.calculateStatus(
-            data
-        );
+    data = applyOpeningLifecycle(data, existing);
+    if (!isCompletedStatus(data.status) && !["On Hold", "Cancelled"].includes(data.status)) {
+        data.status = statusService.calculateStatus(data);
+    }
 
 
     // ------------------------------------------
@@ -216,6 +281,8 @@ const updateWorkflow = async (
             userId,
             file
         );
+
+    await NewStoreOpening.updateLifecycleMeta(id, data);
 
 
     // ------------------------------------------

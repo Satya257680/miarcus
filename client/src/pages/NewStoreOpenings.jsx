@@ -1,6 +1,8 @@
 import { API_BASE_URL } from "../axiosConfig.js";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import { useEffect, useRef, useState } from "react";
+import { useRbacVersion } from "../hooks/usePermission";
+import { nsoPermissions } from "../utils/nsoTracking";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -113,44 +115,12 @@ function NewStoreOpenings() {
     // ======================================================
     // RBAC
     // ======================================================
-
-    const user = JSON.parse(
-        localStorage.getItem("user") || "{}"
-    );
-
-    const permissions = JSON.parse(
-        localStorage.getItem("permissions") || "{}"
-    );
-
-    const isAdmin =
-        user.administrator === true ||
-        user.administrator === 1 ||
-        user.administrator === "1";
-
-    const permission = isAdmin
-        ? "Full"
-        : permissions["New Store Openings"] || "None";
-
-    const canView = [
-        "View",
-        "Add",
-        "Edit",
-        "Full"
-    ].includes(permission);
-
-    const canAdd = [
-        "Add",
-        "Edit",
-        "Full"
-    ].includes(permission);
-
-    const canEdit = [
-        "Edit",
-        "Full"
-    ].includes(permission);
-
-    const canDelete =
-        permission === "Full";
+    // Use the shared RBAC helpers used by NSO Tracking and its edit route.
+    // This avoids stale/local permission parsing that could hide Edit on one
+    // page while the same user has Edit permission elsewhere. The hook makes
+    // this page re-render when permissions are refreshed by the app shell.
+    useRbacVersion();
+    const { canView, canAdd, canEdit, canDelete } = nsoPermissions();
 
     // ======================================================
     // SAFE VALUE
@@ -471,6 +441,10 @@ function NewStoreOpenings() {
                 formatDateForInput(
                     row.billing_start_date
                 ),
+            actual_store_opening_date:
+                formatDateForInput(row.actual_store_opening_date),
+            status_source: row.status_source || "automatic",
+            status_before_auto_opening: row.status_before_auto_opening || "",
 
             // ------------------------------------------------
             // STORE DETAILS
@@ -1275,26 +1249,18 @@ function NewStoreOpenings() {
     };
 
     const launchStatus = (row) => {
-
-        const diff = daysFromToday(row.billing_start_date);
-
-        if (diff === null) {
-            return { tone: "slate", label: "Launch date TBD" };
-        }
-
-        if (diff < 0) {
+        const actualOpening = row.actual_store_opening_date;
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+        const actualDate = formatDateForInput(actualOpening);
+        const manuallyCompleted = row.status_source === "manual" && ["opened", "completed"].includes(String(row.status || "").toLowerCase());
+        if (manuallyCompleted || (actualDate && actualDate <= today)) {
             return { tone: "green", label: "Live" };
         }
-
-        if (diff === 0) {
-            return { tone: "violet", label: "Launching today" };
-        }
-
-        if (diff <= 30) {
-            return { tone: "amber", label: `Launch in ${diff}d` };
-        }
-
-        return { tone: "blue", label: `Launch in ${diff}d` };
+        const diff = daysFromToday(row.billing_start_date);
+        if (diff === null) return { tone: "slate", label: "Launch date TBD" };
+        if (diff < 0) return { tone: "red", label: "Opening overdue" };
+        if (diff === 0) return { tone: "violet", label: "Launch today" };
+        return { tone: diff <= 30 ? "amber" : "blue", label: `Launch in ${diff}d` };
     };
 
     // ======================================================
