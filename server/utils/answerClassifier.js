@@ -320,7 +320,7 @@ const decideIssue = (answerRow, rule = null) => {
         return { ...classification, ruleUsed: false, legacyRule: false };
     }
 
-    const legacyRule = isLegacyWrongRule(rule, classification);
+    const legacyRule = rule.issue_answer ? false : isLegacyWrongRule(rule, classification);
     if (legacyRule) {
         return { ...classification, ruleUsed: false, legacyRule: true };
     }
@@ -330,15 +330,26 @@ const decideIssue = (answerRow, rule = null) => {
 
     // Yes/No rule + Yes/No answer → honour the rule exactly.
     if (expectedYn && classification.kind === "yesno") {
+        const issueAnswer = normalize(rule.issue_answer || "");
+        const submitted = normalize(classification.yn || "");
+        const issue = issueAnswer
+            ? (issueAnswer === "any non-empty answer" ? Boolean(submitted) : submitted === issueAnswer)
+            : classification.yn !== expectedYn;
         return {
             ...classification,
-            issue: classification.yn !== expectedYn,
+            issue,
             ruleUsed: true,
             legacyRule: false,
-            reason: classification.yn !== expectedYn
-                ? `Expected "${rule.expected_answer}", received "${classification.yn}".`
-                : "Matches the configured expected answer."
+            reason: issue ? `Issue-trigger answer received: "${classification.yn}".` : "Matches the configured no-issue answer."
         };
+    }
+
+    // Explicit Issue Control Center rule for text answers.
+    if (rule.issue_answer) {
+        const issueAnswer = normalize(rule.issue_answer);
+        const submitted = normalize(answerRow.answer);
+        const issue = issueAnswer === "any non-empty answer" ? Boolean(submitted) : submitted === issueAnswer;
+        return { ...classification, issue, ruleUsed: true, legacyRule: false, reason: issue ? "Matches the configured issue-trigger answer." : "Does not match the configured issue-trigger answer." };
     }
 
     // Free-text rule ("Completed", "0" …) → exact match is OK.

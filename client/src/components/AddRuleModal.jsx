@@ -6,7 +6,6 @@ import {
   updateRule,
 } from "../services/nsoRuleService";
 
-import { getQuestions } from "../services/questionService";
 import { getDepartments } from "../services/departmentService";
 
 import "../styles/AddRuleModal.css";
@@ -53,7 +52,6 @@ function AddRuleModal({
   // STATES
   // =====================================================
 
-  const [questions, setQuestions] = useState([]);
   const [departments, setDepartments] = useState([]);
 
   const [loading, setLoading] = useState(false);
@@ -206,23 +204,8 @@ function AddRuleModal({
 
       setLoading(true);
 
-      const [
-        questionRes,
-        departmentRes,
-      ] = await Promise.all([
-        getQuestions(),
-        getDepartments(),
-      ]);
-
-
-      setQuestions(
-        questionRes?.data || []
-      );
-
-
-      setDepartments(
-        departmentRes?.data || []
-      );
+      const departmentRes = await getDepartments();
+      setDepartments(departmentRes?.data || departmentRes?.departments || []);
 
     } catch (err) {
 
@@ -712,51 +695,15 @@ function AddRuleModal({
                       </label>
 
 
-                      <div className="nso-rule-select-wrap">
-
-                        <select
-                          id="trigger_column"
-                          name="trigger_column"
-                          value={
-                            form.trigger_column
-                          }
-                          onChange={
-                            handleChange
-                          }
-                          required
-                          disabled={saving}
-                        >
-
-                          <option value="">
-                            Select Trigger Column
-                          </option>
-
-
-                          {questions.map(
-                            (question) => (
-
-                              <option
-                                key={
-                                  question.id
-                                }
-                                value={
-                                  question.question
-                                }
-                              >
-                                {
-                                  question.question
-                                }
-                              </option>
-
-                            )
-                          )}
-
-                        </select>
-
-
-                        <LuChevronDown />
-
-                      </div>
+                      <input
+                        id="trigger_column"
+                        name="trigger_column"
+                        value={form.trigger_column}
+                        onChange={handleChange}
+                        placeholder="NSO field / milestone (e.g. possession_date)"
+                        required
+                        disabled={saving}
+                      />
 
                     </div>
 

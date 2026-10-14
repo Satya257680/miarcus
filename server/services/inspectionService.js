@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const IssueControlRule = require("../models/issueControlRuleModel");
 
 // ======================================================
 // MODELS
@@ -210,29 +211,23 @@ const getActiveRules = () => {
 
     return new Promise(
 
-        (resolve, reject) => {
-
+        async (resolve, reject) => {
+            try { await IssueControlRule.ensureTable(); } catch (error) { return reject(error); }
             const sql = `
 
                 SELECT
-
-                    nr.*,
-
-                    GROUP_CONCAT(
-
-                        nrd.department_id
-
-                    ) AS department_ids
-
-                FROM nso_rules nr
-
-                LEFT JOIN nso_rule_departments nrd
-
-                    ON nr.id = nrd.rule_id
-
-                WHERE nr.is_active = 1
-
-                GROUP BY nr.id
+                    icr.id,
+                    icr.question_text AS trigger_column,
+                    icr.expected_answer,
+                    icr.issue_answer,
+                    icr.priority,
+                    icr.sla_days,
+                    1 AS create_action_point,
+                    1 AS mandatory,
+                    icr.is_active,
+                    NULL AS department_ids
+                FROM issue_control_rules icr
+                WHERE icr.is_active = 1
 
             `;
 
@@ -495,7 +490,7 @@ const repairLegacyRules = async () => {
     for (const [ruleId, expected] of entries) {
         try {
             await db.query(
-                `UPDATE nso_rules SET expected_answer = ? WHERE id = ?`,
+                `UPDATE issue_control_rules SET expected_answer = ? WHERE id = ?`,
                 [expected, ruleId]
             );
             repaired++;

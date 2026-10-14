@@ -1741,6 +1741,12 @@ loadRoute(
 
 );
 
+loadRoute(
+    "./routes/issueControlRuleRoutes",
+    "/api/issue-control-rules",
+    "Issue Control Center Routes"
+);
+
 // ======================================================
 // NEW STORE OPENING
 // ======================================================

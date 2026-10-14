@@ -1,0 +1,2 @@
+const router=require('express').Router();const auth=require('../middleware/authMiddleware');const permission=require('../middleware/permissionMiddleware');const c=require('../controllers/issueControlRuleController');
+router.use(auth);router.get('/',permission('NSO Rules','View'),c.list);router.post('/',permission('NSO Rules','Add'),c.create);router.put('/:id',permission('NSO Rules','Edit'),c.update);router.delete('/delete-all',permission('NSO Rules','Edit'),c.removeAll);router.delete('/:id',permission('NSO Rules','Edit'),c.remove);module.exports=router;

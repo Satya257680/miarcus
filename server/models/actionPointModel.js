@@ -1016,11 +1016,11 @@ ActionPoint.getById = (
 
             csa.remarks AS answer_remarks,
 
-            nr.trigger_column,
+            COALESCE(icr.question_text, nr.trigger_column) AS trigger_column,
 
-            nr.expected_answer,
+            COALESCE(icr.expected_answer, nr.expected_answer) AS expected_answer,
 
-            nr.create_action_point,
+            COALESCE(icr.is_active, nr.create_action_point) AS create_action_point,
 
             u.name AS employee_name,
 
@@ -1052,6 +1052,9 @@ ActionPoint.getById = (
 
         LEFT JOIN nso_rules nr
             ON ap.rule_id = nr.id
+
+        LEFT JOIN issue_control_rules icr
+            ON ap.rule_id = icr.id AND q.question = icr.question_text
 
         LEFT JOIN users u
             ON cs.submitted_by = u.id

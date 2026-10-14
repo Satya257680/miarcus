@@ -201,7 +201,7 @@ export const RBAC_GROUPS = [
         name: "NSO Rules",
         icon: "rules",
         description: "Timeline rules for new stores",
-        pages: [{ key: "nso.rules", label: "NSO Rules", paths: ["/nso-rules"] }],
+        pages: [{ key: "nso.rules", label: "NSO Rules", paths: ["/nso-rules", "/issue-control-center"] }],
       },
     ],
   },

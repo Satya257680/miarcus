@@ -239,9 +239,9 @@ const reclassify = async ({ dryRun = true, userId = null, filters = {} } = {}) =
     if (!dryRun) {
         for (const [ruleId, expected] of legacyRuleIds.entries()) {
             try {
-                await db.query(`UPDATE nso_rules SET expected_answer = ? WHERE id = ?`, [expected, ruleId]);
+                await db.query(`UPDATE issue_control_rules SET expected_answer = ? WHERE id = ?`, [expected, ruleId]);
             } catch (error) {
-                console.error(`[Reclassify] NSO rule #${ruleId} repair failed:`, error.message);
+                console.error(`[Reclassify] Issue rule #${ruleId} repair failed:`, error.message);
             }
         }
     }

@@ -65,6 +65,7 @@ const ReportsTo = lazy(() => import("./pages/ReportsTo"));
 // NEW STORE OPENING
 // ======================================================
 const NSORules = lazy(() => import("./pages/NSORules"));
+const IssueControlCenter = lazy(() => import("./pages/IssueControlCenter"));
 const NewStoreOpenings = lazy(() => import("./pages/NewStoreOpenings"));
 const NSOTracking = lazy(() => import("./pages/NSOTracking"));
 
@@ -715,6 +716,15 @@ function App() {
                         element={
                             <ModulePermissionRoute page="nso.rules">
                                 <NSORules />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/issue-control-center"
+                        element={
+                            <ModulePermissionRoute page="nso.rules">
+                                <IssueControlCenter />
                             </ModulePermissionRoute>
                         }
                     />

@@ -751,6 +751,16 @@ function Sidebar({ collapsed }) {
                 )}
 
                 {/* ==================================================
+                    ISSUE CONTROL CENTER
+                ================================================== */}
+                {canNsoRules && (
+                    <NavLink to="/issue-control-center" className={getMenuClass}>
+                        <FaClipboardCheck />
+                        {!collapsed && <span>Issue Control Center</span>}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
                     NSO RULES
                 ================================================== */}
 
@@ -763,7 +773,7 @@ function Sidebar({ collapsed }) {
 
                         {!collapsed && (
                             <span>
-                                Action Point Rules
+                                NSO Rules
                             </span>
                         )}
                     </NavLink>
