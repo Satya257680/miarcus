@@ -163,7 +163,7 @@ export default function LndManage() {
         </div>
       </div>
 
-      {view === "report" ? <Report /> : loading ? <div className="lnd-panel lnd-empty">Loading programs…</div> : filteredPrograms.length === 0 ? (
+      {view === "report" ? <Report canEdit={canEdit} canFull={canFull} flash={flash} /> : loading ? <div className="lnd-panel lnd-empty">Loading programs…</div> : filteredPrograms.length === 0 ? (
         <div className="lnd-panel lnd-empty"><p>{programs.length ? "No programs match your search." : "No programs yet."}</p>{canFull && programs.length === 0 && <button className="lnd-btn" onClick={seed}>Load starter programs from the L&amp;D deck</button>}</div>
       ) : <>
         <div className="lm-card-grid">
@@ -527,31 +527,103 @@ function ExamTab({ moduleId, flash }) {
 
 // ---------------- learner report ----------------
 
-function Report() {
+function Report({ canEdit, canFull, flash }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
-  useEffect(() => {
-    lndApi.report().then((r) => setRows(r.rows)).catch((e) => setError(errorMessage(e)));
+  const [query, setQuery] = useState("");
+  const [activeRow, setActiveRow] = useState(null);
+  const [certificate, setCertificate] = useState(null);
+  const [certificateError, setCertificateError] = useState("");
+  const [editingRow, setEditingRow] = useState(null);
+  const [completed, setCompleted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingKey, setDeletingKey] = useState("");
+  const refresh = useCallback(() => {
+    setError("");
+    return lndApi.report().then((r) => setRows(r.rows || [])).catch((e) => setError(errorMessage(e)));
   }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const filteredRows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows || [];
+    return (rows || []).filter((r) => `${r.name || ""} ${r.email || ""} ${r.designation || ""} ${r.program || ""}`.toLowerCase().includes(q));
+  }, [rows, query]);
+
+  const openDetails = async (row) => {
+    setActiveRow(row);
+    setCertificate(null);
+    setCertificateError("");
+    if (row.certifiedAt) {
+      try {
+        const result = await lndApi.reportCertificate(row.userId, row.programId);
+        setCertificate(result.certificate || null);
+      } catch (e) { setCertificateError(errorMessage(e, "Certificate details could not be loaded.")); }
+    }
+  };
+
+  const saveProgress = async () => {
+    if (!editingRow) return;
+    setSaving(true);
+    try {
+      const result = await lndApi.updateReportProgress(editingRow.userId, editingRow.programId, completed);
+      flash("success", result.message || "Learner report updated.");
+      setEditingRow(null);
+      await refresh();
+    } catch (e) { flash("error", errorMessage(e, "Unable to update learner progress.")); }
+    finally { setSaving(false); }
+  };
+
+  const deleteRow = async (row) => {
+    const key = `${row.userId}-${row.programId}`;
+    if (!window.confirm(`Delete ${row.name}'s progress for ${row.program}? This also removes the certificate record, if issued.`)) return;
+    setDeletingKey(key);
+    try {
+      const result = await lndApi.deleteReportProgress(row.userId, row.programId);
+      flash("success", result.message || "Learner report deleted.");
+      await refresh();
+    } catch (e) { flash("error", errorMessage(e, "Unable to delete learner report.")); }
+    finally { setDeletingKey(""); }
+  };
+
   if (error) return <div className="lnd-state lnd-state--err">{error}</div>;
-  if (!rows) return <div className="lnd-state">Loading…</div>;
-  if (!rows.length) return <div className="lnd-state">No learner activity yet.</div>;
-  return (
-    <div className="lnd-panel lm-scroll">
-      <table className="lm-table">
-        <thead><tr><th>Learner</th><th>Designation</th><th>Program</th><th>Progress</th><th>Avg score</th><th>Certified</th></tr></thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={`${r.userId}-${r.programId}`}>
-              <td><strong>{r.name}</strong><div className="lnd-small">{r.email}</div></td>
-              <td>{r.designation || "—"}</td><td>{r.program}</td>
-              <td>{r.done}/{r.total} · {r.percent}%</td>
-              <td>{r.avgScore === null ? "—" : `${r.avgScore}%`}</td>
-              <td>{r.certifiedAt ? new Date(r.certifiedAt).toLocaleDateString() : "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  if (!rows) return <div className="lnd-state">Loading learner reports…</div>;
+  return <>
+    <section className="lnd-panel lm-report-panel">
+      <div className="lm-report-heading"><div><h2>Learner Report</h2><p>Review training progress, scores and issued certificates.</p></div><span className="lm-report-count">{filteredRows.length} learners</span></div>
+      <label className="lm-report-search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search learner, designation or program…" aria-label="Search learner report" /></label>
+      <div className="lm-scroll"><table className="lm-table lm-report-table">
+        <thead><tr><th>Learner</th><th>Designation</th><th>Program</th><th>Progress</th><th>Avg score</th><th>Certified</th><th className="lm-action-col">Actions</th></tr></thead>
+        <tbody>{filteredRows.map((r) => {
+          const key = `${r.userId}-${r.programId}`;
+          return <tr key={key}>
+            <td><strong>{r.name}</strong><div className="lnd-small">{r.email}</div></td>
+            <td>{r.designation || "—"}</td><td>{r.program}</td>
+            <td><div className="lm-report-progress"><span><i style={{ width: `${Math.min(100, Math.max(0, Number(r.percent) || 0))}%` }} /></span><b>{r.done}/{r.total} · {r.percent}%</b></div></td>
+            <td>{r.avgScore === null ? "—" : `${r.avgScore}%`}</td>
+            <td>{r.certifiedAt ? <span className="lm-cert-pill">Certified · {new Date(r.certifiedAt).toLocaleDateString()}</span> : <span className="lm-not-certified">Not yet</span>}</td>
+            <td><div className="lm-report-actions"><button type="button" className="lm-action-view" onClick={() => openDetails(r)}>View</button>{canEdit && <button type="button" className="lm-action-edit" onClick={() => { setEditingRow(r); setCompleted(Number(r.percent) >= 100); }}>Edit</button>}{canFull && <button type="button" className="lm-action-delete" disabled={deletingKey === key} onClick={() => deleteRow(r)}>{deletingKey === key ? "Deleting…" : "Delete"}</button>}</div></td>
+          </tr>;
+        })}</tbody>
+      </table></div>
+      {!filteredRows.length && <div className="lm-report-empty">{rows.length ? "No learner reports match your search." : "No learner activity yet."}</div>}
+    </section>
+
+    {activeRow && <Modal title="Learner Report Details" wide onClose={() => { setActiveRow(null); setCertificate(null); }}>
+      <div className="lm-detail-banner"><div className="lm-detail-avatar">{String(activeRow.name || "L").trim().charAt(0).toUpperCase()}</div><div><h2>{activeRow.name}</h2><p>{activeRow.email}</p><span>{activeRow.designation || "Designation not set"}</span></div><span className={`lm-detail-status ${Number(activeRow.percent) >= 100 ? "is-complete" : ""}`}>{Number(activeRow.percent) >= 100 ? "Completed" : "In progress"}</span></div>
+      <div className="lm-detail-grid">
+        <div><small>Program</small><strong>{activeRow.program}</strong></div><div><small>Modules completed</small><strong>{activeRow.done} of {activeRow.total}</strong></div><div><small>Completion</small><strong>{activeRow.percent}%</strong></div><div><small>Average assessment score</small><strong>{activeRow.avgScore === null ? "Not available" : `${activeRow.avgScore}%`}</strong></div><div><small>Certificate status</small><strong>{activeRow.certifiedAt ? "Issued" : "Not issued"}</strong></div><div><small>Certificate date</small><strong>{activeRow.certifiedAt ? new Date(activeRow.certifiedAt).toLocaleString() : "—"}</strong></div>
+      </div>
+      <div className="lm-detail-progress"><div><b>Overall progress</b><strong>{activeRow.percent}%</strong></div><span><i style={{ width: `${Math.min(100, Math.max(0, Number(activeRow.percent) || 0))}%` }} /></span></div>
+      <div className="lm-certificate-section"><div className="lm-certificate-section-head"><div><h3>Certificate</h3><p>Certificate details associated with this learner and program.</p></div>{certificate?.code && <button type="button" className="lnd-btn lnd-btn--ghost" onClick={() => window.print()}>Print certificate</button>}</div>
+        {certificateError ? <p className="lm-certificate-message">{certificateError}</p> : certificate?.code ? <div className="lm-certificate" id="lm-print-certificate"><div className="lm-certificate-inner"><span className="lm-certificate-kicker">MIARCUS · LEARNING &amp; DEVELOPMENT</span><div className="lm-certificate-medal">✦</div><h2>Certificate of Completion</h2><p>This certificate is proudly presented to</p><h3>{certificate.name || activeRow.name}</h3><p>for successfully completing the training program</p><h4>{certificate.program || activeRow.program}</h4><div className="lm-certificate-footer"><span><small>Certificate ID</small><b>{certificate.code}</b></span><span><small>Date issued</small><b>{new Date(certificate.issuedAt || activeRow.certifiedAt).toLocaleDateString()}</b></span></div></div></div> : <p className="lm-certificate-message">{activeRow.certifiedAt ? "The report indicates a certificate, but its details could not be found." : "A certificate has not been issued yet. It becomes available after the required modules are completed."}</p>}
+      </div>
+    </Modal>}
+
+    {editingRow && <Modal title="Edit Learner Report" onClose={() => !saving && setEditingRow(null)}>
+      <div className="lm-edit-learner"><strong>{editingRow.name}</strong><span>{editingRow.program}</span><p>Use this only to correct the completion status. Marking the learner complete updates all active modules for this program. Resetting progress removes any issued certificate for this program.</p></div>
+      <label className="lm-f">Completion status<select value={completed ? "completed" : "incomplete"} onChange={(e) => setCompleted(e.target.value === "completed")}><option value="incomplete">In progress — reset module completion</option><option value="completed">Completed — mark all active modules complete</option></select></label>
+      <div className="lnd-actions"><button className="lnd-btn" disabled={saving} onClick={saveProgress}>{saving ? "Saving…" : "Save Changes"}</button><button className="lnd-btn lnd-btn--ghost" disabled={saving} onClick={() => setEditingRow(null)}>Cancel</button></div>
+    </Modal>}
+  </>;
 }

@@ -55,5 +55,8 @@ export const lndApi = {
   saveQuestions: (moduleId, questions) => put(`/admin/modules/${moduleId}/questions`, { questions }),
   lookups: () => get("/admin/lookups"),
   report: () => get("/admin/report"),
+  reportCertificate: (userId, programId) => get(`/admin/report/${userId}/${programId}/certificate`),
+  updateReportProgress: (userId, programId, completed) => put(`/admin/report/${userId}/${programId}`, { completed }),
+  deleteReportProgress: (userId, programId) => del(`/admin/report/${userId}/${programId}`),
   seed: () => post("/admin/seed", {}),
 };

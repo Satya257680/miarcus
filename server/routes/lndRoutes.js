@@ -45,6 +45,9 @@ router.delete("/admin/media/:id", need("Edit"), c.deleteMedia);
 
 router.get("/admin/lookups", need("Edit"), c.lookups);
 router.get("/admin/report", need("Edit"), c.report);
+router.get("/admin/report/:userId/:programId/certificate", need("Edit"), c.reportCertificate);
+router.put("/admin/report/:userId/:programId", need("Edit"), c.updateReportProgress);
+router.delete("/admin/report/:userId/:programId", need("Full"), c.deleteReportProgress);
 router.post("/admin/seed", need("Full"), c.seed);
 
 module.exports = router;

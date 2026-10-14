@@ -689,6 +689,57 @@ const report = wrap(async (req, res) => {
     });
 });
 
+const reportCertificate = wrap(async (req, res) => {
+    const userId = int(req.params.userId);
+    const programId = int(req.params.programId);
+    if (!userId || !programId) return bad(res, "Invalid learner or program.");
+    const rows = await db.query(
+        `SELECT c.code, c.issued_at, u.name, u.email, p.title AS program
+         FROM lnd_certificates c
+         JOIN users u ON u.id = c.user_id
+         JOIN lnd_programs p ON p.id = c.program_id
+         WHERE c.user_id = ? AND c.program_id = ? LIMIT 1`, [userId, programId]
+    );
+    if (!rows.length) return bad(res, "No certificate has been issued for this learner and program.", 404);
+    const c = rows[0];
+    return res.json({ success: true, certificate: {
+        code: c.code, issuedAt: c.issued_at, name: c.name || "", email: c.email || "", program: c.program || ""
+    }});
+});
+
+const updateReportProgress = wrap(async (req, res) => {
+    const userId = int(req.params.userId);
+    const programId = int(req.params.programId);
+    if (!userId || !programId) return bad(res, "Invalid learner or program.");
+    const completed = req.body?.completed === true;
+    const users = await db.query("SELECT id FROM users WHERE id = ? AND status = 'Active' LIMIT 1", [userId]);
+    const programs = await db.query("SELECT id FROM lnd_programs WHERE id = ? LIMIT 1", [programId]);
+    if (!users.length || !programs.length) return bad(res, "Learner or program not found.", 404);
+    const modules = await db.query("SELECT id FROM lnd_modules WHERE program_id = ? AND status = 'Active'", [programId]);
+    if (!modules.length) return bad(res, "This program has no active modules.");
+    await db.query(
+        `INSERT INTO lnd_progress (user_id, module_id, completed, completed_at)
+         SELECT ?, id, ?, IF(? = 1, CURRENT_TIMESTAMP, NULL)
+         FROM lnd_modules WHERE program_id = ? AND status = 'Active'
+         ON DUPLICATE KEY UPDATE completed = VALUES(completed), completed_at = VALUES(completed_at)`,
+        [userId, completed ? 1 : 0, completed ? 1 : 0, programId]
+    );
+    if (!completed) await db.query("DELETE FROM lnd_certificates WHERE user_id = ? AND program_id = ?", [userId, programId]);
+    return res.json({ success: true, message: completed ? "Learner marked as completed." : "Learner progress reset." });
+});
+
+const deleteReportProgress = wrap(async (req, res) => {
+    const userId = int(req.params.userId);
+    const programId = int(req.params.programId);
+    if (!userId || !programId) return bad(res, "Invalid learner or program.");
+    await db.query(
+        "DELETE lp FROM lnd_progress lp JOIN lnd_modules m ON m.id = lp.module_id WHERE lp.user_id = ? AND m.program_id = ?",
+        [userId, programId]
+    );
+    await db.query("DELETE FROM lnd_certificates WHERE user_id = ? AND program_id = ?", [userId, programId]);
+    return res.json({ success: true, message: "Learner report activity deleted." });
+});
+
 const seed = wrap(async (req, res) => {
     const [{ n }] = await db.query("SELECT COUNT(*) AS n FROM lnd_programs");
     if (Number(n) > 0 && req.body?.force !== true) return bad(res, "Programs already exist.");
@@ -711,5 +762,5 @@ module.exports = {
     overview, programDetail, moduleDetail, markComplete, examStart, examSubmit, certificate, myCertificates, streamMedia,
     adminPrograms, createProgram, updateProgram, deleteProgram, saveAssignments, setProgramThumb, adminProgram,
     createModule, updateModule, reorderModules, deleteModule, uploadModuleMedia, deleteMedia,
-    getQuestions, saveQuestions, lookups, report, seed,
+    getQuestions, saveQuestions, lookups, report, reportCertificate, updateReportProgress, deleteReportProgress, seed,
 };
