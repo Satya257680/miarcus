@@ -473,7 +473,7 @@ const getQuestionsByChecklistType = (
 
             q.checklist_type_id = ?
 
-            AND q.status = 'Active'
+            AND LOWER(TRIM(COALESCE(q.status, ''))) = 'active'
 
         ORDER BY
 

@@ -627,14 +627,20 @@ function ChecklistSubmission() {
         ? response.data
         : response.data?.data || [];
 
+      // Only active master questions may be answered in a new checklist submission.
+      // The API already filters by status, but enforce it here as a second guard
+      // for cached/legacy API responses that may still include inactive questions.
       const filteredQuestions = allQuestions.filter((question) => {
         const questionChecklistId =
           question.checklist_type_id ||
           question.checklistTypeId;
+        const status = String(question.status ?? question.question_status ?? "Active")
+          .trim()
+          .toLowerCase();
 
         return (
-          String(questionChecklistId) ===
-          String(checklistTypeId)
+          status === "active" &&
+          String(questionChecklistId) === String(checklistTypeId)
         );
       });
 
