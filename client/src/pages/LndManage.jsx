@@ -38,6 +38,15 @@ export default function LndManage() {
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null); // program form
   const [toast, setToast] = useState(null);
+  const [reportRows, setReportRows] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [insight, setInsight] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const [importing, setImporting] = useState(false);
 
   // Stable identity so child effects that depend on it do not re-run.
   const flash = useCallback((type, text) => { setToast({ type, text }); window.setTimeout(() => setToast(null), 4000); }, []);
@@ -49,7 +58,7 @@ export default function LndManage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); lndApi.report().then((r) => setReportRows(r.rows || [])).catch(() => setReportRows([])); lndApi.lookups().then((r) => setAllUsers(r.users || [])).catch(() => setAllUsers([])); }, [load]);
 
   const seed = async () => {
     try { const r = await lndApi.seed(); flash("success", r.message); load(); }
@@ -62,62 +71,121 @@ export default function LndManage() {
     catch (e) { flash("error", errorMessage(e)); }
   };
 
+  const learners = allUsers.length || new Set(reportRows.map((r) => String(r.userId))).size;
+  const moduleTotal = programs.reduce((sum, p) => sum + Number(p.moduleCount || 0), 0);
+  const completionRate = reportRows.length ? Math.round(reportRows.reduce((sum, r) => sum + Number(r.percent || 0), 0) / reportRows.length) : 0;
+  const filteredPrograms = programs.filter((p) => {
+    const q = search.trim().toLowerCase();
+    return (!q || `${p.title || ""} ${p.description || ""} ${p.audience || ""}`.toLowerCase().includes(q)) &&
+      (statusFilter === "All Status" || p.status === statusFilter);
+  });
+  const pageCount = Math.max(1, Math.ceil(filteredPrograms.length / pageSize));
+  const visiblePrograms = filteredPrograms.slice((page - 1) * pageSize, page * pageSize);
+  const toggleProgram = (id) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+  const deleteSelected = async () => {
+    const targets = programs.filter((p) => selectedIds.includes(p.id));
+    if (!targets.length) return flash("error", "Select at least one program first");
+    if (!window.confirm(`Delete ${targets.length} selected program(s), including modules and learner progress? This cannot be undone.`)) return;
+    try {
+      for (const p of targets) await lndApi.deleteProgram(p.id);
+      setSelectedIds([]); flash("success", `${targets.length} program(s) deleted`); await load();
+    } catch (e) { flash("error", errorMessage(e, "Some programs could not be deleted")); await load(); }
+  };
+  const exportPrograms = () => {
+    const rows = filteredPrograms.map((p) => ({ Title: p.title, Description: p.description, Audience: p.audience, Status: p.status, Modules: p.moduleCount || 0, AssignmentRules: (p.assignments || []).length }));
+    const keys = ["Title", "Description", "Audience", "Status", "Modules", "AssignmentRules"];
+    const csv = [keys.join(","), ...rows.map((r) => keys.map((k) => `"${String(r[k] ?? "").replace(/"/g, '""')}"`).join(","))].join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = "miarcus-training-programs.csv"; a.click(); URL.revokeObjectURL(url);
+  };
+  const importPrograms = async (file) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+      const parse = (line) => { const cells = []; let cur = "", quoted = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (c === '"' && quoted && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') quoted = !quoted; else if (c === "," && !quoted) { cells.push(cur.trim()); cur = ""; } else cur += c; } cells.push(cur.trim()); return cells; };
+      if (lines.length < 2) throw new Error("CSV must include a header row and at least one program row");
+      const headers = parse(lines[0]).map((h) => h.toLowerCase());
+      const titleIndex = headers.findIndex((h) => ["title", "program title", "program"].includes(h));
+      if (titleIndex < 0) throw new Error("CSV needs a Title or Program Title column");
+      let created = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parse(lines[i]); const title = cells[titleIndex]; if (!title) continue;
+        const val = (...names) => { const idx = headers.findIndex((h) => names.includes(h)); return idx >= 0 ? cells[idx] || "" : ""; };
+        await lndApi.createProgram({ title, description: val("description", "notes"), audience: val("audience", "audience label") || "All Staff", status: val("status") || "Active" }); created++;
+      }
+      flash("success", `Imported ${created} program(s)`); await load();
+    } catch (e) { flash("error", errorMessage(e, "CSV import failed")); }
+    finally { setImporting(false); }
+  };
+
   if (selected) {
     return <ProgramContent program={selected} onBack={() => { setSelected(null); load(); }} flash={flash}
       perms={{ canAdd, canEdit, canFull }} toast={toast} />;
   }
 
+  const stats = [
+    { key: "programs", value: programs.length, label: "Total Programs", icon: "▤", tone: "violet", detail: programs.map((p) => `${p.title} · ${p.status}`) },
+    { key: "learners", value: learners, label: "Total Learners", icon: "♟", tone: "mint", detail: allUsers.length ? allUsers.slice(0, 60).map((u) => `${u.name} · ${u.email}`) : [...new Set(reportRows.map((r) => r.name))].slice(0, 30) },
+    { key: "modules", value: moduleTotal, label: "Total Modules", icon: "▶", tone: "blue", detail: programs.map((p) => `${p.title} · ${p.moduleCount || 0} modules`) },
+    { key: "completion", value: `${completionRate}%`, label: "Completion Rate", icon: "▥", tone: "rose", detail: reportRows.slice(0, 30).map((r) => `${r.name} · ${r.program} · ${r.percent}%`) },
+  ];
+
   return (
-    <div className="lnd lm">
-      <div className="lm-head">
-        <div>
-          <Link className="lnd-back" to="/learning-development">‹ Back to Learning &amp; Development</Link>
+    <div className="lnd lm lm-premium">
+      <section className="lm-hero">
+        <div className="lm-hero__copy">
+          <Link className="lnd-back lm-back-3d" to="/learning-development">← Back to Learning &amp; Development</Link>
           <h1 className="lnd-h1">Program Management</h1>
-          <p className="lnd-small">Create and manage training programs, modules, videos, images, assessments and assign them to roles, stores or people.</p>
+          <p>Create, organize and publish engaging training programs for your team.</p>
+          <div className="lm-hero__steps"><span>✦ <b>Create</b><small>Build engaging programs</small></span><span>▧ <b>Manage</b><small>Organize modules &amp; content</small></span><span>♙ <b>Assign</b><small>Allocate to roles &amp; stores</small></span><span>▣ <b>Track</b><small>Monitor learner progress</small></span></div>
         </div>
-        <div className="lnd-actions">
+        <img className="lm-hero__art" src="/lnd/learning-hero.png" alt="3D learning, training and achievement illustration" />
+      </section>
+
+      <div className="lm-stat-grid">
+        {stats.map((stat) => <button key={stat.key} className={`lm-stat lm-stat--${stat.tone}`} onClick={() => setInsight(stat)} aria-label={`View details for ${stat.label}`}>
+          <span className="lm-stat__icon">{stat.icon}</span><span className="lm-stat__text"><strong>{stat.value}</strong><small>{stat.label}</small></span><span className="lm-stat__spark" aria-hidden="true">{stat.key === "completion" ? "◌" : stat.key === "learners" ? "↗" : "▥"}</span>
+        </button>)}
+      </div>
+
+      <div className="lm-toolbar">
+        <label className="lm-search"><span>⌕</span><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search programs…" aria-label="Search programs" /></label>
+        <select className="lm-filter" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} aria-label="Filter program status"><option>All Status</option><option>Active</option><option>Inactive</option></select>
+        <div className="lm-toolbar__actions">
           <button className={`lnd-btn lnd-btn--ghost ${view === "programs" ? "lm-on" : ""}`} onClick={() => setView("programs")}>Programs</button>
           <button className={`lnd-btn lnd-btn--ghost ${view === "report" ? "lm-on" : ""}`} onClick={() => setView("report")}>Learner Report</button>
-          {canAdd && view === "programs" && <button className="lnd-btn" onClick={() => setEditing({ ...EMPTY_PROGRAM })}>+ Create Program</button>}
+          {canAdd && <label className={`lnd-btn lnd-btn--ghost lm-upload ${importing ? "is-busy" : ""}`}>⇧ {importing ? "Importing…" : "Import / Bulk Upload"}<input type="file" accept=".csv,text/csv" disabled={importing} onChange={(e) => { importPrograms(e.target.files?.[0]); e.target.value = ""; }} /></label>}
+          <button className="lnd-btn lnd-btn--ghost" onClick={exportPrograms}>⇩ Export</button>
+          {canFull && <><button className="lnd-btn lnd-btn--ghost lm-danger" onClick={deleteSelected}>▤ Delete Selected{selectedIds.length ? ` (${selectedIds.length})` : ""}</button><button className="lnd-btn lnd-btn--ghost lm-danger" onClick={async () => { if (!programs.length) return flash("error", "There are no programs to delete"); if (!window.confirm(`Delete ALL ${programs.length} programs, including modules, media and learner progress? This cannot be undone.`)) return; try { for (const p of programs) await lndApi.deleteProgram(p.id); setSelectedIds([]); flash("success", `Deleted ${programs.length} programs`); await load(); } catch (e) { flash("error", errorMessage(e, "Delete all stopped because a program could not be deleted")); await load(); } }}>Delete All</button></>}
+          {canAdd && <button className="lnd-btn lm-create" onClick={() => setEditing({ ...EMPTY_PROGRAM })}>＋ Create Program</button>}
         </div>
       </div>
 
-      {view === "report" ? <Report /> : (
-        <div className="lnd-panel">
-          {loading ? <p className="lnd-empty">Loading…</p> : programs.length === 0 ? (
-            <div className="lnd-empty">
-              <p>No programs yet.</p>
-              {canFull && <button className="lnd-btn" onClick={seed}>Load starter programs from the L&amp;D deck</button>}
-            </div>
-          ) : (
-            <div className="lm-scroll">
-              <table className="lm-table">
-                <thead><tr><th></th><th>Program</th><th>Audience</th><th>Modules</th><th>Assigned to</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {programs.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.thumbUrl ? <img className="lm-mini" src={fullUrl(p.thumbUrl)} alt="" /> : <div className="lm-mini lm-mini--e">{p.title[0]}</div>}</td>
-                      <td><strong>{p.title}</strong><div className="lnd-small">{p.description}</div></td>
-                      <td>{p.audience}</td>
-                      <td>{p.moduleCount}</td>
-                      <td>{p.assignments.length ? `${p.assignments.length} rule${p.assignments.length > 1 ? "s" : ""}` : <span className="lm-warn">Not assigned</span>}</td>
-                      <td><span className={`lm-status ${p.status === "Active" ? "on" : ""}`}>{p.status}</span></td>
-                      <td className="lm-actions">
-                        <button className="lnd-btn lnd-btn--sm" onClick={() => setSelected(p)}>Manage</button>
-                        {canEdit && <button className="lnd-btn lnd-btn--sm lnd-btn--ghost" onClick={() => setEditing({ ...p })}>Edit</button>}
-                        {canFull && <button className="lnd-btn lnd-btn--sm lm-danger" onClick={() => removeProgram(p)}>Delete</button>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      {view === "report" ? <Report /> : loading ? <div className="lnd-panel lnd-empty">Loading programs…</div> : filteredPrograms.length === 0 ? (
+        <div className="lnd-panel lnd-empty"><p>{programs.length ? "No programs match your search." : "No programs yet."}</p>{canFull && programs.length === 0 && <button className="lnd-btn" onClick={seed}>Load starter programs from the L&amp;D deck</button>}</div>
+      ) : <>
+        <div className="lm-card-grid">
+          {visiblePrograms.map((p, i) => {
+            const fallback = `/lnd/program-${(i % 4) + 1}.jpg`;
+            const report = reportRows.filter((r) => String(r.programId) === String(p.id));
+            const percent = report.length ? Math.round(report.reduce((sum, r) => sum + Number(r.percent || 0), 0) / report.length) : 0;
+            return <article className="lm-program-card" key={p.id}>
+              <div className="lm-card-top"><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={() => toggleProgram(p.id)} aria-label={`Select ${p.title}`} /><span className={`lm-status ${p.status === "Active" ? "on" : ""}`}><i />{p.status || "Active"}</span><button className="lm-card-menu" onClick={() => setEditing({ ...p })} aria-label={`Edit ${p.title}`}>•••</button></div>
+              <div className="lm-card-image">{p.thumbUrl ? <img src={fullUrl(p.thumbUrl)} alt={`${p.title} thumbnail`} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = fallback; }} /> : <img src={fallback} alt="Training program illustration" />}</div>
+              <h2>{p.title}</h2><p className="lm-card-desc">{p.description || "Build practical skills and knowledge through focused learning."}</p>
+              <div className="lm-card-meta"><span>♟ <small>Audience</small></span><b>{p.audience || "All Staff"}</b><span>▦ <small>Modules</small></span><b>{p.moduleCount || 0} Modules</b><span>♟ <small>Enrolled</small></span><b>{report.length} Learners</b><span>▥ <small>Progress</small></span><b>{report.length ? `${Math.round(report.filter((r) => Number(r.percent) >= 100).length / report.length * 100)}% complete` : "No activity"}</b></div>
+              <div className="lm-progress"><span><i style={{ width: `${percent}%` }} /></span><b>{percent}%</b></div>
+              <div className="lm-card-actions">{canEdit && <button className="lnd-btn lnd-btn--ghost" onClick={() => setEditing({ ...p })}>✎ Edit</button>}<button className="lnd-btn lm-manage" onClick={() => setSelected(p)}>▱ Manage Modules</button>{canFull && <button className="lnd-btn lnd-btn--ghost lm-danger" onClick={() => removeProgram(p)}>♲ Delete</button>}</div>
+            </article>;
+          })}
         </div>
-      )}
+        <div className="lm-pagination"><span>Showing {Math.min((page - 1) * pageSize + 1, filteredPrograms.length)} to {Math.min(page * pageSize, filteredPrograms.length)} of {filteredPrograms.length} programs</span><div><button disabled={page <= 1} onClick={() => setPage((v) => v - 1)}>‹</button>{Array.from({ length: pageCount }, (_, i) => i + 1).slice(Math.max(0, page - 2), Math.min(pageCount, Math.max(3, page + 1))).map((n) => <button key={n} className={page === n ? "active" : ""} onClick={() => setPage(n)}>{n}</button>)}<button disabled={page >= pageCount} onClick={() => setPage((v) => v + 1)}>›</button></div><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option value={4}>4</option><option value={8}>8</option><option value={12}>12</option><option value={24}>24</option></select> per page</label></div>
+      </>}
 
-      {editing && <ProgramForm initial={editing} canEdit={canEdit} onClose={() => setEditing(null)}
-        onSaved={(msg) => { setEditing(null); flash("success", msg); load(); }} flash={flash} />}
+      {insight && <Modal title={insight.label} onClose={() => setInsight(null)}><div className="lm-insight-value">{insight.value}<span>{insight.label}</span></div><p className="lnd-small">Live summary based on the programs and learner report available to your account.</p><div className="lm-insight-list">{insight.detail.length ? insight.detail.map((line, i) => <div key={`${line}-${i}`}>{line}</div>) : <p>No matching report data is available yet.</p>}</div><button className="lnd-btn" onClick={() => { setInsight(null); if (["learners", "completion"].includes(insight.key)) setView("report"); }}>Open detailed report</button></Modal>}
+      {editing && <ProgramForm initial={editing} canEdit={canEdit} onClose={() => setEditing(null)} onSaved={(msg) => { setEditing(null); flash("success", msg); load(); }} flash={flash} />}
       {toast && <div className={`lm-toast lm-toast--${toast.type}`}>{toast.text}</div>}
     </div>
   );
@@ -128,14 +196,17 @@ export default function LndManage() {
 function ProgramForm({ initial, onClose, onSaved, flash }) {
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
+  const [thumbFile, setThumbFile] = useState(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const save = async () => {
     if (!form.title.trim()) return flash("error", "Program title is required");
     setSaving(true);
     try {
+      let saved = form;
       if (form.id) await lndApi.updateProgram(form.id, form);
-      else await lndApi.createProgram(form);
+      else { const result = await lndApi.createProgram(form); saved = { ...form, id: result.id || result.program?.id || result.programId }; setForm(saved); }
+      if (thumbFile) { if (!saved.id) throw new Error("Program saved, but the server did not return its ID for thumbnail upload. Reopen Edit to upload the thumbnail."); const uploaded = await lndApi.uploadProgramThumb(saved.id, thumbFile); saved.thumbUrl = uploaded.thumbUrl; setForm(saved); setThumbFile(null); }
       onSaved(form.id ? "Program updated" : "Program created");
     } catch (e) { flash("error", errorMessage(e)); }
     finally { setSaving(false); }
@@ -160,12 +231,11 @@ function ProgramForm({ initial, onClose, onSaved, flash }) {
           <select value={form.status} onChange={(e) => set("status", e.target.value)}><option>Active</option><option>Inactive</option></select>
         </label>
       </div>
-      {form.id ? (
-        <label className="lm-f">Thumbnail image (JPG / PNG / WEBP)
-          {form.thumbUrl && <img className="lm-thumbprev" src={fullUrl(form.thumbUrl)} alt="" />}
-          <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => uploadThumb(e.target.files?.[0])} />
-        </label>
-      ) : <p className="lnd-small">Save the program first, then edit it to add a thumbnail.</p>}
+      <label className="lm-f">Program thumbnail (JPG / PNG / WEBP)
+        {(form.thumbUrl || thumbFile) && <img className="lm-thumbprev" src={thumbFile ? URL.createObjectURL(thumbFile) : fullUrl(form.thumbUrl)} alt="Program thumbnail preview" />}
+        <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => { const file = e.target.files?.[0]; if (form.id) uploadThumb(file); else setThumbFile(file || null); }} />
+        <small className="lm-help">Choose an image now; new program thumbnails upload immediately after the program is saved.</small>
+      </label>
       <div className="lnd-actions"><button className="lnd-btn" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save Program"}</button>
         <button className="lnd-btn lnd-btn--ghost" onClick={onClose}>Cancel</button></div>
     </Modal>
@@ -289,18 +359,22 @@ function ModuleEditor({ initial, programId, onClose, flash }) {
   const [form, setForm] = useState(initial);
   const [tab, setTab] = useState("details");
   const [saving, setSaving] = useState(false);
+  const [moduleThumb, setModuleThumb] = useState(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const saveDetails = async () => {
     if (!form.title.trim()) return flash("error", "Module title is required");
     setSaving(true);
     try {
-      if (form.id) { await lndApi.updateModule(form.id, form); flash("success", "Module saved"); }
+      let moduleId = form.id;
+      if (form.id) { await lndApi.updateModule(form.id, form); }
       else {
         const r = await lndApi.createModule(form);
-        setForm((f) => ({ ...f, id: r.id, media: [] }));
-        flash("success", "Module created — now add files and an assessment.");
+        moduleId = r.id || r.module?.id;
+        setForm((f) => ({ ...f, id: moduleId, media: r.media || [] }));
       }
+      if (moduleThumb && moduleId) await lndApi.uploadMedia(moduleId, [moduleThumb]);
+      flash("success", form.id ? "Module saved" : "Module created — add files and an assessment in the other tabs.");
     } catch (e) { flash("error", errorMessage(e)); }
     finally { setSaving(false); }
   };
@@ -318,6 +392,10 @@ function ModuleEditor({ initial, programId, onClose, flash }) {
           <label className="lm-f">Module title *<input value={form.title} onChange={(e) => set("title", e.target.value)} maxLength={200} /></label>
           <label className="lm-f">Description / notes<textarea rows={4} value={form.description} onChange={(e) => set("description", e.target.value)} /></label>
           <label className="lm-f">Key highlights (separate with |)<input value={form.highlights} onChange={(e) => set("highlights", e.target.value)} placeholder="Product Range|Size Guide|Key Features" /></label>
+          <label className="lm-f">Module thumbnail / cover image (JPG / PNG / WEBP)
+            <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => setModuleThumb(e.target.files?.[0] || null)} />
+            <small className="lm-help">Saved to the module's media library using the existing secure upload API.</small>
+          </label>
           <label className="lm-f">External video link (optional, https://)<input value={form.videoUrl} onChange={(e) => set("videoUrl", e.target.value)} placeholder="https://youtu.be/…" /></label>
           <div className="lm-three">
             <label className="lm-f">Duration (min)<input type="number" min={1} value={form.durationMin} onChange={(e) => set("durationMin", e.target.value)} /></label>
