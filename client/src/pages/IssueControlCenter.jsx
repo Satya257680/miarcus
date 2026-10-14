@@ -10,7 +10,20 @@ const empty = { question_id: "", question_text: "", checklist_type: "", expected
 const questionText = (q) => q?.question || q?.question_text || q?.name || "";
 const questionId = (q) => q?.id ?? q?.question_id ?? "";
 const checklistType = (q) => q?.checklist_type || q?.checklistType || q?.checklist_name || q?.checklist || q?.type || "";
-const unwrap = (value) => value?.questions || value?.data || value?.rows || value || [];
+// API services return response bodies, but endpoints may wrap arrays in different keys
+// (e.g. { success: true, rules: [...] } or { data: { questions: [...] } }).
+// Normalize these shapes before passing data to array methods such as map/filter.
+const unwrap = (value, preferredKeys = []) => {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== "object") return [];
+  for (const key of [...preferredKeys, "rules", "questions", "data", "rows", "items", "results"]) {
+    if (value[key] !== undefined && value[key] !== value) {
+      const result = unwrap(value[key], preferredKeys);
+      if (Array.isArray(result)) return result;
+    }
+  }
+  return [];
+};
 
 function downloadCsv(rows) {
   const columns = [
@@ -47,8 +60,8 @@ export default function IssueControlCenter() {
     setLoading(true);
     try {
       const [ruleResponse, questionResponse] = await Promise.all([getIssueRules(), getQuestions()]);
-      setRules(unwrap(ruleResponse));
-      setQuestions(unwrap(questionResponse));
+      setRules(unwrap(ruleResponse, ["rules"]));
+      setQuestions(unwrap(questionResponse, ["questions"]));
       setError("");
     } catch (e) {
       setError(e.response?.data?.message || "Unable to load Issue Control Center.");
