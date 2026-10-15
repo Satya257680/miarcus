@@ -1,24 +1,821 @@
-/* MIARCUS compact 3D neon-glass confirmation dialog */
-.confirm-dialog-root{position:fixed;inset:0;z-index:2147483000;pointer-events:none}
-.confirm-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:18px;overflow:auto;isolation:isolate;pointer-events:auto;background:radial-gradient(ellipse at 18% 16%,rgba(78,79,255,.28),transparent 38%),radial-gradient(ellipse at 82% 82%,rgba(0,205,255,.2),transparent 40%),radial-gradient(ellipse at 50% 50%,rgba(177,44,255,.12),transparent 46%),rgba(4,8,30,.72);-webkit-backdrop-filter:blur(13px) saturate(140%);backdrop-filter:blur(13px) saturate(140%);animation:miarcusGlassOverlay .2s ease both}
-.confirm-dialog{position:relative;isolation:isolate;box-sizing:border-box;width:min(100%,570px);max-height:calc(100dvh - 36px);overflow:auto;scrollbar-width:none;-ms-overflow-style:none;color:#f7f8ff;border:1px solid rgba(204,225,255,.78);border-radius:25px;background:radial-gradient(ellipse at 5% 100%,rgba(0,204,255,.2),transparent 40%),radial-gradient(ellipse at 100% 0,rgba(132,67,255,.22),transparent 42%),linear-gradient(132deg,rgba(72,106,220,.56),rgba(24,38,91,.94) 46%,rgba(54,25,99,.92) 78%,rgba(18,75,126,.78));box-shadow:0 25px 70px rgba(0,0,0,.48),0 0 0 1px rgba(121,162,255,.18),0 0 25px rgba(87,115,255,.28),0 0 45px rgba(190,54,255,.12),inset 0 1px 0 rgba(255,255,255,.65),inset 0 -1px 0 rgba(154,203,255,.28);-webkit-backdrop-filter:blur(28px) saturate(145%);backdrop-filter:blur(28px) saturate(145%);animation:miarcusGlassDialog .27s cubic-bezier(.2,.8,.2,1) both}
-.confirm-dialog::-webkit-scrollbar{display:none;width:0;height:0}
-.confirm-dialog:before{content:"";position:absolute;z-index:-1;inset:0;pointer-events:none;background:linear-gradient(118deg,rgba(255,255,255,.16),transparent 27%,rgba(83,147,255,.07) 55%,rgba(238,91,255,.1)),radial-gradient(ellipse at 10% 0,rgba(132,177,255,.2),transparent 42%)}
-.confirm-dialog:after{content:"";position:absolute;z-index:-1;inset:7px;border:1px solid rgba(211,231,255,.14);border-radius:19px;pointer-events:none}
-.confirm-orbit{position:absolute;z-index:-1;width:130px;height:130px;border-radius:50%;filter:blur(34px);opacity:.45;pointer-events:none}.confirm-orbit--one{top:-85px;right:-60px;background:#7766ff}.confirm-orbit--two{bottom:-90px;left:-70px;background:#18cfff}
-.confirm-header{display:flex;align-items:center;gap:14px;padding:20px 22px 17px;border-bottom:1px solid rgba(207,224,255,.18)}
-.confirm-icon{display:grid;place-items:center;flex:0 0 54px;width:54px;height:54px;color:#fff;border:1px solid rgba(255,255,255,.82);border-radius:18px;background:linear-gradient(145deg,rgba(140,180,255,.7),rgba(86,91,227,.48));box-shadow:0 0 0 4px rgba(113,141,255,.08),0 8px 20px rgba(37,90,255,.3),inset 0 2px 7px rgba(255,255,255,.5),inset 0 -5px 11px rgba(25,31,112,.25)}
-.confirm-icon.is-danger{background:linear-gradient(145deg,#ffd0e0 0%,#ff5b91 42%,#e20d47 100%);box-shadow:0 0 0 4px rgba(255,65,123,.1),0 0 25px rgba(255,37,100,.56),0 8px 20px rgba(225,18,69,.3),inset 0 2px 7px rgba(255,255,255,.75),inset 0 -5px 11px rgba(151,0,45,.24)}
-.confirm-icon svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.confirm-heading-copy{min-width:0;flex:1}.confirm-eyebrow{display:block;margin-bottom:4px;color:#b3c7ff;font-size:8px;font-weight:900;letter-spacing:4px}.confirm-header h2{margin:0;color:#fff;font-size:clamp(21px,3vw,29px);font-weight:850;line-height:1.18;letter-spacing:-.6px;text-shadow:0 2px 15px rgba(96,140,255,.2);overflow-wrap:anywhere}.confirm-title-accent{color:#ff668b;text-shadow:0 0 18px rgba(255,57,119,.3)}
-.confirm-close{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;padding:0;color:#eaf1ff;font-size:23px;line-height:1;cursor:pointer;border:1px solid rgba(220,235,255,.5);border-radius:11px;background:linear-gradient(145deg,rgba(180,207,255,.3),rgba(86,111,199,.18));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 4px 12px rgba(0,0,0,.12);transition:transform .18s,background .18s}.confirm-close:hover{transform:rotate(90deg);background:rgba(255,255,255,.22)}.confirm-close:disabled{opacity:.45;cursor:not-allowed}
-.confirm-body{padding:19px 22px 5px}.confirm-body>p{margin:0;color:#e1eaff;font-size:14px;line-height:1.55;overflow-wrap:anywhere}
-.confirm-context-card{display:grid;gap:10px;margin-top:16px;padding:14px 15px;border:1px solid rgba(208,224,255,.5);border-radius:18px;background:linear-gradient(135deg,rgba(180,200,255,.2),rgba(67,81,164,.27) 48%,rgba(122,68,176,.2));box-shadow:inset 0 1px 0 rgba(255,255,255,.24),0 8px 20px rgba(0,0,0,.14);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
-.confirm-scope{justify-self:start;padding:4px 9px;color:#dce6ff;font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(195,210,255,.25);border-radius:99px;background:linear-gradient(90deg,rgba(125,111,255,.45),rgba(63,125,255,.3))}
-.confirm-record{display:flex;align-items:center;gap:12px;min-width:0;padding-bottom:11px;border-bottom:1px solid rgba(210,225,255,.22)}.confirm-record-avatar{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;color:#fff;font-size:19px;font-weight:850;border:1px solid rgba(255,255,255,.5);border-radius:50%;background:linear-gradient(145deg,#df42ff,#6b32ff 68%,#3a66ff);box-shadow:0 0 18px rgba(159,58,255,.3),inset 0 2px 6px rgba(255,255,255,.35)}.confirm-record-name{display:block;color:#fff;font-size:17px;font-weight:800;overflow-wrap:anywhere}.confirm-record-email{margin:3px 0 0;color:#d0ddff;font-size:12px;overflow-wrap:anywhere}.confirm-record-details{display:grid;gap:8px}.confirm-record-details>div{display:grid;grid-template-columns:minmax(90px,.8fr) minmax(0,1.2fr);align-items:start;gap:10px;font-size:12px}.confirm-record-details>div>span{color:#bdcefa}.confirm-record-details>div>strong{color:#fff;text-align:right;overflow-wrap:anywhere}.confirm-record-details .confirm-status{justify-self:end;padding:4px 9px;color:#fff;border:1px solid rgba(55,255,199,.4);border-radius:99px;background:linear-gradient(135deg,#0fc89c,#00a97f);box-shadow:0 0 12px rgba(0,224,165,.2)}
-.confirm-warning{display:flex;align-items:center;gap:11px;margin-top:15px;padding:12px 14px;color:#fff;font-size:12px;line-height:1.45;border:1px solid rgba(255,80,126,.78);border-radius:15px;background:linear-gradient(110deg,rgba(255,43,92,.26),rgba(127,38,103,.32));box-shadow:0 0 18px rgba(255,39,100,.1),inset 0 1px 0 rgba(255,255,255,.16)}.confirm-warning-icon,.confirm-warning>span:first-child{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;color:#fff;font-size:19px;font-weight:950;border:1px solid rgba(255,255,255,.5);border-radius:50%;background:linear-gradient(145deg,#ff6889,#f20d48);box-shadow:0 0 15px rgba(255,35,93,.38),inset 0 1px 4px rgba(255,255,255,.45)}.confirm-warning strong{display:block;margin-bottom:3px;color:#ff8fa9;font-size:14px}.confirm-warning p{margin:0;color:#f3dce8;overflow-wrap:anywhere}
-.confirm-footer{display:flex;justify-content:flex-end;gap:10px;padding:17px 22px 21px}.confirm-footer .btn,.confirm-footer button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:43px;padding:10px 17px;color:#fff;font-size:13px;font-weight:850;cursor:pointer;border-radius:13px;transition:transform .18s,box-shadow .18s,filter .18s}.confirm-footer .btn:hover:not(:disabled),.confirm-footer button:hover:not(:disabled){transform:translateY(-2px)}.confirm-footer .btn:disabled,.confirm-footer button:disabled{opacity:.6;cursor:wait}
-.confirm-footer .btn-secondary,.confirm-footer button.btn-secondary,.confirm-footer button[class*="secondary"]{border:1px solid rgba(201,224,255,.78);background:linear-gradient(135deg,rgba(115,166,255,.55),rgba(83,85,170,.52));box-shadow:0 6px 15px rgba(25,53,130,.24),inset 0 1px 0 rgba(255,255,255,.35)}.confirm-footer .btn-danger,.confirm-footer button.btn-danger,.confirm-footer button[class*="danger"]{border:1px solid rgba(255,218,230,.85);background:linear-gradient(115deg,#ff587d 0%,#ff174e 48%,#d9003a 100%);box-shadow:0 7px 19px rgba(239,12,69,.4),0 0 18px rgba(255,38,96,.2),inset 0 1px 0 rgba(255,255,255,.48)}.confirm-footer .btn-danger:hover:not(:disabled),.confirm-footer button[class*="danger"]:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 9px 22px rgba(239,12,69,.48)}.confirm-button-trash{width:16px;height:16px;margin-right:2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-@keyframes miarcusGlassOverlay{from{opacity:0}to{opacity:1}}@keyframes miarcusGlassDialog{from{opacity:0;transform:translateY(12px) scale(.96);filter:blur(3px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
-@media(max-width:520px){.confirm-overlay{padding:12px}.confirm-dialog{width:100%;max-height:calc(100dvh - 24px);border-radius:21px}.confirm-header{gap:10px;padding:17px 16px 14px}.confirm-icon{flex-basis:46px;width:46px;height:46px;border-radius:15px}.confirm-icon svg{width:23px;height:23px}.confirm-eyebrow{letter-spacing:2.8px}.confirm-header h2{font-size:21px}.confirm-close{flex-basis:31px;width:31px;height:31px;font-size:21px}.confirm-body{padding:16px 16px 4px}.confirm-body>p{font-size:13px}.confirm-context-card{padding:12px;border-radius:15px}.confirm-record-details>div{grid-template-columns:82px minmax(0,1fr);gap:8px}.confirm-footer{padding:15px 16px 17px;gap:8px}.confirm-footer .btn,.confirm-footer button{min-height:41px;padding:9px 12px;font-size:12px}.confirm-warning{padding:10px;gap:9px}.confirm-warning strong{font-size:13px}}
-@media(prefers-reduced-motion:reduce){.confirm-overlay,.confirm-dialog{animation:none}.confirm-footer button,.confirm-close{transition:none}}
+
+/* =========================================================
+   MIARCUS — Compact Neon Glass Confirmation
+   Centered logo, multicolour rings, ice cubes and particles
+   ========================================================= */
+
+.confirm-dialog-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  isolation: isolate;
+}
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 24px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 15% 30%, rgba(57, 72, 255, .35), transparent 30%),
+    radial-gradient(circle at 85% 70%, rgba(0, 203, 255, .23), transparent 34%),
+    radial-gradient(circle at 55% 10%, rgba(211, 49, 255, .19), transparent 35%),
+    rgba(5, 8, 31, .79);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  animation: miarcusOverlayIn .25s ease both;
+}
+
+/* Main compact glass panel */
+
+.confirm-dialog {
+  position: relative;
+  z-index: 3;
+  isolation: isolate;
+  box-sizing: border-box;
+  width: min(100%, 520px);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  scrollbar-width: none;
+  color: #fff;
+  border: 1px solid rgba(218, 237, 255, .9);
+  border-radius: 27px;
+  background:
+    radial-gradient(ellipse at 0% 100%, rgba(0, 211, 255, .26), transparent 43%),
+    radial-gradient(ellipse at 100% 0%, rgba(159, 61, 255, .31), transparent 43%),
+    linear-gradient(135deg,
+      rgba(35, 71, 160, .87),
+      rgba(18, 32, 91, .94) 45%,
+      rgba(48, 27, 105, .94) 78%,
+      rgba(24, 87, 145, .86));
+  box-shadow:
+    0 25px 75px rgba(0, 0, 0, .48),
+    0 0 0 1px rgba(120, 179, 255, .35),
+    0 0 25px rgba(62, 137, 255, .58),
+    0 0 48px rgba(190, 52, 255, .25),
+    inset 0 1px 0 rgba(255, 255, 255, .6),
+    inset 0 -2px 0 rgba(106, 210, 255, .27);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  backdrop-filter: blur(28px) saturate(150%);
+  animation: miarcusDialogIn .3s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.confirm-dialog::-webkit-scrollbar {
+  display: none;
+}
+
+.confirm-dialog::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 7px;
+  border: 1px solid rgba(219, 235, 255, .18);
+  border-radius: 20px;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, .1), transparent 35%),
+    radial-gradient(ellipse at 100% 100%, rgba(244, 82, 255, .1), transparent 50%);
+}
+
+/* Decorative blurred light inside the glass */
+
+.confirm-orbit {
+  position: absolute;
+  z-index: -1;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  filter: blur(35px);
+  opacity: .38;
+  pointer-events: none;
+}
+
+.confirm-orbit--one {
+  top: -65px;
+  right: -55px;
+  background: #9b52ff;
+}
+
+.confirm-orbit--two {
+  bottom: -65px;
+  left: -55px;
+  background: #00d9ff;
+}
+
+/* Header: logo and title centered, controls remain in the corners */
+
+.confirm-header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 23px 25px 19px;
+  text-align: center;
+  border-bottom: 1px solid rgba(218, 232, 255, .2);
+}
+
+.confirm-icon {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  display: grid;
+  place-items: center;
+  width: 55px;
+  height: 55px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .92);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #ff8db9, #ff2366 60%, #e60043);
+  box-shadow:
+    0 0 0 5px rgba(255, 69, 134, .12),
+    0 0 22px rgba(255, 43, 115, .8),
+    inset 0 2px 5px rgba(255, 255, 255, .75);
+}
+
+.confirm-icon svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.confirm-icon:not(.is-danger) {
+  background: linear-gradient(145deg, #8bdcff, #4869ff);
+  box-shadow: 0 0 22px rgba(58, 165, 255, .5);
+}
+
+.confirm-heading-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 0 42px;
+}
+
+.confirm-miarcus-logo {
+  display: block;
+  width: 112px;
+  height: 47px;
+  margin: 0 auto 5px;
+  color: #fff;
+  overflow: visible;
+  filter: drop-shadow(0 0 8px rgba(101, 154, 255, .28));
+}
+
+.confirm-header h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(23px, 4vw, 29px);
+  font-weight: 850;
+  line-height: 1.2;
+  letter-spacing: -.7px;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 16px rgba(115, 150, 255, .22);
+}
+
+.confirm-title-accent {
+  color: #ff668d;
+  text-shadow: 0 0 18px rgba(255, 52, 117, .4);
+}
+
+.confirm-subtitle {
+  max-width: 390px;
+  margin: 10px 0 0;
+  color: #e5edff;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.confirm-close {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #fff;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid rgba(224, 237, 255, .65);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(169, 200, 255, .38), rgba(88, 105, 193, .3));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .32);
+  transition: transform .2s ease, background .2s ease;
+}
+
+.confirm-close:hover:not(:disabled) {
+  transform: rotate(90deg);
+  background: rgba(255, 255, 255, .24);
+}
+
+.confirm-close:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* Content */
+
+.confirm-body {
+  padding: 17px 22px 4px;
+}
+
+.confirm-context-card {
+  display: grid;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid rgba(212, 231, 255, .62);
+  border-radius: 19px;
+  background:
+    radial-gradient(ellipse at 100% 100%, rgba(223, 90, 255, .19), transparent 48%),
+    linear-gradient(135deg, rgba(172, 200, 255, .24), rgba(69, 91, 174, .31));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .35),
+    0 8px 22px rgba(0, 0, 0, .16);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.confirm-scope {
+  justify-self: start;
+  padding: 5px 10px;
+  color: #eaf0ff;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid rgba(207, 219, 255, .35);
+  border-radius: 50px;
+  background: linear-gradient(90deg, rgba(129, 108, 255, .6), rgba(65, 120, 255, .38));
+}
+
+.confirm-record {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(219, 232, 255, .24);
+}
+
+.confirm-record-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 850;
+  border: 1px solid rgba(255, 255, 255, .58);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f34cff, #792cff 62%, #286bff);
+  box-shadow:
+    0 0 18px rgba(160, 57, 255, .48),
+    inset 0 2px 6px rgba(255, 255, 255, .4);
+}
+
+.confirm-record-identity {
+  min-width: 0;
+}
+
+.confirm-record-name {
+  display: block;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.confirm-record-email {
+  margin: 4px 0 0;
+  color: #d0deff;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.confirm-record-details {
+  display: grid;
+  gap: 9px;
+}
+
+.confirm-record-details > div {
+  display: grid;
+  grid-template-columns: minmax(85px, .8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.confirm-record-details > div > span {
+  color: #c4d4ff;
+}
+
+.confirm-record-details > div > strong {
+  color: #fff;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.confirm-record-details .confirm-status {
+  justify-self: end;
+  padding: 4px 10px;
+  border: 1px solid rgba(68, 255, 201, .5);
+  border-radius: 50px;
+  background: linear-gradient(135deg, #0dcea0, #00a87c);
+  box-shadow: 0 0 13px rgba(0, 233, 172, .28);
+}
+
+/* Irreversible-action warning */
+
+.confirm-warning {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 15px;
+  padding: 12px;
+  color: #fff;
+  border: 1px solid rgba(255, 83, 136, .88);
+  border-radius: 15px;
+  background:
+    linear-gradient(110deg, rgba(255, 35, 96, .3), rgba(130, 35, 116, .35));
+  box-shadow:
+    0 0 19px rgba(255, 38, 111, .13),
+    inset 0 1px 0 rgba(255, 255, 255, .2);
+}
+
+.confirm-warning-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 31px;
+  width: 31px;
+  height: 31px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 950;
+  border: 1px solid rgba(255, 255, 255, .65);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ff7295, #f2084b);
+  box-shadow: 0 0 15px rgba(255, 34, 100, .48);
+}
+
+.confirm-warning strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #ff9bb5;
+  font-size: 13px;
+}
+
+.confirm-warning p {
+  margin: 0;
+  color: #f8e4ee;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Action buttons */
+
+.confirm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 11px;
+  padding: 17px 22px 21px;
+}
+
+.confirm-footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 43px;
+  padding: 10px 17px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+  border-radius: 14px;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.confirm-footer button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.confirm-footer button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.confirm-cancel-button {
+  min-width: 130px;
+  border: 1px solid rgba(206, 227, 255, .8);
+  background: linear-gradient(135deg, rgba(107, 158, 255, .55), rgba(83, 83, 174, .6));
+  box-shadow:
+    0 6px 15px rgba(25, 53, 130, .25),
+    inset 0 1px 0 rgba(255, 255, 255, .4);
+}
+
+.confirm-delete-button {
+  min-width: 175px;
+  border: 1px solid rgba(255, 223, 235, .9);
+  background: linear-gradient(110deg, #ff5b80, #ff174e 48%, #d90042);
+  box-shadow:
+    0 7px 22px rgba(239, 12, 69, .43),
+    0 0 19px rgba(255, 38, 96, .27),
+    inset 0 1px 0 rgba(255, 255, 255, .52);
+}
+
+.confirm-delete-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 9px 26px rgba(239, 12, 69, .55);
+}
+
+.confirm-delete-button svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Neon elliptical rings behind the dialog */
+
+.confirm-neon-orbit {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: min(650px, 90vw);
+  height: 180px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  opacity: .9;
+}
+
+.confirm-neon-orbit--one {
+  border-top-color: #25d9ff;
+  border-right-color: #547aff;
+  border-bottom-color: #f52dff;
+  border-left-color: #ff4b9b;
+  box-shadow:
+    0 0 10px rgba(0, 198, 255, .42),
+    inset 0 0 10px rgba(224, 43, 255, .3);
+  filter: drop-shadow(0 0 8px rgba(43, 189, 255, .85));
+  animation: miarcusRingFloat 8s ease-in-out infinite;
+}
+
+.confirm-neon-orbit--two {
+  width: min(600px, 82vw);
+  height: 230px;
+  transform: translate(-50%, -50%) rotate(22deg);
+  border-top-color: #ffbd38;
+  border-right-color: #26ddff;
+  border-bottom-color: #ff35c8;
+  border-left-color: #a33bff;
+  filter: drop-shadow(0 0 9px rgba(235, 50, 255, .8));
+  animation: miarcusRingFloat 10s ease-in-out infinite reverse;
+}
+
+.confirm-neon-orbit--three {
+  width: min(710px, 94vw);
+  height: 145px;
+  transform: translate(-50%, -50%) rotate(5deg);
+  border-top-color: rgba(255, 185, 50, .65);
+  border-bottom-color: rgba(28, 211, 255, .8);
+  filter: drop-shadow(0 0 7px rgba(255, 70, 204, .65));
+  animation: miarcusRingFloat 12s ease-in-out infinite;
+}
+
+/* Floating translucent ice cubes */
+
+.confirm-ice-cube {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+  border: 1px solid rgba(242, 250, 255, .95);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .48), transparent 34%),
+    linear-gradient(145deg, rgba(85, 190, 255, .38), rgba(145, 89, 255, .22) 55%, rgba(255, 95, 225, .22));
+  box-shadow:
+    inset 2px 2px 8px rgba(255, 255, 255, .85),
+    inset -3px -4px 9px rgba(76, 128, 255, .38),
+    0 0 13px rgba(92, 179, 255, .75),
+    0 0 26px rgba(172, 76, 255, .38);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: miarcusCubeFloat 5.5s ease-in-out infinite;
+}
+
+.confirm-ice-cube::before,
+.confirm-ice-cube::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 6px;
+}
+
+.confirm-ice-cube::before {
+  inset: 5px;
+  border-top: 1px solid rgba(255, 255, 255, .92);
+  border-left: 1px solid rgba(255, 255, 255, .72);
+  transform: skew(-8deg, -8deg);
+}
+
+.confirm-ice-cube::after {
+  inset: 0;
+  background: linear-gradient(135deg, transparent 42%, rgba(255, 255, 255, .18));
+}
+
+.confirm-ice-cube--one {
+  left: calc(50% - min(300px, 40vw));
+  top: calc(50% - 220px);
+  width: 53px;
+  height: 53px;
+  transform: rotate(-25deg);
+}
+
+.confirm-ice-cube--two {
+  left: calc(50% + min(265px, 36vw));
+  top: calc(50% - 235px);
+  width: 59px;
+  height: 59px;
+  transform: rotate(22deg);
+  animation-delay: -1.7s;
+}
+
+.confirm-ice-cube--three {
+  left: calc(50% - min(345px, 43vw));
+  top: calc(50% + 135px);
+  width: 43px;
+  height: 43px;
+  transform: rotate(20deg);
+  animation-delay: -2.4s;
+}
+
+.confirm-ice-cube--four {
+  left: calc(50% + min(310px, 40vw));
+  top: calc(50% + 85px);
+  width: 38px;
+  height: 38px;
+  transform: rotate(35deg);
+  animation-delay: -.8s;
+}
+
+/* Glowing multicolour circles / particles */
+
+.confirm-neon-particle {
+  position: absolute;
+  z-index: 2;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: #fff;
+  box-shadow:
+    0 0 7px 3px #ff4bd8,
+    0 0 19px 7px rgba(255, 55, 220, .7);
+  animation: miarcusParticlePulse 2.5s ease-in-out infinite;
+}
+
+.confirm-particle--one {
+  left: calc(50% - min(355px, 44vw));
+  top: calc(50% - 65px);
+}
+
+.confirm-particle--two {
+  left: calc(50% + min(330px, 41vw));
+  top: calc(50% - 90px);
+  box-shadow: 0 0 7px 3px #25d9ff, 0 0 19px 7px rgba(37, 217, 255, .7);
+  animation-delay: -.8s;
+}
+
+.confirm-particle--three {
+  left: calc(50% - min(260px, 34vw));
+  top: calc(50% + 170px);
+  box-shadow: 0 0 7px 3px #ffb72e, 0 0 19px 7px rgba(255, 183, 46, .65);
+  animation-delay: -1.4s;
+}
+
+.confirm-particle--four {
+  left: calc(50% + min(250px, 32vw));
+  top: calc(50% + 155px);
+  box-shadow: 0 0 7px 3px #a14cff, 0 0 19px 7px rgba(161, 76, 255, .7);
+  animation-delay: -1.9s;
+}
+
+.confirm-particle--five {
+  left: calc(50% + min(90px, 12vw));
+  top: calc(50% - 190px);
+  box-shadow: 0 0 7px 3px #ff6c4d, 0 0 19px 7px rgba(255, 108, 77, .65);
+  animation-delay: -.5s;
+}
+
+/* Animations */
+
+@keyframes miarcusOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes miarcusDialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.96);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes miarcusCubeFloat {
+  0%, 100% {
+    translate: 0 0;
+    filter: brightness(1);
+  }
+  50% {
+    translate: 0 -12px;
+    filter: brightness(1.25);
+  }
+}
+
+@keyframes miarcusRingFloat {
+  0%, 100% {
+    opacity: .48;
+  }
+  50% {
+    opacity: .95;
+  }
+}
+
+@keyframes miarcusParticlePulse {
+  0%, 100% {
+    opacity: .5;
+    scale: .75;
+  }
+  50% {
+    opacity: 1;
+    scale: 1.3;
+  }
+}
+
+/* Small screens */
+
+@media (max-width: 560px) {
+  .confirm-overlay {
+    padding: 13px;
+  }
+
+  .confirm-dialog {
+    width: 100%;
+    max-height: calc(100dvh - 26px);
+    border-radius: 22px;
+  }
+
+  .confirm-header {
+    padding: 18px 15px 15px;
+  }
+
+  .confirm-icon {
+    top: 16px;
+    left: 14px;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .confirm-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .confirm-close {
+    top: 16px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    font-size: 21px;
+  }
+
+  .confirm-heading-copy {
+    padding: 30px 22px 0;
+  }
+
+  .confirm-miarcus-logo {
+    width: 95px;
+    height: 40px;
+  }
+
+  .confirm-header h2 {
+    font-size: 23px;
+  }
+
+  .confirm-subtitle {
+    font-size: 12px;
+  }
+
+  .confirm-body {
+    padding: 14px 14px 4px;
+  }
+
+  .confirm-context-card {
+    padding: 11px;
+    border-radius: 15px;
+  }
+
+  .confirm-record-details > div {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .confirm-footer {
+    padding: 14px;
+    gap: 8px;
+  }
+
+  .confirm-footer button {
+    min-width: 0;
+    flex: 1;
+    padding: 10px 8px;
+    font-size: 11px;
+  }
+
+  .confirm-warning {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .confirm-warning strong {
+    font-size: 12px;
+  }
+
+  .confirm-warning p {
+    font-size: 10px;
+  }
+
+  .confirm-neon-orbit {
+    opacity: .42;
+  }
+
+  .confirm-ice-cube {
+    width: 29px;
+    height: 29px;
+    border-radius: 7px;
+  }
+
+  .confirm-ice-cube--one {
+    top: calc(50% - 195px);
+  }
+
+  .confirm-ice-cube--two {
+    top: calc(50% - 205px);
+  }
+
+  .confirm-ice-cube--three {
+    top: calc(50% + 145px);
+  }
+
+  .confirm-ice-cube--four {
+    top: calc(50% + 105px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-overlay,
+  .confirm-dialog,
+  .confirm-neon-orbit,
+  .confirm-ice-cube,
+  .confirm-neon-particle {
+    animation: none !important;
+  }
+
+  .confirm-footer button,
+  .confirm-close {
+    transition: none;
+  }
+}
