@@ -384,3 +384,264 @@
 :root[data-miarcus-theme="neon-glass"] .page-content .dash3d-card .dashboard-welcome-left > p { color: #e2eaff !important; }
 :root[data-miarcus-theme="neon-glass"] .page-content .dashboard-page .dashboard-card h3,
 :root[data-miarcus-theme="neon-glass"] .page-content .dashboard-page .dashboard-card p { color: #fff !important; }
+
+
+/* ======================================================================
+   NEON GLASS — CROSS-MODULE CONTRAST + SURFACE NORMALIZATION
+   This layer is intentionally scoped to the selected theme. The original
+   MIARCUS theme and all other appearance choices remain unchanged.
+   It is placed last in Layout.jsx to beat older module-level light styles.
+====================================================================== */
+:root[data-miarcus-theme="neon-glass"] {
+  --ng-bg-0: #070b22;
+  --ng-bg-1: #10184e;
+  --ng-panel: rgba(18, 31, 83, .88);
+  --ng-panel-2: rgba(34, 32, 105, .82);
+  --ng-border: rgba(135, 190, 255, .58);
+  --ng-text: #f5f7ff;
+  --ng-muted: #c8d5ff;
+  --ng-cyan: #32e5ff;
+  --ng-violet: #a66bff;
+  --ng-pink: #ff4dd8;
+}
+
+:root[data-miarcus-theme="neon-glass"] body,
+:root[data-miarcus-theme="neon-glass"] #root {
+  min-height: 100%;
+  background: #080d2a !important;
+  color: var(--ng-text) !important;
+}
+
+:root[data-miarcus-theme="neon-glass"] .layout {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 16% 26%, rgba(170, 50, 255, .20), transparent 28rem),
+    radial-gradient(circle at 82% 40%, rgba(0, 171, 255, .18), transparent 30rem),
+    radial-gradient(circle at 55% 95%, rgba(0, 230, 255, .12), transparent 26rem),
+    linear-gradient(135deg, #080b28 0%, #10184d 48%, #080d24 100%) !important;
+}
+
+/* The floating circles, orbit rings and frosted cubes are decorative only. */
+:root[data-miarcus-theme="neon-glass"] .layout::before,
+:root[data-miarcus-theme="neon-glass"] .layout::after {
+  pointer-events: none !important;
+}
+:root[data-miarcus-theme="neon-glass"] .layout::before { z-index: 0 !important; }
+:root[data-miarcus-theme="neon-glass"] .layout::after { z-index: 0 !important; }
+:root[data-miarcus-theme="neon-glass"] .topbar,
+:root[data-miarcus-theme="neon-glass"] .layout-body,
+:root[data-miarcus-theme="neon-glass"] .sidebar-shell,
+:root[data-miarcus-theme="neon-glass"] .page-content {
+  position: relative;
+  z-index: 1;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content {
+  color: var(--ng-text) !important;
+  background: transparent !important;
+}
+
+/* Standardize the white/pastel surfaces used by many independently built modules. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  .card, .card-body, .content-card, .content-panel, .panel, .panel-body,
+  .form-card, .form-section, .form-container, .table-container, .table-wrapper,
+  .table-responsive, .data-table-wrapper, .filters-card, .filter-card,
+  .toolbar-card, .page-header-card, .section-card, .stats-card, .stat-card,
+  .summary-card, .overview-card, .activity-card, .report-card, .store-card,
+  .store-overview, .announcement-card, .announcement-featured,
+  .announcement-content, .announcement-item, .profile-card, .profile-section,
+  .settings-card, .settings-section, .appearance-section, .premium-card,
+  .dashboard-welcome-card, .dashboard-welcome-card.dash3d-card,
+  [class$="-card"], [class$="-panel"], [class$="-section"],
+  [class$="-wrapper"]
+) {
+  color: var(--ng-text) !important;
+  background: linear-gradient(145deg, rgba(26, 42, 105, .94), rgba(39, 27, 100, .92) 58%, rgba(5, 78, 119, .86)) !important;
+  border-color: var(--ng-border) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.19),
+              0 12px 28px rgba(0,0,0,.24),
+              0 0 18px rgba(102,91,255,.15) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+/* Keep all page headings and explanatory copy readable on the dark surfaces. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  h1, h2, h3, h4, h5, h6, p, label, legend, th, td,
+  .page-title, .section-title, .card-title, .form-label, .field-label,
+  .page-subtitle, .subtitle, .description, .helper-text, .text-muted,
+  .empty-state, .table-title, .modal-title
+) {
+  color: #f2f5ff !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  .muted, .text-secondary, .text-muted, small, .form-text, .help-text,
+  .description, .subtitle, .field-hint
+) { color: #c6d4ff !important; }
+
+/* Some modules use inline white backgrounds; neutralize common inline light surfaces. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content [style*="background: white"],
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content [style*="background:white"],
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content [style*="background-color: white"],
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content [style*="background-color: rgb(255, 255, 255)"],
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content [style*="background: rgb(255, 255, 255)"] {
+  color: var(--ng-text) !important;
+  background: linear-gradient(145deg, rgba(26,42,105,.94), rgba(39,27,100,.92) 58%, rgba(5,78,119,.86)) !important;
+  border-color: var(--ng-border) !important;
+}
+
+/* Tables, grids and report rows share the same glass language. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content table {
+  color: var(--ng-text) !important;
+  border-color: rgba(135,190,255,.38) !important;
+  background: rgba(10, 19, 57, .34) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content thead,
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content th {
+  color: #fff !important;
+  background: linear-gradient(100deg, rgba(44,61,145,.96), rgba(67,39,133,.94)) !important;
+  border-color: rgba(135,190,255,.42) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content td {
+  color: #eef3ff !important;
+  background: rgba(9, 19, 58, .38) !important;
+  border-color: rgba(135,190,255,.22) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content tbody tr:hover td {
+  background: rgba(73, 89, 180, .42) !important;
+}
+
+/* Inputs retain a clearly visible dark field and bright focus ring. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select, textarea
+) {
+  color: #f7f9ff !important;
+  background: rgba(7, 15, 49, .88) !important;
+  border: 1px solid rgba(126,181,255,.7) !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.25) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(input, textarea)::placeholder {
+  color: #b9c9f7 !important;
+  opacity: 1;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(input, select, textarea):focus {
+  outline: none !important;
+  border-color: #58e8ff !important;
+  box-shadow: 0 0 0 3px rgba(55,213,255,.16), 0 0 18px rgba(68,127,255,.22) !important;
+}
+
+/* Buttons remain legible, including neutral/cancel actions and module toolbars. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content button:not(.theme-card):not(.ap-preset):not(.neon-global-apply):not(.neon-global-disable) {
+  border-color: rgba(155,190,255,.48);
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  .btn-secondary, .btn-outline, .secondary-btn, .cancel-btn, .reset-btn,
+  .icon-button, .toolbar button, .pagination button
+) {
+  color: #f4f7ff !important;
+  background: linear-gradient(145deg, rgba(73,91,171,.84), rgba(42,43,119,.9)) !important;
+  border: 1px solid rgba(155,190,255,.55) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  .btn-primary, .primary-btn, .submit-btn, .save-btn, .add-btn, .export-btn
+) {
+  color: #fff !important;
+  background: linear-gradient(105deg, #315dff, #7737ed 60%, #d82fc5) !important;
+  border: 1px solid rgba(190,220,255,.65) !important;
+  box-shadow: 0 7px 20px rgba(85,65,255,.28), inset 0 1px 0 rgba(255,255,255,.28) !important;
+}
+
+/* Dashboard modules use distinct neon jewel colours instead of pale cards. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .dashboard-card,
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .module-card,
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .dashboard-module-card {
+  color: #fff !important;
+  background: linear-gradient(145deg, rgba(119,30,164,.92), rgba(35,35,130,.94) 62%, rgba(8,118,160,.9)) !important;
+  border: 1px solid rgba(147,207,255,.8) !important;
+  border-radius: 22px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 12px 28px rgba(0,0,0,.26), 0 0 18px rgba(104,91,255,.34) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(.dashboard-card,.module-card,.dashboard-module-card) * {
+  color: #fff !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(.dashboard-card,.module-card,.dashboard-module-card):nth-of-type(5n + 1) {
+  background: linear-gradient(145deg, rgba(205,33,193,.86), rgba(72,25,132,.94)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 0 22px rgba(255,49,221,.3) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(.dashboard-card,.module-card,.dashboard-module-card):nth-of-type(5n + 2) {
+  background: linear-gradient(145deg, rgba(103,43,220,.92), rgba(23,46,157,.94)) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(.dashboard-card,.module-card,.dashboard-module-card):nth-of-type(5n + 3) {
+  background: linear-gradient(145deg, rgba(0,151,176,.9), rgba(12,58,137,.94)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 0 22px rgba(0,221,255,.24) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(.dashboard-card,.module-card,.dashboard-module-card):nth-of-type(5n + 4) {
+  background: linear-gradient(145deg, rgba(210,105,31,.9), rgba(112,46,83,.94)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 0 22px rgba(255,171,49,.22) !important;
+}
+
+/* Preserve semantic states (success, warning, danger) and icon artwork. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  .badge-success, .status-success, .text-success, .success, .is-success
+) { color: #baffea !important; }
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  .badge-danger, .status-danger, .text-danger, .danger, .is-danger
+) { color: #ffd2de !important; }
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  .badge-warning, .status-warning, .text-warning, .warning, .is-warning
+) { color: #ffe6a8 !important; }
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content img,
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content video,
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content iframe {
+  max-width: 100%;
+  border-radius: 14px;
+}
+
+/* Appearance cards remain previews rather than being recoloured by the page skin. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .theme-card,
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .ap-preset {
+  color: inherit !important;
+  background: initial;
+  box-shadow: initial;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-miarcus-theme="neon-glass"] .layout::before,
+  :root[data-miarcus-theme="neon-glass"] .layout::after { animation: none !important; }
+}
+
+
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .dashboard-stat-card {
+  color: #fff !important;
+  background: linear-gradient(145deg, rgba(32,48,125,.94), rgba(45,28,109,.94)) !important;
+  border: 1px solid rgba(143,193,255,.7) !important;
+  border-radius: 20px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 10px 24px rgba(0,0,0,.24), 0 0 17px rgba(96,110,255,.2) !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .dashboard-stat-card :is(h1,h2,h3,h4,strong,b,span,p,small) {
+  color: #fff !important;
+}
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .dashboard-stat-card:nth-of-type(4n + 1) { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 0 22px rgba(214,54,255,.24) !important; }
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .dashboard-stat-card:nth-of-type(4n + 2) { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 0 22px rgba(50,135,255,.24) !important; }
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .dashboard-stat-card:nth-of-type(4n + 3) { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 0 22px rgba(255,171,49,.2) !important; }
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .dashboard-stat-card:nth-of-type(4n + 4) { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 0 22px rgba(0,230,190,.2) !important; }
+
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .theme-card,
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .ap-preset {
+  border-color: revert !important;
+  box-shadow: revert !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Some legacy module headings use -webkit-text-fill-color directly. Reset it
+   inside Neon Glass so white/pale fills cannot disappear on bright surfaces. */
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content :is(
+  h1, h2, h3, h4, h5, h6, p, label, legend, th, td,
+  .page-title, .section-title, .card-title, .form-label, .field-label,
+  .page-subtitle, .subtitle, .description, .helper-text, .text-muted,
+  .empty-state, .table-title, .modal-title
+) {
+  -webkit-text-fill-color: currentColor !important;
+}

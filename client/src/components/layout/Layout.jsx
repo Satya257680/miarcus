@@ -6,7 +6,6 @@ import Sidebar from "./Sidebar";
 
 import "../../styles/layout/Layout.css";
 import "../../styles/theme.css";
-import "../../styles/NeonGlassGlobal.css";
 import "../../styles/layout/SidebarSimple.css";
 import ThemeProvider from "../../context/ThemeProvider";
 import LocationTrackingGate from "../LocationTrackingGate";
@@ -19,6 +18,10 @@ import MobileBottomNav from "./MobileBottomNav";
 import "../../styles/mobile/MobileApp.css";
 import "../../styles/mobile/MobileModules.css";
 import useMobileTableCards from "../../hooks/useMobileTableCards";
+
+// Import the optional theme skin after layout styles so Neon Glass can
+// consistently override module-level light surfaces when selected.
+import "../../styles/NeonGlassGlobal.css";
 
 // Phones only (tablets / laptops / desktops keep the existing layout).
 const MOBILE_QUERY = "(max-width: 768px)";
