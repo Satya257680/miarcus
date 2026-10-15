@@ -1,0 +1,183 @@
+/* MIARCUS Neon Glass — global portal skin.
+   Loaded last by Layout.jsx so the selected Appearance theme reaches every module. */
+:root[data-miarcus-theme="neon-glass"] {
+  color-scheme: dark;
+  --mi-bg: #070b24;
+  --mi-surface: rgba(24, 35, 91, .74);
+  --mi-surface-2: rgba(18, 30, 78, .82);
+  --mi-text: #f6f7ff;
+  --mi-text-strong: #ffffff;
+  --mi-muted: #c5d0fa;
+  --mi-border: rgba(133, 177, 255, .58);
+  --mi-sidebar: #11184c;
+  --mi-sidebar-text: #f5f6ff;
+  --mi-navbar: rgba(19, 22, 76, .88);
+  --mi-shadow: 0 12px 30px rgba(0,0,0,.28), 0 0 22px rgba(105,83,255,.18);
+  --mi-shadow-strong: 0 18px 42px rgba(0,0,0,.36), 0 0 28px rgba(126,83,255,.28);
+}
+
+:root[data-miarcus-theme="neon-glass"] body {
+  background: #080d2a !important;
+  color: #f6f7ff !important;
+}
+:root[data-miarcus-theme="neon-glass"] .layout {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 30% 17%, rgba(255, 42, 223, .17), transparent 18rem),
+    radial-gradient(circle at 87% 24%, rgba(35, 112, 255, .24), transparent 24rem),
+    radial-gradient(circle at 68% 86%, rgba(0, 225, 255, .17), transparent 23rem),
+    linear-gradient(135deg, #080b2a 0%, #10185b 48%, #080d25 100%) !important;
+  overflow: hidden;
+}
+/* Ambient coloured orbs and orbital rings are decorations, not page content. */
+:root[data-miarcus-theme="neon-glass"] .layout::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .95;
+  background:
+    radial-gradient(circle at 30% 16%, rgba(255,255,255,.98) 0 2px, rgba(255,56,231,.85) 3px 7px, transparent 24px),
+    radial-gradient(circle at 72% 20%, rgba(255,255,255,.95) 0 2px, rgba(79,139,255,.82) 3px 9px, transparent 30px),
+    radial-gradient(circle at 95% 74%, rgba(255,255,255,.95) 0 2px, rgba(0,221,255,.8) 3px 8px, transparent 28px),
+    radial-gradient(circle at 17% 79%, rgba(255,255,255,.9) 0 2px, rgba(151,75,255,.8) 3px 7px, transparent 24px),
+    radial-gradient(ellipse at 58% 48%, transparent 0 26%, rgba(54,177,255,.0) 26.1% 26.5%, rgba(54,177,255,.38) 26.7%, transparent 27.1%),
+    radial-gradient(ellipse at 60% 48%, transparent 0 32%, rgba(255,57,221,.0) 32.1% 32.5%, rgba(255,57,221,.42) 32.7%, transparent 33.1%);
+  animation: miNeonAmbient 16s ease-in-out infinite alternate;
+}
+/* Frosted floating ice cubes with multiple offset copies. */
+:root[data-miarcus-theme="neon-glass"] .layout::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  width: 32px;
+  height: 32px;
+  top: 17%;
+  right: 7%;
+  border: 1px solid rgba(228,246,255,.9);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(255,255,255,.28), rgba(100,174,255,.08) 48%, rgba(174,100,255,.22));
+  box-shadow: inset 2px 2px 4px rgba(255,255,255,.55), inset -3px -3px 7px rgba(75,127,255,.28), 0 0 16px rgba(91,160,255,.75), 0 0 35px rgba(164,94,255,.35),
+    -72vw 45vh 0 -3px rgba(110,190,255,.05), -72vw 45vh 0 -2px rgba(255,255,255,.72), -72vw 45vh 12px 0 rgba(100,150,255,.35),
+    -45vw 70vh 0 -4px rgba(110,190,255,.05), -45vw 70vh 0 -3px rgba(255,255,255,.78), -45vw 70vh 14px 0 rgba(100,150,255,.32),
+    -14vw 58vh 0 -4px rgba(110,190,255,.05), -14vw 58vh 0 -3px rgba(255,255,255,.72), -14vw 58vh 14px 0 rgba(100,150,255,.3);
+  transform: rotate(22deg);
+  animation: miNeonCubeFloat 8s ease-in-out infinite;
+}
+:root[data-miarcus-theme="neon-glass"] .topbar,
+:root[data-miarcus-theme="neon-glass"] .navbar,
+:root[data-miarcus-theme="neon-glass"] .top-navbar,
+:root[data-miarcus-theme="neon-glass"] .header {
+  position: relative;
+  z-index: 2;
+  color: #fff !important;
+  background: linear-gradient(100deg, rgba(13,24,77,.94), rgba(43,22,109,.91) 56%, rgba(14,31,87,.94)) !important;
+  border: 1px solid rgba(123,169,255,.72) !important;
+  border-bottom-color: rgba(255,83,231,.78) !important;
+  border-radius: 17px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 0 14px rgba(58,131,255,.55), 0 0 25px rgba(208,62,255,.24) !important;
+  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+}
+:root[data-miarcus-theme="neon-glass"] .layout-body { position: relative; z-index: 1; min-height: 0; background: transparent !important; }
+:root[data-miarcus-theme="neon-glass"] .sidebar-shell,
+:root[data-miarcus-theme="neon-glass"] .sidebar {
+  color: #f6f7ff !important;
+  background: linear-gradient(160deg, rgba(18,30,95,.91), rgba(27,22,93,.86) 55%, rgba(8,77,125,.84)) !important;
+  border: 1px solid rgba(126,174,255,.65) !important;
+  border-radius: 19px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 0 15px rgba(69,116,255,.42), 0 0 25px rgba(221,58,255,.16) !important;
+  backdrop-filter: blur(20px) saturate(155%);
+  -webkit-backdrop-filter: blur(20px) saturate(155%);
+}
+:root[data-miarcus-theme="neon-glass"] .sidebar a,
+:root[data-miarcus-theme="neon-glass"] .sidebar button,
+:root[data-miarcus-theme="neon-glass"] .sidebar nav a { color: #f3f5ff !important; }
+:root[data-miarcus-theme="neon-glass"] .sidebar a.active,
+:root[data-miarcus-theme="neon-glass"] .sidebar a[aria-current="page"] {
+  background: linear-gradient(110deg, rgba(197,45,255,.82), rgba(59,83,255,.83), rgba(0,197,255,.46)) !important;
+  border: 1px solid rgba(255,255,255,.72) !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 0 14px rgba(201,60,255,.65), 0 0 24px rgba(50,119,255,.35) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content {
+  position: relative;
+  z-index: 1;
+  color: #f4f6ff !important;
+  background: transparent !important;
+  isolation: isolate;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content > * { position: relative; z-index: 1; }
+/* Shared module surfaces: forms, toolbars, panels, cards and tables. */
+:root[data-miarcus-theme="neon-glass"] .page-content .card,
+:root[data-miarcus-theme="neon-glass"] .page-content .panel,
+:root[data-miarcus-theme="neon-glass"] .page-content .content-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .table-container,
+:root[data-miarcus-theme="neon-glass"] .page-content .table-wrapper,
+:root[data-miarcus-theme="neon-glass"] .page-content .data-table-wrapper,
+:root[data-miarcus-theme="neon-glass"] .page-content .form-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .modal-content,
+:root[data-miarcus-theme="neon-glass"] .page-content .appearance-section,
+:root[data-miarcus-theme="neon-glass"] .page-content .premium-card {
+  color: #f4f6ff !important;
+  background: linear-gradient(145deg, rgba(34,49,117,.76), rgba(33,26,91,.78) 62%, rgba(10,82,124,.58)) !important;
+  border: 1px solid rgba(139,177,255,.55) !important;
+  border-radius: 19px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.19), 0 10px 26px rgba(0,0,0,.24), 0 0 15px rgba(83,107,255,.15) !important;
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+:root[data-miarcus-theme="neon-glass"] .page-content h1,
+:root[data-miarcus-theme="neon-glass"] .page-content h2,
+:root[data-miarcus-theme="neon-glass"] .page-content h3,
+:root[data-miarcus-theme="neon-glass"] .page-content label,
+:root[data-miarcus-theme="neon-glass"] .page-content th,
+:root[data-miarcus-theme="neon-glass"] .page-content td,
+:root[data-miarcus-theme="neon-glass"] .page-content p,
+:root[data-miarcus-theme="neon-glass"] .page-content .text-muted { color: #f1f4ff; }
+:root[data-miarcus-theme="neon-glass"] .page-content input:not([type="checkbox"]):not([type="radio"]),
+:root[data-miarcus-theme="neon-glass"] .page-content select,
+:root[data-miarcus-theme="neon-glass"] .page-content textarea {
+  color: #f7f8ff !important;
+  background: rgba(8,17,55,.66) !important;
+  border: 1px solid rgba(123,171,255,.62) !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.2), 0 0 10px rgba(70,130,255,.1) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content input::placeholder,
+:root[data-miarcus-theme="neon-glass"] .page-content textarea::placeholder { color: #b8c8f8 !important; }
+:root[data-miarcus-theme="neon-glass"] .page-content table { color: #f3f6ff !important; border-color: rgba(139,177,255,.38) !important; }
+:root[data-miarcus-theme="neon-glass"] .page-content th { background: rgba(41,57,129,.88) !important; border-color: rgba(139,177,255,.35) !important; }
+:root[data-miarcus-theme="neon-glass"] .page-content td { background: rgba(14,24,67,.42) !important; border-color: rgba(139,177,255,.22) !important; }
+:root[data-miarcus-theme="neon-glass"] .page-content button:not(.ap-preset):not(.theme-card) {
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content button:not(.ap-preset):not(.theme-card):hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 15px rgba(105,137,255,.28);
+}
+/* Appearance thumbnails must preview the same neon look, not the legacy white card. */
+:root[data-miarcus-theme="neon-glass"] .theme-preview-neon-glass,
+:root[data-miarcus-theme="neon-glass"] .ap-preset-swatch.theme-preview-neon-glass {
+  background: linear-gradient(135deg, #10194e, #28206d 58%, #07577a) !important;
+  border: 1px solid #65dfff !important;
+  box-shadow: inset 0 0 18px rgba(125,82,255,.38), 0 0 14px rgba(102,86,255,.42) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .theme-preview-neon-glass .preview-sidebar { background: linear-gradient(180deg,#172a80,#311c72,#086d8d) !important; border: 1px solid rgba(103,213,255,.85); }
+:root[data-miarcus-theme="neon-glass"] .theme-preview-neon-glass .preview-topbar { background: linear-gradient(90deg,#14266f,#4a218c,#073e7e) !important; border: 1px solid #a46aff; }
+:root[data-miarcus-theme="neon-glass"] .theme-preview-neon-glass .preview-cards span,
+:root[data-miarcus-theme="neon-glass"] .theme-preview-neon-glass .preview-chart { background: linear-gradient(135deg,rgba(104,111,255,.82),rgba(12,111,153,.76)) !important; border: 1px solid rgba(93,225,255,.82) !important; }
+:root[data-miarcus-theme="neon-glass"] .ap-preset:has(.theme-preview-neon-glass) { color: #fff !important; background: linear-gradient(135deg,rgba(25,39,103,.92),rgba(43,23,100,.92),rgba(7,74,111,.86)) !important; border-color: rgba(141,119,255,.85) !important; }
+@keyframes miNeonAmbient { from { transform: translate3d(-.4%,0,0) scale(1); } to { transform: translate3d(.5%,-.6%,0) scale(1.025); } }
+@keyframes miNeonCubeFloat { 0%,100% { translate: 0 0; rotate: 22deg; } 50% { translate: -10px 13px; rotate: 34deg; } }
+@media (max-width: 768px) {
+  :root[data-miarcus-theme="neon-glass"] .layout::before { opacity: .5; }
+  :root[data-miarcus-theme="neon-glass"] .layout::after { opacity: .45; transform: scale(.7) rotate(22deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-miarcus-theme="neon-glass"] .layout::before,
+  :root[data-miarcus-theme="neon-glass"] .layout::after { animation: none !important; }
+}
