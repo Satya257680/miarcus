@@ -10,6 +10,7 @@ const DEFAULT_PREFERENCES = {
 
 const VALID_THEMES = new Set([
     "miarcus-original",
+    "neon-glass",
     "professional",
     "dark",
     "minimal",

@@ -25,6 +25,7 @@ const DARK_THEMES = ["dark", "midnight", "aurora", "high-contrast"];
 
 // One-click looks that set theme + accent + font together.
 const PRESETS = [
+    { id: "p-neon-glass", name: "MIARCUS Neon Glass", theme: "neon-glass", accentColor: "violet", fontFamily: "modern" },
     { id: "p-original", name: "MIARCUS Classic", theme: "miarcus-original", accentColor: "purple", fontFamily: "default" },
     { id: "p-premium", name: "Premium Violet", theme: "lavender", accentColor: "violet", fontFamily: "modern" },
     { id: "p-exec", name: "Executive", theme: "royal", accentColor: "gold", fontFamily: "serif" },

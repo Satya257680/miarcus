@@ -21,6 +21,13 @@ export const THEMES = [
         preview: "original"
     },
     {
+        id: "neon-glass",
+        name: "MIARCUS Neon Glass",
+        description: "Deep navy glass with violet, cyan and neon-pink edges across the whole portal.",
+        icon: "💎",
+        preview: "neon-glass"
+    },
+    {
         id: "professional",
         name: "Professional",
         description: "Clean corporate workspace.",

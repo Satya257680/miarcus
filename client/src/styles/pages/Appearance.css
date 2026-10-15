@@ -798,3 +798,26 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* MIARCUS Neon Glass theme preview */
+.theme-preview-neon-glass {
+    background: linear-gradient(135deg, #07122f 0%, #172b70 48%, #37145f 100%);
+    box-shadow: inset 0 0 0 1px rgba(111, 221, 255, .65), 0 0 12px rgba(155, 71, 255, .18);
+}
+.theme-preview-neon-glass .preview-sidebar {
+    background: linear-gradient(180deg, #172b72, #10163e 65%, #0b476b);
+    border: 1px solid rgba(95, 218, 255, .8);
+}
+.theme-preview-neon-glass .preview-topbar {
+    background: linear-gradient(90deg, #172a68, #35146b 58%, #102f6e);
+    border: 1px solid #8e68ff;
+}
+.theme-preview-neon-glass .preview-cards span {
+    background: linear-gradient(145deg, rgba(44, 74, 151, .95), rgba(79, 28, 117, .95));
+    border: 1px solid rgba(87, 224, 255, .75);
+}
+.theme-preview-neon-glass .preview-chart {
+    background: linear-gradient(120deg, #142e72, #3d1b70 58%, #086b91);
+    border: 1px solid rgba(255, 80, 207, .8);
+}
