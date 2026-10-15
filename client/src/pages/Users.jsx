@@ -301,7 +301,16 @@ const deleteUser = async (id, user) => {
     return;
   }
 
-  if (!await confirmWithGlass("Delete this user?")) return;
+  if (!await confirmWithGlass({
+    title: "Delete Record",
+    message: "Are you sure you want to delete this user?",
+    confirmText: "Delete Record",
+    recordName: user?.name || "Selected user",
+    email: user?.email || "",
+    department: user?.department || "",
+    role: user?.designation || user?.role || "",
+    status: user?.status || "",
+  })) return;
 
   try {
 

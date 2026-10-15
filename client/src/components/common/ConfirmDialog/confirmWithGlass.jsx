@@ -199,7 +199,11 @@ function GlassConfirmDialog({
  *   // Run your existing delete API request.
  * }
  */
-export default function confirmWithGlass(options = {}) {
+export default function confirmWithGlass(input = {}) {
+  // Existing modules may pass a plain message string; newer callers can pass
+  // an options object with record context. Support both forms.
+  const options = typeof input === "string" ? { message: input } : (input || {});
+
   return new Promise((resolve) => {
     const container = document.createElement("div");
     container.className = "confirm-dialog-root";
