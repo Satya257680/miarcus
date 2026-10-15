@@ -332,8 +332,13 @@ function ThemeProvider({ children }) {
     const [loadedFromServer, setLoadedFromServer] =
         useState(false);
 
+    const [globalTheme, setGlobalTheme] = useState({
+        enabled: false,
+        preferences: DEFAULT_PREFERENCES
+    });
+
     const applyPreferences = useCallback(
-        (value) => {
+        (value, options = {}) => {
             const normalized =
                 normalizePreferences(value);
 
@@ -386,10 +391,12 @@ function ThemeProvider({ children }) {
             );
 
             try {
-                localStorage.setItem(
-                    getUserKey(),
-                    JSON.stringify(normalized)
-                );
+                if (options.persistLocal !== false) {
+                    localStorage.setItem(
+                        getUserKey(),
+                        JSON.stringify(normalized)
+                    );
+                }
             } catch {
                 // Keep the UI working if storage is unavailable.
             }
@@ -453,61 +460,83 @@ function ThemeProvider({ children }) {
     }, [preferences.theme]);
 
     // --------------------------------------------------
-    // Load the authenticated user's saved preference.
+    // Global theme is opt-in and admin-controlled. When enabled,
+    // it overrides personal appearance on every authenticated session.
     // --------------------------------------------------
+    const refreshGlobalTheme = useCallback(async () => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            setLoadedFromServer(true);
+            return null;
+        }
+
+        try {
+            const globalResponse = await axios.get("/api/theme-preferences/global");
+            const nextGlobal = globalResponse.data?.globalTheme || {
+                enabled: false,
+                preferences: DEFAULT_PREFERENCES
+            };
+            setGlobalTheme(nextGlobal);
+
+            if (nextGlobal.enabled && nextGlobal.preferences) {
+                applyPreferences(nextGlobal.preferences, { persistLocal: false });
+            } else {
+                const personalResponse = await axios.get("/api/theme-preferences");
+                if (personalResponse.data?.success && personalResponse.data.preferences) {
+                    applyPreferences(personalResponse.data.preferences);
+                }
+            }
+            return nextGlobal;
+        } catch (error) {
+            // Keep the local appearance usable if the server is temporarily unavailable.
+            console.warn("Global theme load:", error?.message || error);
+            try {
+                const personalResponse = await axios.get("/api/theme-preferences");
+                if (personalResponse.data?.success && personalResponse.data.preferences) {
+                    applyPreferences(personalResponse.data.preferences);
+                }
+            } catch {
+                // Existing local preference remains active.
+            }
+            return null;
+        } finally {
+            setLoadedFromServer(true);
+        }
+    }, [applyPreferences]);
 
     useEffect(() => {
         let cancelled = false;
-
-        const token =
-            localStorage.getItem("token");
-
-        const userId =
-            localStorage.getItem("userId");
-
-        if (!token || !userId) {
-            setLoadedFromServer(true);
-            return undefined;
-        }
-
         const load = async () => {
-            try {
-                const response =
-                    await axios.get(
-                        "/api/theme-preferences"
-                    );
-
-                if (
-                    !cancelled &&
-                    response.data?.success
-                ) {
-                    applyPreferences(
-                        response.data.preferences
-                    );
-                }
-            } catch (error) {
-                // Local preference remains active if the
-                // server is temporarily unavailable.
-                console.warn(
-                    "Theme preference load:",
-                    error?.message || error
-                );
-            } finally {
-                if (!cancelled) {
-                    setLoadedFromServer(true);
-                }
-            }
+            await refreshGlobalTheme();
+            if (cancelled) return;
         };
-
         load();
 
+        // Pick up an administrator's global theme when a user returns to the tab.
+        const onFocus = () => refreshGlobalTheme();
+        const poll = window.setInterval(() => {
+            if (document.visibilityState === "visible") refreshGlobalTheme();
+        }, 60000);
+        window.addEventListener("focus", onFocus);
         return () => {
             cancelled = true;
+            window.clearInterval(poll);
+            window.removeEventListener("focus", onFocus);
         };
-    }, [applyPreferences]);
+    }, [refreshGlobalTheme]);
 
     const updatePreferences = useCallback(
         async (changes) => {
+            const storedUser = (() => {
+                try { return JSON.parse(localStorage.getItem("user") || "{}"); }
+                catch { return {}; }
+            })();
+            const isAdmin = Number(storedUser?.is_admin ?? storedUser?.isAdmin ?? 0) === 1;
+            if (globalTheme.enabled && !isAdmin) {
+                applyPreferences(globalTheme.preferences, { persistLocal: false });
+                return globalTheme.preferences;
+            }
+
             const next =
                 applyPreferences({
                     ...preferences,
@@ -545,7 +574,7 @@ function ThemeProvider({ children }) {
 
             return next;
         },
-        [applyPreferences, preferences]
+        [applyPreferences, preferences, globalTheme]
     );
 
     const value = useMemo(
@@ -555,12 +584,16 @@ function ThemeProvider({ children }) {
             accentColors: ACCENT_COLORS,
             fontFamilies: FONT_FAMILIES,
             updatePreferences,
-            loadedFromServer
+            loadedFromServer,
+            globalTheme,
+            refreshGlobalTheme
         }),
         [
             preferences,
             updatePreferences,
-            loadedFromServer
+            loadedFromServer,
+            globalTheme,
+            refreshGlobalTheme
         ]
     );
 

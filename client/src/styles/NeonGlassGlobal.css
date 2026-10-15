@@ -181,3 +181,206 @@
   :root[data-miarcus-theme="neon-glass"] .layout::before,
   :root[data-miarcus-theme="neon-glass"] .layout::after { animation: none !important; }
 }
+
+/* ---------------------------------------------------------
+   Neon Glass readability + true 3D module treatment
+   These rules only run when MIARCUS Neon Glass is selected.
+--------------------------------------------------------- */
+:root[data-miarcus-theme="neon-glass"] .page-content,
+:root[data-miarcus-theme="neon-glass"] .page-content * {
+  --neon-white: #f8faff;
+  --neon-muted: #d5e0ff;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content h1,
+:root[data-miarcus-theme="neon-glass"] .page-content h2,
+:root[data-miarcus-theme="neon-glass"] .page-content h3,
+:root[data-miarcus-theme="neon-glass"] .page-content h4,
+:root[data-miarcus-theme="neon-glass"] .page-content h5,
+:root[data-miarcus-theme="neon-glass"] .page-content h6,
+:root[data-miarcus-theme="neon-glass"] .page-content .page-title,
+:root[data-miarcus-theme="neon-glass"] .page-content .page-header,
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-title,
+:root[data-miarcus-theme="neon-glass"] .page-content .dash3d-title,
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-username,
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-greeting {
+  color: #fff !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.18), 0 0 18px rgba(115,145,255,.28) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content p,
+:root[data-miarcus-theme="neon-glass"] .page-content label,
+:root[data-miarcus-theme="neon-glass"] .page-content small,
+:root[data-miarcus-theme="neon-glass"] .page-content .text-muted,
+:root[data-miarcus-theme="neon-glass"] .page-content .muted,
+:root[data-miarcus-theme="neon-glass"] .page-content .form-text {
+  color: #dce5ff !important;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-welcome-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-welcome-card.dash3d-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-stat-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .analytics-module-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .content-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .premium-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .table-container,
+:root[data-miarcus-theme="neon-glass"] .page-content .table-wrapper,
+:root[data-miarcus-theme="neon-glass"] .page-content .form-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .settings-card {
+  color: #f8faff !important;
+  background: linear-gradient(135deg, rgba(25,43,112,.91), rgba(51,29,116,.84) 58%, rgba(4,93,132,.72)) !important;
+  border: 1px solid rgba(132,194,255,.76) !important;
+  border-radius: 22px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -2px 0 rgba(49,95,205,.3), 0 12px 30px rgba(0,0,0,.28), 0 0 22px rgba(79,111,255,.2) !important;
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+/* Dashboard title and welcome card were originally designed for a light palette. */
+:root[data-miarcus-theme="neon-glass"] .dash3d-title { color: #fff !important; }
+:root[data-miarcus-theme="neon-glass"] .dash3d-greeting .dashboard-greeting { color: #d88bff !important; }
+:root[data-miarcus-theme="neon-glass"] .dash3d-greeting .dashboard-username { color: #fff !important; }
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-welcome-card.dash3d-card {
+  background: radial-gradient(circle at 12% 0%, rgba(94,116,255,.38), transparent 38%), linear-gradient(110deg, rgba(22,43,111,.96), rgba(54,28,119,.93) 52%, rgba(5,89,135,.9)) !important;
+  border-color: rgba(117,200,255,.9) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 12px 24px rgba(0,0,0,.32), 0 0 20px rgba(64,142,255,.5), 0 0 35px rgba(227,49,255,.16) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .dashboard-card {
+  color: #fff !important;
+  border: 1px solid rgba(180,210,255,.78) !important;
+  border-radius: 23px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -3px 0 rgba(0,0,0,.12), 0 10px 22px rgba(0,0,0,.25), 0 0 15px rgba(83,127,255,.28) !important;
+  backdrop-filter: blur(15px) saturate(155%);
+  -webkit-backdrop-filter: blur(15px) saturate(155%);
+  transition: transform .22s ease, box-shadow .22s ease, filter .22s ease !important;
+}
+:root[data-miarcus-theme="neon-glass"] .dashboard-card:nth-child(5n+1) { background: linear-gradient(145deg,rgba(232,35,226,.8),rgba(85,23,150,.91)) !important; box-shadow: 0 0 22px rgba(242,52,232,.35), inset 0 1px 0 rgba(255,255,255,.4) !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-card:nth-child(5n+2) { background: linear-gradient(145deg,rgba(153,45,255,.83),rgba(23,44,155,.94)) !important; box-shadow: 0 0 22px rgba(129,82,255,.35), inset 0 1px 0 rgba(255,255,255,.4) !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-card:nth-child(5n+3) { background: linear-gradient(145deg,rgba(0,198,224,.76),rgba(5,61,128,.94)) !important; box-shadow: 0 0 22px rgba(0,218,255,.34), inset 0 1px 0 rgba(255,255,255,.4) !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-card:nth-child(5n+4) { background: linear-gradient(145deg,rgba(255,167,40,.83),rgba(142,55,31,.94)) !important; box-shadow: 0 0 22px rgba(255,167,40,.32), inset 0 1px 0 rgba(255,255,255,.4) !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-card:nth-child(5n) { background: linear-gradient(145deg,rgba(49,139,255,.83),rgba(13,42,133,.95)) !important; box-shadow: 0 0 22px rgba(49,139,255,.36), inset 0 1px 0 rgba(255,255,255,.4) !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-card h3,
+:root[data-miarcus-theme="neon-glass"] .dashboard-card p { color: #fff !important; text-shadow: 0 1px 7px rgba(0,0,0,.25) !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-card:hover { transform: translateY(-5px) perspective(900px) rotateX(1deg); filter: brightness(1.08); }
+:root[data-miarcus-theme="neon-glass"] .dashboard-card .card-icon,
+:root[data-miarcus-theme="neon-glass"] .dashboard-card .card-icon-box,
+:root[data-miarcus-theme="neon-glass"] .dashboard-card .card-arrow {
+  color: #fff !important; border-color: rgba(255,255,255,.72) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 0 16px rgba(255,255,255,.2) !important;
+}
+/* The statistics/store counts become glowing, multicolour circular glass counters. */
+:root[data-miarcus-theme="neon-glass"] .dashboard-stat-card { border-radius: 22px !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-stat-icon,
+:root[data-miarcus-theme="neon-glass"] .store-stat-circle,
+:root[data-miarcus-theme="neon-glass"] .stat-circle {
+  border-radius: 50% !important;
+  border: 1px solid rgba(255,255,255,.78) !important;
+  color: #fff !important;
+  background: radial-gradient(circle at 28% 20%,rgba(255,255,255,.48),transparent 36%),linear-gradient(145deg,#b72cff,#4b20d8) !important;
+  box-shadow: inset 0 2px 5px rgba(255,255,255,.32), 0 0 18px rgba(174,64,255,.62), 0 8px 18px rgba(0,0,0,.28) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .dashboard-stat-card:nth-child(4n+2) .dashboard-stat-icon { background: radial-gradient(circle at 28% 20%,rgba(255,255,255,.48),transparent 36%),linear-gradient(145deg,#00d9ff,#1756e9) !important; box-shadow: 0 0 20px rgba(0,204,255,.6) !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-stat-card:nth-child(4n+3) .dashboard-stat-icon { background: radial-gradient(circle at 28% 20%,rgba(255,255,255,.48),transparent 36%),linear-gradient(145deg,#ffb43d,#ef3d37) !important; box-shadow: 0 0 20px rgba(255,137,50,.6) !important; }
+:root[data-miarcus-theme="neon-glass"] .dashboard-stat-card:nth-child(4n) .dashboard-stat-icon { background: radial-gradient(circle at 28% 20%,rgba(255,255,255,.48),transparent 36%),linear-gradient(145deg,#00f0bd,#00866f) !important; box-shadow: 0 0 20px rgba(0,240,189,.6) !important; }
+/* Distinct circles and extra ice-cube decorations stay behind every module. */
+:root[data-miarcus-theme="neon-glass"] .layout::before {
+  background:
+    radial-gradient(circle at 30% 16%, #fff 0 2px, rgba(255,44,229,.95) 3px 8px, rgba(255,44,229,.18) 9px 19px, transparent 35px),
+    radial-gradient(circle at 72% 20%, #fff 0 2px, rgba(59,139,255,.96) 3px 9px, rgba(59,139,255,.18) 10px 22px, transparent 38px),
+    radial-gradient(circle at 95% 74%, #fff 0 2px, rgba(0,230,255,.92) 3px 8px, rgba(0,230,255,.16) 9px 20px, transparent 34px),
+    radial-gradient(circle at 17% 79%, #fff 0 2px, rgba(164,70,255,.96) 3px 8px, rgba(164,70,255,.18) 9px 19px, transparent 34px),
+    radial-gradient(circle at 54% 7%, rgba(255,255,255,.95) 0 2px, rgba(255,143,62,.78) 3px 7px, transparent 25px),
+    radial-gradient(circle at 81% 57%, rgba(255,255,255,.95) 0 2px, rgba(255,47,202,.84) 3px 8px, transparent 28px),
+    radial-gradient(circle at 7% 49%, rgba(255,255,255,.95) 0 2px, rgba(0,216,255,.8) 3px 7px, transparent 25px),
+    radial-gradient(ellipse at 58% 48%, transparent 0 26%, rgba(54,177,255,.0) 26.1% 26.5%, rgba(54,177,255,.42) 26.7%, transparent 27.1%),
+    radial-gradient(ellipse at 60% 48%, transparent 0 32%, rgba(255,57,221,.0) 32.1% 32.5%, rgba(255,57,221,.46) 32.7%, transparent 33.1%);
+}
+:root[data-miarcus-theme="neon-glass"] .layout::after {
+  width: 34px; height: 34px; top: 15%; right: 8%;
+  border-radius: 9px;
+  background: linear-gradient(145deg,rgba(255,255,255,.52),rgba(100,174,255,.16) 48%,rgba(174,100,255,.32));
+  box-shadow: inset 2px 2px 5px rgba(255,255,255,.8), inset -3px -3px 8px rgba(75,127,255,.4), 0 0 18px rgba(91,160,255,.95), 0 0 38px rgba(164,94,255,.5),
+    -72vw 28vh 0 -4px rgba(110,190,255,.08), -72vw 28vh 0 -2px rgba(255,255,255,.95), -72vw 28vh 16px rgba(100,150,255,.52),
+    -45vw 48vh 0 -4px rgba(110,190,255,.08), -45vw 48vh 0 -2px rgba(255,255,255,.92), -45vw 48vh 16px rgba(100,150,255,.5),
+    -14vw 58vh 0 -4px rgba(110,190,255,.08), -14vw 58vh 0 -2px rgba(255,255,255,.92), -14vw 58vh 16px rgba(100,150,255,.48),
+    -85vw 72vh 0 -4px rgba(110,190,255,.08), -85vw 72vh 0 -2px rgba(255,255,255,.9), -85vw 72vh 16px rgba(100,150,255,.48);
+}
+
+/* Global admin controls on Appearance page */
+:root[data-miarcus-theme="neon-glass"] .neon-admin-theme-control,
+:root[data-miarcus-theme="neon-glass"] .neon-global-enforced {
+  color: #f8faff !important;
+  background: linear-gradient(135deg,rgba(20,34,95,.94),rgba(53,24,113,.91) 60%,rgba(3,85,125,.88)) !important;
+  border: 1px solid rgba(130,192,255,.8) !important;
+  border-radius: 22px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 12px 28px rgba(0,0,0,.25), 0 0 24px rgba(133,67,255,.22) !important;
+}
+.neon-global-status { display:inline-flex;align-items:center;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(184,203,255,.28);color:#d7e4ff;font-size:11px;font-weight:800;white-space:nowrap; }
+.neon-global-status.is-active { color:#b8fff0;background:rgba(0,213,163,.15);border-color:rgba(0,245,194,.5); }
+.neon-global-actions { display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap; }
+.neon-global-selection { display:flex;align-items:center;gap:13px;min-width:220px; }
+.neon-global-gem { display:grid;place-items:center;width:48px;height:48px;border-radius:16px;background:linear-gradient(145deg,#7c4dff,#0d9fff);box-shadow:inset 0 1px 0 rgba(255,255,255,.65),0 0 20px rgba(117,89,255,.55);font-size:23px; }
+.neon-global-selection div { display:grid;gap:3px; }
+.neon-global-selection small,.neon-global-selection span { color:#cbd8ff;font-size:11px; }
+.neon-global-selection strong { color:#fff;font-size:16px; }
+.neon-global-buttons { display:flex;gap:10px;flex-wrap:wrap; }
+.neon-global-buttons button { border-radius:13px;padding:12px 17px;font-weight:800;cursor:pointer; }
+.neon-global-apply { color:#fff;border:1px solid #7ceaff;background:linear-gradient(100deg,#146dff,#7338ff 58%,#f31bba);box-shadow:0 0 18px rgba(72,121,255,.42),inset 0 1px 0 rgba(255,255,255,.5); }
+.neon-global-disable { color:#fff;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1); }
+.neon-global-buttons button:disabled { opacity:.6;cursor:wait; }
+.neon-global-message,.neon-global-error { margin:14px 0 0!important;padding:10px 12px;border-radius:12px;font-size:12px; }
+.neon-global-message { color:#aaffdf!important;background:rgba(0,209,155,.12);border:1px solid rgba(0,230,175,.3); }
+.neon-global-error { color:#ffd2dc!important;background:rgba(255,45,100,.12);border:1px solid rgba(255,67,119,.4); }
+.neon-global-enforced { display:grid;gap:5px;padding:16px 18px;margin-bottom:18px; }
+.neon-global-enforced span { color:#d7e2ff; }
+@media (max-width:700px) { .neon-global-actions { align-items:stretch; } .neon-global-buttons { width:100%; } .neon-global-buttons button { flex:1; } }
+
+/* Additional module surfaces used by reports, announcements, stores and settings. */
+:root[data-miarcus-theme="neon-glass"] .page-content .card:not(.card-icon):not(.card-icon-box),
+:root[data-miarcus-theme="neon-glass"] .page-content .card-body,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-featured,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-content,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-item,
+:root[data-miarcus-theme="neon-glass"] .page-content .store-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .store-overview,
+:root[data-miarcus-theme="neon-glass"] .page-content .stats-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .stat-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .report-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .filters-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .toolbar-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .content-panel,
+:root[data-miarcus-theme="neon-glass"] .page-content .page-header-card,
+:root[data-miarcus-theme="neon-glass"] .page-content .table-responsive {
+  color: #f8faff !important;
+  background: linear-gradient(140deg,rgba(24,42,105,.9),rgba(38,28,101,.88) 58%,rgba(4,83,120,.78)) !important;
+  border-color: rgba(133,190,255,.62) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 9px 22px rgba(0,0,0,.22), 0 0 15px rgba(89,103,255,.14) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-card *,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-featured *,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-content *,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-item *,
+:root[data-miarcus-theme="neon-glass"] .page-content .store-card *,
+:root[data-miarcus-theme="neon-glass"] .page-content .store-overview *,
+:root[data-miarcus-theme="neon-glass"] .page-content .stats-card *,
+:root[data-miarcus-theme="neon-glass"] .page-content .stat-card *,
+:root[data-miarcus-theme="neon-glass"] .page-content .report-card * {
+  color: #f5f7ff;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-card img,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-featured img,
+:root[data-miarcus-theme="neon-glass"] .page-content .announcement-content img,
+:root[data-miarcus-theme="neon-glass"] .page-content video,
+:root[data-miarcus-theme="neon-glass"] .page-content iframe { border-radius: 14px; }
+:root[data-miarcus-theme="neon-glass"] .page-content .dash3d-card .dashboard-welcome-left h2.dash3d-portal-title {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.28), 0 0 18px rgba(95,172,255,.55), 0 3px 0 rgba(44,42,144,.7) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content .dash3d-card .dashboard-user-info span {
+  color: #fff !important;
+  background: linear-gradient(110deg,rgba(73,95,226,.7),rgba(91,44,178,.65),rgba(0,143,192,.55)) !important;
+  border-color: rgba(168,220,255,.68) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.36), 0 0 12px rgba(90,140,255,.3) !important;
+}
+:root[data-miarcus-theme="neon-glass"] .page-content .dash3d-card .dashboard-user-info span svg { color: #b5dfff !important; }
+:root[data-miarcus-theme="neon-glass"] .page-content .dash3d-card .dashboard-welcome-left > p { color: #e2eaff !important; }
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-page .dashboard-card h3,
+:root[data-miarcus-theme="neon-glass"] .page-content .dashboard-page .dashboard-card p { color: #fff !important; }

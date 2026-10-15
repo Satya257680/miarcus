@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "../../axiosConfig";
 import {
     FaCheck,
     FaFont,
@@ -59,7 +60,9 @@ function Appearance() {
         themes,
         accentColors,
         fontFamilies,
-        updatePreferences
+        updatePreferences,
+        globalTheme,
+        refreshGlobalTheme
     } = useTheme();
 
     const currentTheme =
@@ -69,6 +72,62 @@ function Appearance() {
         preferences.accentColor;
 
     const [extras, setExtras] = useState(() => readUiExtras());
+    const [globalSaving, setGlobalSaving] = useState(false);
+    const [globalMessage, setGlobalMessage] = useState("");
+    const [globalError, setGlobalError] = useState("");
+    const storedUser = (() => {
+        try { return JSON.parse(localStorage.getItem("user") || "{}"); }
+        catch { return {}; }
+    })();
+    const isAdmin = Number(storedUser?.is_admin ?? storedUser?.isAdmin ?? 0) === 1;
+
+    useEffect(() => {
+        if (isAdmin) refreshGlobalTheme();
+    }, [isAdmin, refreshGlobalTheme]);
+
+    const applyThemeToEveryone = async () => {
+        setGlobalSaving(true);
+        setGlobalMessage("");
+        setGlobalError("");
+        try {
+            const response = await axios.put("/api/theme-preferences/global", {
+                enabled: true,
+                preferences: {
+                    theme: currentTheme,
+                    accentColor: currentAccent,
+                    fontSize: preferences.fontSize,
+                    fontFamily: preferences.fontFamily,
+                    sidebarStyle: preferences.sidebarStyle
+                }
+            });
+            if (!response.data?.success) throw new Error(response.data?.message || "Could not apply global theme.");
+            await refreshGlobalTheme();
+            setGlobalMessage(` ${themeName} is now the portal theme for all users.`);
+        } catch (error) {
+            setGlobalError(error?.response?.data?.message || error?.message || "Could not apply global theme.");
+        } finally {
+            setGlobalSaving(false);
+        }
+    };
+
+    const disableGlobalTheme = async () => {
+        setGlobalSaving(true);
+        setGlobalMessage("");
+        setGlobalError("");
+        try {
+            const response = await axios.put("/api/theme-preferences/global", {
+                enabled: false,
+                preferences: globalTheme?.preferences || preferences
+            });
+            if (!response.data?.success) throw new Error(response.data?.message || "Could not disable global theme.");
+            await refreshGlobalTheme();
+            setGlobalMessage("Global theme is off. Each user can use their own saved appearance again.");
+        } catch (error) {
+            setGlobalError(error?.response?.data?.message || error?.message || "Could not disable global theme.");
+        } finally {
+            setGlobalSaving(false);
+        }
+    };
 
     const updateExtras = (patch) => {
         setExtras(applyUiExtras({ ...extras, ...patch }));
@@ -153,6 +212,45 @@ function Appearance() {
                     </button>
                 }
             />
+
+            {isAdmin && (
+                <section className="appearance-section neon-admin-theme-control">
+                    <div className="appearance-section-header">
+                        <div>
+                            <h2><span aria-hidden="true">👑</span> Admin Control · Global appearance</h2>
+                            <p>Choose a theme below, then apply it to every MIARCUS user. This does not alter or remove the original theme.</p>
+                        </div>
+                        <span className={`neon-global-status ${globalTheme?.enabled ? "is-active" : ""}`}>
+                            {globalTheme?.enabled ? "Global theme active" : "Personal themes active"}
+                        </span>
+                    </div>
+                    <div className="neon-global-actions">
+                        <div className="neon-global-selection">
+                            <span className="neon-global-gem" aria-hidden="true">💎</span>
+                            <div><small>Theme to publish</small><strong>{themeName}</strong><span>{accentName} accent · {fontName} font</span></div>
+                        </div>
+                        <div className="neon-global-buttons">
+                            <button type="button" className="neon-global-apply" onClick={applyThemeToEveryone} disabled={globalSaving}>
+                                {globalSaving ? "Applying…" : "Apply to All Users"}
+                            </button>
+                            {globalTheme?.enabled && (
+                                <button type="button" className="neon-global-disable" onClick={disableGlobalTheme} disabled={globalSaving}>
+                                    Disable Global Theme
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    {globalMessage && <p className="neon-global-message" role="status">✓ {globalMessage}</p>}
+                    {globalError && <p className="neon-global-error" role="alert">{globalError}</p>}
+                </section>
+            )}
+
+            {!isAdmin && globalTheme?.enabled && (
+                <div className="neon-global-enforced" role="status">
+                    <strong>🔒 Administrator-managed appearance</strong>
+                    <span>Your administrator has applied <b>{themes.find((item) => item.id === globalTheme.preferences?.theme)?.name || "a global theme"}</b> to the whole portal.</span>
+                </div>
+            )}
 
             <section className="appearance-section">
                 <div className="appearance-section-header">

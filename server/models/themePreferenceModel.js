@@ -223,9 +223,68 @@ const saveForUser = async (
     return normalized;
 };
 
+
+
+const ensureGlobalTable = async () => {
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS miarcus_global_theme_settings (
+            id TINYINT NOT NULL PRIMARY KEY,
+            enabled TINYINT(1) NOT NULL DEFAULT 0,
+            theme VARCHAR(50) NOT NULL DEFAULT 'miarcus-original',
+            accent_color VARCHAR(30) NOT NULL DEFAULT 'purple',
+            font_size VARCHAR(20) NOT NULL DEFAULT 'medium',
+            font_family VARCHAR(20) NOT NULL DEFAULT 'default',
+            sidebar_style VARCHAR(20) NOT NULL DEFAULT 'comfortable',
+            updated_by INT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    `);
+};
+
+const getGlobal = async () => {
+    await ensureGlobalTable();
+    const rows = await db.query(`
+        SELECT enabled, theme, accent_color, font_size, font_family, sidebar_style
+        FROM miarcus_global_theme_settings WHERE id = 1 LIMIT 1
+    `);
+    if (!rows.length) {
+        return { enabled: false, preferences: DEFAULT_PREFERENCES };
+    }
+    return {
+        enabled: Number(rows[0].enabled) === 1,
+        preferences: normalize({
+            theme: rows[0].theme,
+            accentColor: rows[0].accent_color,
+            fontSize: rows[0].font_size,
+            fontFamily: rows[0].font_family,
+            sidebarStyle: rows[0].sidebar_style
+        })
+    };
+};
+
+const saveGlobal = async ({ enabled = true, preferences = {}, updatedBy = null } = {}) => {
+    await ensureGlobalTable();
+    const normalized = normalize(preferences);
+    await db.query(`
+        INSERT INTO miarcus_global_theme_settings
+            (id, enabled, theme, accent_color, font_size, font_family, sidebar_style, updated_by)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            enabled = VALUES(enabled), theme = VALUES(theme),
+            accent_color = VALUES(accent_color), font_size = VALUES(font_size),
+            font_family = VALUES(font_family), sidebar_style = VALUES(sidebar_style),
+            updated_by = VALUES(updated_by)
+    `, [enabled ? 1 : 0, normalized.theme, normalized.accentColor, normalized.fontSize,
+        normalized.fontFamily, normalized.sidebarStyle, updatedBy]);
+    return { enabled: Boolean(enabled), preferences: normalized };
+};
+
 module.exports = {
     DEFAULT_PREFERENCES,
     ensureTable,
     getByUserId,
-    saveForUser
+    saveForUser,
+    getGlobal,
+    saveGlobal
 };
