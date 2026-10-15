@@ -1,0 +1,168 @@
+/* MIARCUS appearance consistency patch — loaded after legacy module styles.
+   Use semantic tokens for every module, and keep text readable on all themes. */
+:root {
+  --mi-focus-ring: color-mix(in srgb, var(--mi-accent) 28%, transparent);
+  --mi-input-bg: var(--mi-surface);
+  --mi-input-text: var(--mi-text);
+  --mi-table-head: color-mix(in srgb, var(--mi-accent) 13%, var(--mi-surface));
+  --mi-hover: var(--mi-accent-soft);
+}
+:root[data-miarcus-theme="neon-glass"] {
+  --mi-bg: #080d2a;
+  --mi-surface: #17245a;
+  --mi-surface-2: #202e6b;
+  --mi-text: #f5f7ff;
+  --mi-text-strong: #ffffff;
+  --mi-muted: #d0d9ff;
+  --mi-border: rgba(145, 181, 255, .62);
+  --mi-input-bg: #0d173e;
+  --mi-input-text: #ffffff;
+  --mi-table-head: #30266f;
+  --mi-hover: rgba(132, 89, 255, .22);
+}
+:root[data-miarcus-theme="dark"],
+:root[data-miarcus-theme="midnight"],
+:root[data-miarcus-theme="aurora"],
+:root[data-miarcus-theme="high-contrast"] {
+  --mi-input-bg: var(--mi-surface-2);
+  --mi-input-text: var(--mi-text);
+  --mi-table-head: color-mix(in srgb, var(--mi-accent) 22%, var(--mi-surface));
+}
+
+/* Core page canvas and typography. Explicitly reset old hard-coded pale/white text. */
+html, body, #root { background: var(--mi-bg); color: var(--mi-text); }
+body { font-family: var(--mi-font-family); }
+.layout, .layout-body, .page-content, main.page-content,
+.page-wrapper, .module-page, .content-area { background-color: var(--mi-bg); color: var(--mi-text); }
+main.page-content :is(h1,h2,h3,h4,h5,h6,p,label,legend,dt,dd,li,small,
+  .page-title,.section-title,.card-title,.form-label,.field-label,.page-subtitle,
+  .subtitle,.description,.helper-text,.text-muted,.empty-state,.table-title,
+  .modal-title,.stat-label,.metric-label,.form-text) {
+  color: var(--mi-text);
+  -webkit-text-fill-color: currentColor;
+}
+main.page-content :is(h1,h2,h3,h4,h5,h6,.page-title,.section-title,.card-title,.modal-title) {
+  color: var(--mi-text-strong);
+  -webkit-text-fill-color: currentColor;
+}
+main.page-content :is(p,small,.subtitle,.description,.helper-text,.text-muted,.form-text) {
+  color: var(--mi-muted);
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Legacy cards/forms in all modules must follow the selected palette. */
+main.page-content :is(
+  .card,.panel,.content-card,.section-card,.form-card,.settings-card,.settings-section,
+  .appearance-section,.table-container,.table-wrapper,.data-table-wrapper,.report-card,
+  .summary-card,.stat-card,.metric-card,.question-card,.checklist-question-card,
+  .checklist-question,.question-item,.submission-section,.form-section,.modal-content,
+  .drawer-content,.empty-state-card,.filter-panel,.filters-panel,.toolbar-panel
+) {
+  background-color: var(--mi-surface);
+  color: var(--mi-text);
+  border-color: var(--mi-border);
+}
+main.page-content :is(.card,.panel,.content-card,.section-card,.form-card,.settings-card,
+  .appearance-section,.table-container,.table-wrapper,.report-card,.summary-card,
+  .question-card,.checklist-question-card,.checklist-question,.question-item,.form-section) * {
+  -webkit-text-fill-color: currentColor;
+}
+main.page-content :is(input,textarea,select,[role="combobox"],.form-control,.select__control) {
+  background-color: var(--mi-input-bg);
+  color: var(--mi-input-text);
+  border-color: var(--mi-border);
+}
+main.page-content :is(input,textarea,select,.form-control)::placeholder {
+  color: var(--mi-muted);
+  opacity: 1;
+}
+main.page-content :is(input,textarea,select,button,[role="button"],a):focus-visible {
+  outline: 2px solid var(--mi-accent);
+  outline-offset: 2px;
+}
+main.page-content :is(input,textarea,select):focus {
+  border-color: var(--mi-accent);
+  box-shadow: 0 0 0 3px var(--mi-focus-ring);
+}
+main.page-content table { color: var(--mi-text); border-color: var(--mi-border); }
+main.page-content :is(th, thead, .table-header, .table-head) {
+  background: var(--mi-table-head);
+  color: var(--mi-text-strong);
+}
+main.page-content :is(td,th) { border-color: var(--mi-border); }
+main.page-content tbody tr:hover { background: var(--mi-hover); }
+main.page-content hr { border-color: var(--mi-border); }
+main.page-content :is(.btn-secondary,.btn-outline,.secondary-btn,.cancel-btn,.reset-btn,
+  .icon-button,.toolbar button,.pagination button) {
+  color: var(--mi-text);
+  border-color: var(--mi-border);
+}
+main.page-content :is(.btn-primary,.primary-btn,.submit-btn,.save-btn,.add-btn,.export-btn,
+  button.primary) { color: #fff; background: var(--mi-accent); border-color: var(--mi-accent); }
+
+/* Keep sidebar and header text legible regardless of light/dark palette. */
+.sidebar, .sidebar-shell { color: var(--mi-sidebar-text); }
+.sidebar :is(a,button,.menu-item,.sidebar-group-toggle,.submenu-item),
+.sidebar :is(a,button,.menu-item,.sidebar-group-toggle,.submenu-item) * {
+  color: var(--mi-sidebar-text);
+  -webkit-text-fill-color: currentColor;
+}
+:root[data-miarcus-theme="miarcus-original"] .sidebar,
+:root[data-miarcus-theme="lavender"] .sidebar,
+:root[data-miarcus-theme="lavender"] .sidebar-shell {
+  color: #2e2552;
+}
+.topbar, .navbar, .top-navbar, .header { border-color: var(--mi-border); }
+
+/* Theme preview swatches are deliberately exempt from app-wide surface rules. */
+main.page-content :is(.theme-card,.theme-preview,.ap-preset,.accent-option) {
+  isolation: isolate;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+/* High-specificity final pass for older module CSS that used !important colors. */
+:root:not([data-miarcus-theme="neon-glass"]) main.page-content :is(
+  h1,h2,h3,h4,h5,h6,p,label,legend,dt,dd,li,small,
+  .page-title,.section-title,.card-title,.form-label,.field-label,.page-subtitle,
+  .subtitle,.description,.helper-text,.text-muted,.empty-state,.table-title,
+  .modal-title,.stat-label,.metric-label,.form-text
+) { color: var(--mi-text) !important; -webkit-text-fill-color: currentColor !important; }
+:root:not([data-miarcus-theme="neon-glass"]) main.page-content :is(
+  h1,h2,h3,h4,h5,h6,.page-title,.section-title,.card-title,.modal-title
+) { color: var(--mi-text-strong) !important; -webkit-text-fill-color: currentColor !important; }
+:root:not([data-miarcus-theme="neon-glass"]) main.page-content :is(
+  .card,.panel,.content-card,.section-card,.form-card,.settings-card,.settings-section,
+  .appearance-section,.table-container,.table-wrapper,.data-table-wrapper,.report-card,
+  .summary-card,.stat-card,.metric-card,.question-card,.checklist-question-card,
+  .checklist-question,.question-item,.submission-section,.form-section,.modal-content,
+  .drawer-content,.empty-state-card,.filter-panel,.filters-panel,.toolbar-panel
+) { color: var(--mi-text) !important; }
+:root[data-miarcus-theme="neon-glass"] main.page-content :is(
+  .card,.panel,.content-card,.section-card,.form-card,.settings-card,.settings-section,
+  .appearance-section,.table-container,.table-wrapper,.data-table-wrapper,.report-card,
+  .summary-card,.stat-card,.metric-card,.question-card,.checklist-question-card,
+  .checklist-question,.question-item,.submission-section,.form-section,.modal-content,
+  .drawer-content,.filter-panel,.filters-panel,.toolbar-panel
+) {
+  background: linear-gradient(145deg, rgba(29,43,105,.96), rgba(36,30,95,.96) 58%, rgba(10,73,112,.94)) !important;
+  color: #f6f7ff !important;
+  border-color: rgba(145,181,255,.62) !important;
+}
+:root[data-miarcus-theme="neon-glass"] main.page-content :is(
+  h1,h2,h3,h4,h5,h6,p,label,legend,dt,dd,li,small,
+  .page-title,.section-title,.card-title,.form-label,.field-label,.page-subtitle,
+  .subtitle,.description,.helper-text,.text-muted,.empty-state,.table-title,
+  .modal-title,.stat-label,.metric-label,.form-text
+) { color: #f5f7ff !important; -webkit-text-fill-color: currentColor !important; }
+:root[data-miarcus-theme="neon-glass"] main.page-content :is(input,textarea,select,.form-control) {
+  background: #0d173e !important; color: #fff !important; border-color: rgba(145,181,255,.62) !important;
+}
+:root[data-miarcus-theme="neon-glass"] main.page-content :is(input,textarea,select,.form-control)::placeholder {
+  color: #bdcafa !important;
+}
+:root[data-miarcus-theme="neon-glass"] main.page-content :is(.theme-card,.theme-preview,.ap-preset,.accent-option),
+:root[data-miarcus-theme="neon-glass"] main.page-content :is(.theme-card,.theme-preview,.ap-preset,.accent-option) * {
+  color: revert !important; -webkit-text-fill-color: revert !important;
+}

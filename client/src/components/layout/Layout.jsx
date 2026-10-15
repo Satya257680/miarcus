@@ -19,9 +19,9 @@ import "../../styles/mobile/MobileApp.css";
 import "../../styles/mobile/MobileModules.css";
 import useMobileTableCards from "../../hooks/useMobileTableCards";
 
-// Import the optional theme skin after layout styles so Neon Glass can
-// consistently override module-level light surfaces when selected.
+// Import global theme skins after layout styles, then apply the final contrast layer.
 import "../../styles/NeonGlassGlobal.css";
+import "../../styles/ThemeContrastFix.css";
 
 // Phones only (tablets / laptops / desktops keep the existing layout).
 const MOBILE_QUERY = "(max-width: 768px)";
