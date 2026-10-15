@@ -42,6 +42,7 @@ import "../../styles/premium/PagePremium.css";
 import "../../styles/premium/AdminPagesPremium.css";
 import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 /* ======================================================
    CONSTANTS
@@ -963,15 +964,14 @@ export default function BillingEntry() {
      CANCEL
   ==================================================== */
 
-  const handleCancel =
-    () => {
+  const handleCancel = async () => {
 
       if (saving) {
         return;
       }
 
       const confirmed =
-        window.confirm(
+        await confirmWithGlass(
           "Are you sure you want to leave this billing entry? Unsaved changes will be lost."
         );
 

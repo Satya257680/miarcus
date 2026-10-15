@@ -61,6 +61,7 @@ import "./CollectionTracking.css";
 import ExportButton from "../../components/common/ExportButton";
 import BulkUploadModal from "../../components/common/BulkUploadModal";
 import { exportFromCSV } from "../../utils/exportUtils.js";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const STAGES = [
   "Designer",
@@ -645,7 +646,7 @@ function ProductList() {
 
   const handleDelete = async (id) => {
     if (
-      !window.confirm(
+      !await confirmWithGlass(
         "Delete this collection product?"
       )
     ) {
@@ -676,7 +677,7 @@ function ProductList() {
     const filtered = hasActiveFilters(filters);
 
     if (
-      !window.confirm(
+      !await confirmWithGlass(
         `${deleteAllMessage(filtered, total, "collection products")} This action cannot be undone.`
       )
     ) {

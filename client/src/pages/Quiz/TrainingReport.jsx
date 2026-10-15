@@ -29,6 +29,7 @@ import InsightStrip from "../../components/premium/InsightStrip";
 import { initials, avatarTone } from "../../utils/premiumFormat";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const QUIZ_API_URL = (
     import.meta.env.VITE_QUIZ_API_URL?.trim() ||
@@ -460,7 +461,7 @@ function TrainingReport() {
             detail.reattempt.has_available_attempt;
 
         const confirmed =
-            window.confirm(
+            await confirmWithGlass(
                 hasUnused
                     ? `${detail.participant_name} already has an unused attempt.\n\nRe-send the quiz link to ${detail.participant_email}?`
                     : `Allow ${detail.participant_name} one more attempt at "${detail.quiz_name}"?\n\nThe quiz link will be e-mailed to ${detail.participant_email}.`
@@ -525,7 +526,7 @@ function TrainingReport() {
         }
 
         const confirmed =
-            window.confirm(
+            await confirmWithGlass(
                 "Delete this training submission permanently?"
             );
 

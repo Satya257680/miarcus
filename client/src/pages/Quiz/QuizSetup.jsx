@@ -19,6 +19,7 @@ import "../../styles/premium/PagePremium.css";
 import "../../styles/premium/QuizPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import { FaGraduationCap, FaLayerGroup } from "react-icons/fa";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 // ======================================================
 // DEFAULT QUIZ
@@ -1101,7 +1102,7 @@ const QuizSetup = () => {
         ) => {
 
             if (
-                !window.confirm(
+                !await confirmWithGlass(
                     "Delete this quiz and all of its questions/submissions?"
                 )
             ) {
@@ -1181,7 +1182,7 @@ const QuizSetup = () => {
             }
 
             if (
-                !window.confirm(
+                !await confirmWithGlass(
                     filtered
                         ? `${deleteAllMessage(true, ids.length, "quizzes")} Their data is removed too.`
                         : `No filter is applied. Delete all ${quizzes.length} quizzes and their data?`
@@ -2283,7 +2284,7 @@ const QuizSetup = () => {
         ) => {
 
             if (
-                !window.confirm(
+                !await confirmWithGlass(
                     "Delete this question?"
                 )
             ) {
@@ -2360,7 +2361,7 @@ const QuizSetup = () => {
             }
 
             if (
-                !window.confirm(
+                !await confirmWithGlass(
                     filtered
                         ? deleteAllMessage(true, ids.length, "questions of this category")
                         : `No filter is applied. Delete all ${selected.questions.length} questions from this category?`

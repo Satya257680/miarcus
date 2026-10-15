@@ -35,6 +35,7 @@ import InsightStrip from "../components/premium/InsightStrip";
 import { FaEnvelope, FaClock } from "react-icons/fa";
 import { daysFromToday, formatCount } from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 // ======================================================
 // CONSTANTS
@@ -600,7 +601,7 @@ function Announcements() {
         }
 
         const confirmed =
-            window.confirm(
+            await confirmWithGlass(
                 "Delete this announcement?"
             );
 
@@ -650,7 +651,7 @@ function Announcements() {
             hasActiveFilters({ search, startDate, endDate });
 
         const confirmed =
-            window.confirm(
+            await confirmWithGlass(
                 `${deleteAllMessage(filtered, filtered ? announcements.length : null, "announcements")} This cannot be undone.`
             );
 

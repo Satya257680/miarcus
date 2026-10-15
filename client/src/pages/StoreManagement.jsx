@@ -1,5 +1,11 @@
+
 import PremiumLoader from "../components/premium/PremiumLoader";
-import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
+import {
+  collectIds,
+  hasActiveFilters,
+  deleteAllLabel,
+  deleteAllMessage,
+} from "../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import {
   FaSearch,
@@ -29,6 +35,9 @@ import ExportButton from "../components/common/ExportButton";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 import { exportTableData } from "../utils/exportUtils.js";
 
+// FIX: This import must be outside the storeService import block.
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+
 import {
   getStores,
   createStore,
@@ -36,363 +45,311 @@ import {
   deleteStore,
   deleteAllStores,
 } from "../services/storeService";
-function StoreManagement() {
 
+function StoreManagement() {
   // ==========================
   // States
   // ==========================
 
   const [stores, setStores] = useState([]);
   const [filteredStores, setFilteredStores] = useState([]);
-
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
   const [showModal, setShowModal] = useState(false);
-
   const [editingStore, setEditingStore] = useState(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
 
   // Pagination
-
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-// ==========================
-// RBAC
-// ==========================
 
-const user = JSON.parse(
-  localStorage.getItem("user") || "{}"
-);
+  // ==========================
+  // RBAC
+  // ==========================
 
-const permissions = JSON.parse(
-  localStorage.getItem("permissions") || "{}"
-);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const permissions = JSON.parse(
+    localStorage.getItem("permissions") || "{}"
+  );
 
-// Administrator always gets Full Access
-const isAdmin =
-  user.administrator === true ||
-  user.administrator === 1;
+  // Administrator always gets Full Access.
+  const isAdmin =
+    user.administrator === true || user.administrator === 1;
 
-const storePermission = isAdmin
-  ? "Full"
-  : (
-      permissions["Store Management"] ||
+  const storePermission = isAdmin
+    ? "Full"
+    : permissions["Store Management"] ||
       permissions["Stores"] ||
-      "None"
-    );
-const canView =
-  ["View", "Add", "Edit", "Full"].includes(storePermission);
+      "None";
 
-const canAdd =
-  ["Add", "Edit", "Full"].includes(storePermission);
+  const canView = ["View", "Add", "Edit", "Full"].includes(
+    storePermission
+  );
 
-const canEdit =
-  ["Edit", "Full"].includes(storePermission);
+  const canAdd = ["Add", "Edit", "Full"].includes(
+    storePermission
+  );
 
-const canDelete =
-  storePermission === "Full";
+  const canEdit = ["Edit", "Full"].includes(storePermission);
+  const canDelete = storePermission === "Full";
 
   // ==========================
   // Load Stores
   // ==========================
 
   const fetchStores = async () => {
-
     try {
-
       setLoading(true);
 
       const res = await getStores();
 
       if (res.success) {
-
         setStores(res.data);
         setFilteredStores(res.data);
-
       } else {
-
         setStores([]);
         setFilteredStores([]);
-
       }
-
     } catch (err) {
-
       console.error(err);
 
       alert(
         err.response?.data?.message ||
-        "Unable to load stores."
+          "Unable to load stores."
       );
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
- useEffect(() => {
-
+  useEffect(() => {
     if (!canView) {
-
-        setLoading(false);
-
-        return;
-
+      setLoading(false);
+      return;
     }
 
     fetchStores();
+  }, [canView]);
 
-}, [canView]);
   // ==========================
-  // Search
+  // Search and Filters
   // ==========================
 
   useEffect(() => {
-
     const keyword = search.trim().toLowerCase();
 
     const filtered = stores.filter((store) => {
-
-      if (statusFilter !== "All" && store.status !== statusFilter) {
+      if (
+        statusFilter !== "All" &&
+        store.status !== statusFilter
+      ) {
         return false;
       }
 
       if (!keyword) return true;
 
       return (
-        String(store.store_name ?? "").toLowerCase().includes(keyword) ||
-        String(store.store_code ?? "").toLowerCase().includes(keyword) ||
-        String(store.country ?? "").toLowerCase().includes(keyword) ||
-        String(store.state ?? "").toLowerCase().includes(keyword) ||
-        String(store.city ?? "").toLowerCase().includes(keyword)
+        String(store.store_name ?? "")
+          .toLowerCase()
+          .includes(keyword) ||
+        String(store.store_code ?? "")
+          .toLowerCase()
+          .includes(keyword) ||
+        String(store.country ?? "")
+          .toLowerCase()
+          .includes(keyword) ||
+        String(store.state ?? "")
+          .toLowerCase()
+          .includes(keyword) ||
+        String(store.city ?? "")
+          .toLowerCase()
+          .includes(keyword)
       );
-
     });
 
     setFilteredStores(filtered);
-
     setCurrentPage(1);
-
   }, [search, statusFilter, stores]);
 
   // ==========================
   // Add Store
   // ==========================
 
- const handleAddStore = () => {
+  const handleAddStore = () => {
+    if (!canAdd) return;
 
-  if (!canAdd) return;
+    setEditingStore(null);
+    setShowModal(true);
+  };
 
-  setEditingStore(null);
-  setShowModal(true);
-
-};
   // ==========================
   // Edit Store
   // ==========================
 
   const handleEdit = (store) => {
+    if (!canEdit) return;
 
-  if (!canEdit) return;
-
-  setEditingStore(store);
-  setShowModal(true);
-
-};
-  // ==========================
-// Delete Store
-// ==========================
-
-const handleDelete = async (id) => {
-
-  // RBAC Check
-  if (!canDelete) {
-    alert("You don't have permission to delete stores.");
-    return;
-  }
-
-  // Confirmation
-  if (
-    !window.confirm(
-      "Are you sure you want to delete this store?"
-    )
-  ) {
-    return;
-  }
-
-  try {
-
-    const res = await deleteStore(id);
-
-    if (res.success) {
-
-      alert("Store deleted successfully.");
-
-      fetchStores();
-
-    } else {
-
-      alert(
-        res.message || "Failed to delete store."
-      );
-
-    }
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert(
-      err.response?.data?.message ||
-      err.message ||
-      "Unable to delete store."
-    );
-
-  }
-
-};
+    setEditingStore(store);
+    setShowModal(true);
+  };
 
   // ==========================
-// Delete All Stores
-// ==========================
+  // Delete Store
+  // ==========================
 
-const handleDeleteAll = async () => {
-
-  // RBAC Check
-  if (!canDelete) {
-    alert("You don't have permission to delete all stores.");
-    return;
-  }
-
-  // Search / status filter applied -> only the listed stores are deleted.
-  const filtered = hasActiveFilters({ search, status: statusFilter });
-  const ids = collectIds(filteredStores);
-
-  if (filtered && !ids.length) {
-    alert("No stores match the selected filters.");
-    return;
-  }
-
-  // Confirmation
-  if (
-    !window.confirm(
-      deleteAllMessage(filtered, ids.length, "stores")
-    )
-  ) {
-    return;
-  }
-
-  try {
-
-    const res = await deleteAllStores(filtered ? ids : undefined);
-
-    if (res.success) {
-
-      alert(res.message || "All stores deleted successfully.");
-
-      fetchStores();
-
-    } else {
-
-      alert(
-        res.message || "Failed to delete stores."
-      );
-
-    }
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert(
-      err.response?.data?.message ||
-      err.message ||
-      "Unable to delete stores."
-    );
-
-  }
-
-};
-
- // ==========================
-// Save Store
-// ==========================
-
-const handleSave = async (data) => {
-
-  // RBAC Check
-  if (editingStore) {
-
-    if (!canEdit) {
-      alert("You don't have permission to edit stores.");
+  const handleDelete = async (id) => {
+    if (!canDelete) {
+      alert("You don't have permission to delete stores.");
       return;
     }
 
-  } else {
+    const confirmed = await confirmWithGlass(
+      "Are you sure you want to delete this store?",
+      "Delete Store",
+      { confirmText: "Delete Store" }
+    );
 
-    if (!canAdd) {
-      alert("You don't have permission to add stores.");
+    if (!confirmed) return;
+
+    try {
+      const res = await deleteStore(id);
+
+      if (res.success) {
+        alert("Store deleted successfully.");
+        await fetchStores();
+      } else {
+        alert(res.message || "Failed to delete store.");
+      }
+    } catch (err) {
+      console.error(err);
+
+      alert(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to delete store."
+      );
+    }
+  };
+
+  // ==========================
+  // Delete All Stores
+  // ==========================
+
+  const handleDeleteAll = async () => {
+    if (!canDelete) {
+      alert(
+        "You don't have permission to delete all stores."
+      );
       return;
     }
 
-  }
+    // When search/status filters are active, delete only
+    // the stores currently matching those filters.
+    const filtered = hasActiveFilters({
+      search,
+      status: statusFilter,
+    });
 
-  try {
+    const ids = collectIds(filteredStores);
 
-    let res;
+    if (filtered && !ids.length) {
+      alert("No stores match the selected filters.");
+      return;
+    }
 
+    const confirmed = await confirmWithGlass(
+      deleteAllMessage(filtered, ids.length, "stores"),
+      "Delete All Stores",
+      {
+        confirmText: filtered
+          ? `Delete ${ids.length} Stores`
+          : "Delete All Stores",
+      }
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const res = await deleteAllStores(
+        filtered ? ids : undefined
+      );
+
+      if (res.success) {
+        alert(
+          res.message ||
+            "All stores deleted successfully."
+        );
+
+        await fetchStores();
+      } else {
+        alert(res.message || "Failed to delete stores.");
+      }
+    } catch (err) {
+      console.error(err);
+
+      alert(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to delete stores."
+      );
+    }
+  };
+
+  // ==========================
+  // Save Store
+  // ==========================
+
+  const handleSave = async (data) => {
     if (editingStore) {
-
-      res = await updateStore(
-        editingStore.id,
-        data
-      );
-
+      if (!canEdit) {
+        alert("You don't have permission to edit stores.");
+        return;
+      }
     } else {
-
-      res = await createStore(data);
-
+      if (!canAdd) {
+        alert("You don't have permission to add stores.");
+        return;
+      }
     }
 
-    if (res.success) {
+    try {
+      let res;
+
+      if (editingStore) {
+        res = await updateStore(editingStore.id, data);
+      } else {
+        res = await createStore(data);
+      }
+
+      if (res.success) {
+        alert(
+          editingStore
+            ? "Store updated successfully."
+            : "Store created successfully."
+        );
+
+        setShowModal(false);
+        setEditingStore(null);
+
+        await fetchStores();
+      } else {
+        alert(res.message);
+      }
+    } catch (err) {
+      console.error(err);
 
       alert(
-        editingStore
-          ? "Store updated successfully."
-          : "Store created successfully."
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to save store."
       );
-
-      setShowModal(false);
-
-      setEditingStore(null);
-
-      fetchStores();
-
-    } else {
-
-      alert(res.message);
-
     }
+  };
 
-  } catch (err) {
-
-    console.error(err);
-
-    alert(
-      err.response?.data?.message ||
-      err.message
-    );
-
-  }
-
-};
-    // ==========================
+  // ==========================
   // Pagination
   // ==========================
 
@@ -413,13 +370,26 @@ const handleSave = async (data) => {
   // ==========================
 
   const stats = useMemo(() => {
-    const active = stores.filter((s) => s.status === "Active").length;
+    const active = stores.filter(
+      (store) => store.status === "Active"
+    ).length;
+
     const countries = new Set(
-      stores.map((s) => String(s.country ?? "").trim().toLowerCase()).filter(Boolean)
+      stores
+        .map((store) =>
+          String(store.country ?? "").trim().toLowerCase()
+        )
+        .filter(Boolean)
     ).size;
+
     const cities = new Set(
-      stores.map((s) => String(s.city ?? "").trim().toLowerCase()).filter(Boolean)
+      stores
+        .map((store) =>
+          String(store.city ?? "").trim().toLowerCase()
+        )
+        .filter(Boolean)
     ).size;
+
     return {
       total: stores.length,
       active,
@@ -432,9 +402,16 @@ const handleSave = async (data) => {
   const pageNumbers = useMemo(() => {
     const total = totalPages || 1;
     const pages = [];
-    const start = Math.max(1, Math.min(currentPage - 2, total - 4));
+    const start = Math.max(
+      1,
+      Math.min(currentPage - 2, total - 4)
+    );
     const end = Math.min(total, start + 4);
-    for (let p = start; p <= end; p++) pages.push(p);
+
+    for (let page = start; page <= end; page++) {
+      pages.push(page);
+    }
+
     return pages;
   }, [currentPage, totalPages]);
 
@@ -444,93 +421,108 @@ const handleSave = async (data) => {
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
-      .map((w) => w[0].toUpperCase())
+      .map((word) => word[0].toUpperCase())
       .join("") || "S";
 
+  // ==========================
+  // Export CSV
+  // ==========================
 
- // ==========================
-// Export CSV
-// ==========================
+  const handleExport = async (format = "csv") => {
+    if (!canView) {
+      alert("You don't have permission to export stores.");
+      return;
+    }
 
-const handleExport = async (format = "csv") => {
+    if (filteredStores.length === 0) {
+      alert("No store data available.");
+      return;
+    }
 
-  if (!canView) {
+    const headers = [
+      "Store Code",
+      "Store Name",
+      "Country",
+      "State",
+      "City",
+      "Manager",
+      "Contact",
+      "Email",
+      "Status",
+    ];
 
-    alert("You don't have permission to export stores.");
+    const rows = filteredStores.map((store) => [
+      store.store_code,
+      store.store_name,
+      store.country,
+      store.state,
+      store.city,
+      store.manager_name,
+      store.contact_number,
+      store.email,
+      store.status,
+    ]);
 
-    return;
+    await exportTableData({
+      headers,
+      rows,
+      filename: "stores",
+      format,
+      title: "Stores",
+    });
+  };
 
-  }
+  // ==========================
+  // Import CSV
+  // ==========================
 
-  if (filteredStores.length === 0) {
+  const handleImport = () => {
+    if (!canAdd) {
+      alert("You don't have permission to import stores.");
+      return;
+    }
 
-    alert("No store data available.");
-
-    return;
-
-  }
-
-  const headers = [
-    "Store Code",
-    "Store Name",
-    "Country",
-    "State",
-    "City",
-    "Manager",
-    "Contact",
-    "Email",
-    "Status",
-  ];
-
-  const rows = filteredStores.map((store) => [
-    store.store_code,
-    store.store_name,
-    store.country,
-    store.state,
-    store.city,
-    store.manager_name,
-    store.contact_number,
-    store.email,
-    store.status,
-  ]);
-
-  await exportTableData({
-    headers,
-    rows,
-    filename: "stores",
-    format,
-    title: "Stores",
-  });
-
-};
- // ==========================
-// Import CSV
-// ==========================
-
-const handleImport = () => {
-
-  // RBAC Check
-  if (!canAdd) {
-
-    alert("You don't have permission to import stores.");
-
-    return;
-
-  }
-
-  setShowBulkModal(true);
-
-};
+    setShowBulkModal(true);
+  };
 
   const statCards = [
-    { key: "total", label: "Total Stores", value: formatCount(stats.total), hint: "Outlets on MIARCUS", icon: FaStore, tone: "violet", onClick: () => setStatusFilter("All"), active: statusFilter === "All" },
-    { key: "active", label: "Active", value: formatCount(stats.active), hint: "Trading today", icon: FaCheckCircle, tone: "green", onClick: () => setStatusFilter("Active"), active: statusFilter === "Active" },
-    { key: "inactive", label: "Inactive", value: formatCount(stats.inactive), hint: "Closed or paused", icon: FaPauseCircle, tone: "red", onClick: () => setStatusFilter("Inactive"), active: statusFilter === "Inactive" },
+    {
+      key: "total",
+      label: "Total Stores",
+      value: formatCount(stats.total),
+      hint: "Outlets on MIARCUS",
+      icon: FaStore,
+      tone: "violet",
+      onClick: () => setStatusFilter("All"),
+      active: statusFilter === "All",
+    },
+    {
+      key: "active",
+      label: "Active",
+      value: formatCount(stats.active),
+      hint: "Trading today",
+      icon: FaCheckCircle,
+      tone: "green",
+      onClick: () => setStatusFilter("Active"),
+      active: statusFilter === "Active",
+    },
+    {
+      key: "inactive",
+      label: "Inactive",
+      value: formatCount(stats.inactive),
+      hint: "Closed or paused",
+      icon: FaPauseCircle,
+      tone: "red",
+      onClick: () => setStatusFilter("Inactive"),
+      active: statusFilter === "Inactive",
+    },
     {
       key: "reach",
       label: "Cities Covered",
       value: formatCount(stats.cities),
-      hint: `${stats.countries} ${stats.countries === 1 ? "country" : "countries"}`,
+      hint: `${stats.countries} ${
+        stats.countries === 1 ? "country" : "countries"
+      }`,
       icon: FaGlobeAsia,
       tone: "amber",
     },
@@ -538,8 +530,7 @@ const handleImport = () => {
 
   return (
     <div className="sm-page pp-premium">
-
-      {/* Global Bulk Upload (Excel / CSV / Word / PDF / photo) */}
+      {/* Global Bulk Upload */}
       <BulkUploadModal
         isOpen={showBulkModal}
         onClose={() => setShowBulkModal(false)}
@@ -549,10 +540,7 @@ const handleImport = () => {
         uploadUrl="/api/stores/import"
       />
 
-      {/* ==========================
-          Hero Header
-      ========================== */}
-
+      {/* Hero Header */}
       <PremiumHero
         icon={FaStore}
         eyebrow="Settings · Stores"
@@ -560,8 +548,17 @@ const handleImport = () => {
         badge="Admin only"
         subtitle="Every outlet, its location and contact details in one place."
         meta={[
-          { label: "Stores", value: formatCount(stats.total) },
-          { label: "Showing", value: filteredStores.length !== stats.total ? `${formatCount(filteredStores.length)} filtered` : null }
+          {
+            label: "Stores",
+            value: formatCount(stats.total),
+          },
+          {
+            label: "Showing",
+            value:
+              filteredStores.length !== stats.total
+                ? `${formatCount(filteredStores.length)} filtered`
+                : null,
+          },
         ]}
       />
 
@@ -574,16 +571,27 @@ const handleImport = () => {
             type="text"
             placeholder="Search by name, code, country, state or city…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
           />
+
           {search && (
-            <button className="sm-search-clear" onClick={() => setSearch("")} aria-label="Clear search">
+            <button
+              className="sm-search-clear"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+            >
               <FaTimes />
             </button>
           )}
         </div>
 
-        <div className="sm-filter" role="tablist" aria-label="Filter by status">
+        <div
+          className="sm-filter"
+          role="tablist"
+          aria-label="Filter by status"
+        >
           {[
             ["All", stats.total],
             ["Active", stats.active],
@@ -593,46 +601,63 @@ const handleImport = () => {
               key={label}
               role="tab"
               aria-selected={statusFilter === label}
-              className={`sm-filter-btn ${statusFilter === label ? "is-on" : ""}`}
+              className={`sm-filter-btn ${
+                statusFilter === label ? "is-on" : ""
+              }`}
               onClick={() => setStatusFilter(label)}
             >
               {label}
-              <span className="sm-filter-count">{count}</span>
+              <span className="sm-filter-count">
+                {count}
+              </span>
             </button>
           ))}
         </div>
 
         <div className="sm-actions">
-          {canView && <ExportButton onExport={handleExport} />}
+          {canView && (
+            <ExportButton onExport={handleExport} />
+          )}
 
           {canAdd && (
-            <button className="sm-btn sm-btn-ghost" onClick={handleImport}>
+            <button
+              className="sm-btn sm-btn-ghost"
+              onClick={handleImport}
+            >
               <FaFileImport />
               Import
             </button>
           )}
 
           {canDelete && (
-            <button className="sm-btn sm-btn-danger" onClick={handleDeleteAll}>
+            <button
+              className="sm-btn sm-btn-danger"
+              onClick={handleDeleteAll}
+            >
               <FaTrash />
-              {deleteAllLabel(hasActiveFilters({ search, status: statusFilter }), filteredStores.length)}
+              {deleteAllLabel(
+                hasActiveFilters({
+                  search,
+                  status: statusFilter,
+                }),
+                filteredStores.length
+              )}
             </button>
           )}
 
           {canAdd && (
-            <button className="sm-btn sm-btn-primary" onClick={handleAddStore}>
+            <button
+              className="sm-btn sm-btn-primary"
+              onClick={handleAddStore}
+            >
               <FaPlus />
               Add Store
             </button>
           )}
         </div>
-
       </div>
 
-      {/* ==========================
-          Table
-      ========================== */}
-
+      {/* Stores Table */}
       <div className="sm-card">
         <div className="sm-table-wrap">
           <table className="sm-table">
@@ -651,7 +676,14 @@ const handleImport = () => {
 
             <tbody>
               {loading ? (
-                <tr><td colSpan="8"><PremiumLoader compact title="Loading Stores" /></td></tr>
+                <tr>
+                  <td colSpan="8">
+                    <PremiumLoader
+                      compact
+                      title="Loading Stores"
+                    />
+                  </td>
+                </tr>
               ) : currentStores.length === 0 ? (
                 <tr>
                   <td colSpan="8">
@@ -665,35 +697,58 @@ const handleImport = () => {
                           ? "Try a different search or filter."
                           : "Add your first store to get started."}
                       </p>
-                      {canAdd && !search && statusFilter === "All" && (
-                        <button className="sm-btn sm-btn-primary" onClick={handleAddStore}>
-                          <FaPlus /> Add Store
-                        </button>
-                      )}
+
+                      {canAdd &&
+                        !search &&
+                        statusFilter === "All" && (
+                          <button
+                            className="sm-btn sm-btn-primary"
+                            onClick={handleAddStore}
+                          >
+                            <FaPlus /> Add Store
+                          </button>
+                        )}
                     </div>
                   </td>
                 </tr>
               ) : (
                 currentStores.map((store, index) => (
                   <tr key={store.id}>
-                    <td className="sm-idx">{indexOfFirstRow + index + 1}</td>
+                    <td className="sm-idx">
+                      {indexOfFirstRow + index + 1}
+                    </td>
 
                     <td>
-                      <span className="sm-code">{store.store_code}</span>
+                      <span className="sm-code">
+                        {store.store_code}
+                      </span>
                     </td>
 
                     <td>
                       <div className="sm-name">
-                        <span className="sm-avatar">{initials(store.store_name)}</span>
-                        <span className="sm-name-text" title={store.store_name}>
+                        <span className="sm-avatar">
+                          {initials(store.store_name)}
+                        </span>
+                        <span
+                          className="sm-name-text"
+                          title={store.store_name}
+                        >
                           {store.store_name}
                         </span>
                       </div>
                     </td>
 
-                    <td>{store.country || <span className="sm-dash">—</span>}</td>
+                    <td>
+                      {store.country || (
+                        <span className="sm-dash">—</span>
+                      )}
+                    </td>
 
-                    <td>{store.state || <span className="sm-dash">—</span>}</td>
+                    <td>
+                      {store.state || (
+                        <span className="sm-dash">—</span>
+                      )}
+                    </td>
 
                     <td>
                       {store.city ? (
@@ -709,7 +764,9 @@ const handleImport = () => {
                     <td>
                       <span
                         className={`sm-status ${
-                          store.status === "Active" ? "is-active" : "is-inactive"
+                          store.status === "Active"
+                            ? "is-active"
+                            : "is-inactive"
                         }`}
                       >
                         <span className="dot" />
@@ -722,7 +779,9 @@ const handleImport = () => {
                         {canEdit && (
                           <button
                             className="sm-icon-btn sm-edit"
-                            onClick={() => handleEdit(store)}
+                            onClick={() =>
+                              handleEdit(store)
+                            }
                             title="Edit store"
                             aria-label="Edit store"
                           >
@@ -733,7 +792,9 @@ const handleImport = () => {
                         {canDelete && (
                           <button
                             className="sm-icon-btn sm-delete"
-                            onClick={() => handleDelete(store.id)}
+                            onClick={() =>
+                              handleDelete(store.id)
+                            }
                             title="Delete store"
                             aria-label="Delete store"
                           >
@@ -749,25 +810,30 @@ const handleImport = () => {
           </table>
         </div>
 
-        {/* ==========================
-            Pagination
-        ========================== */}
-
+        {/* Pagination */}
         <div className="sm-pagination">
           <div className="sm-rows">
             <span>
               Showing{" "}
               <strong>
-                {filteredStores.length === 0 ? 0 : indexOfFirstRow + 1}–
-                {Math.min(indexOfLastRow, filteredStores.length)}
+                {filteredStores.length === 0
+                  ? 0
+                  : indexOfFirstRow + 1}
+                –
+                {Math.min(
+                  indexOfLastRow,
+                  filteredStores.length
+                )}
               </strong>{" "}
               of <strong>{filteredStores.length}</strong>
             </span>
 
             <select
               value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
+              onChange={(event) => {
+                setRowsPerPage(
+                  Number(event.target.value)
+                );
                 setCurrentPage(1);
               }}
               aria-label="Rows per page"
@@ -783,26 +849,35 @@ const handleImport = () => {
             <button
               className="sm-page-btn"
               disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => prev - 1)}
+              onClick={() =>
+                setCurrentPage((prev) => prev - 1)
+              }
               aria-label="Previous page"
             >
               <FaChevronLeft />
             </button>
 
-            {pageNumbers.map((p) => (
+            {pageNumbers.map((page) => (
               <button
-                key={p}
-                className={`sm-page-btn ${p === currentPage ? "is-on" : ""}`}
-                onClick={() => setCurrentPage(p)}
+                key={page}
+                className={`sm-page-btn ${
+                  page === currentPage ? "is-on" : ""
+                }`}
+                onClick={() => setCurrentPage(page)}
               >
-                {p}
+                {page}
               </button>
             ))}
 
             <button
               className="sm-page-btn"
-              disabled={currentPage === totalPages || totalPages === 0}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
+              disabled={
+                currentPage === totalPages ||
+                totalPages === 0
+              }
+              onClick={() =>
+                setCurrentPage((prev) => prev + 1)
+              }
               aria-label="Next page"
             >
               <FaChevronRight />
@@ -811,10 +886,7 @@ const handleImport = () => {
         </div>
       </div>
 
-      {/* ==========================
-          Add / Edit Modal
-      ========================== */}
-
+      {/* Add / Edit Modal */}
       {showModal && (
         <AddStoreModal
           store={editingStore}
@@ -825,7 +897,6 @@ const handleImport = () => {
           }}
         />
       )}
-
     </div>
   );
 }

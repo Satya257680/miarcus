@@ -18,6 +18,7 @@ import "../../styles/premium/AdminPagesPremium.css";
 import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 // ======================================================
 // HELPERS
@@ -368,7 +369,7 @@ function ApproveExpenses() {
 
         if (status === "Approved") {
             const confirmed =
-                window.confirm(
+                await confirmWithGlass(
                     `Approve ${selected.length} selected expense${selected.length === 1 ? "" : "s"}?`
                 );
 

@@ -72,6 +72,7 @@ import {
 
 import "../../styles/pages/Chat.css";
 import { EMOJI_CATEGORIES } from "./emojiData";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "👏"];
 
@@ -1059,7 +1060,7 @@ function Chat() {
 
     const handleClearConversation = async () => {
         if (!selectedConversationId) return;
-        if (!window.confirm("Clear all messages from this chat for you?")) return;
+        if (!await confirmWithGlass("Clear all messages from this chat for you?")) return;
 
         try {
             await clearChatConversation(selectedConversationId);
@@ -1624,7 +1625,7 @@ function Chat() {
             ? "the selected store"
             : "all stores you can access";
 
-        if (!window.confirm(`Clear your call history for ${scopeText}? This only removes it from your history; it does not delete the actual calls.`)) {
+        if (!await confirmWithGlass(`Clear your call history for ${scopeText}? This only removes it from your history; it does not delete the actual calls.`)) {
             return;
         }
 
@@ -1646,7 +1647,7 @@ function Chat() {
             ? call.callee_name
             : call.caller_name;
 
-        if (!window.confirm(`Remove this ${call.call_type === "video" ? "video" : "voice"} call with ${peerName || "this user"} from your history?`)) {
+        if (!await confirmWithGlass(`Remove this ${call.call_type === "video" ? "video" : "voice"} call with ${peerName || "this user"} from your history?`)) {
             return;
         }
 

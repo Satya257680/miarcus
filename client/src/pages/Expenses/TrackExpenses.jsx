@@ -23,6 +23,7 @@ import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 // ======================================================
 // HELPERS
@@ -409,7 +410,7 @@ function TrackExpenses() {
             return;
         }
 
-        const confirmed = window.confirm(
+        const confirmed = await confirmWithGlass(
             `Delete Expense #${item.id}? This will permanently remove the expense, checks, items and uploaded bill.
 
 This action cannot be undone.`
@@ -471,7 +472,7 @@ This action cannot be undone.`
             return;
         }
 
-        const confirmed = window.confirm(
+        const confirmed = await confirmWithGlass(
             filtered
                 ? `${deleteAllMessage(true, ids.length, "expense record(s)")} Their checks, items and uploaded bill files are removed too. This action cannot be undone.`
                 : `No filter is applied. Delete ALL ${expenses.length} expense record(s)? This will also remove their checks, items and uploaded bill files. This action cannot be undone.`

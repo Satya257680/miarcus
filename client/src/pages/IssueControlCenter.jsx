@@ -5,6 +5,7 @@ import { getQuestions } from "../services/questionService";
 import { getIssueRules, createIssueRule, updateIssueRule, deleteIssueRule, deleteAllIssueRules } from "../services/issueControlService";
 import Card from "../components/common/Card";
 import "../styles/IssueControlCenter.css";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const empty = { question_id: "", question_text: "", checklist_type: "", expected_answer: "Yes", issue_answer: "No", priority: "Medium", sla_days: 3, departments: "", is_active: 1 };
 const questionText = (q) => q?.question || q?.question_text || q?.name || "";
@@ -120,12 +121,12 @@ export default function IssueControlCenter() {
   };
   const edit = (rule) => navigate(`/issue-control-center/${rule.id}/edit`);
   const remove = async (rule) => {
-    if (!window.confirm(`Delete rule for “${rule.question_text}”?`)) return;
+    if (!await confirmWithGlass(`Delete rule for “${rule.question_text}”?`)) return;
     try { await deleteIssueRule(rule.id); setNotice("Issue rule deleted."); await load(); }
     catch (e) { setError(e.response?.data?.message || "Delete failed."); }
   };
   const removeAll = async () => {
-    if (!window.confirm("Delete ALL Issue Control Center rules? Existing Action Points will not be deleted.")) return;
+    if (!await confirmWithGlass("Delete ALL Issue Control Center rules? Existing Action Points will not be deleted.")) return;
     try { await deleteAllIssueRules(); setNotice("All issue rules deleted. Existing Action Points were preserved."); await load(); }
     catch (e) { setError(e.response?.data?.message || "Delete all failed."); }
   };

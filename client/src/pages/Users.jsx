@@ -25,6 +25,7 @@ import PremiumHero from "../components/premium/PremiumHero";
 import InsightStrip from "../components/premium/InsightStrip";
 import { FaUsers, FaUserCheck, FaUserShield, FaSitemap, FaTimes as FaClear, FaEdit as FaEditIcon, FaBan } from "react-icons/fa";
 import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 function Users() {
 
@@ -300,7 +301,7 @@ const deleteUser = async (id, user) => {
     return;
   }
 
-  if (!window.confirm("Delete this user?")) return;
+  if (!await confirmWithGlass("Delete this user?")) return;
 
   try {
 

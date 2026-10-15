@@ -35,6 +35,7 @@ import InsightStrip from "../components/premium/InsightStrip";
 import ExportButton from "../components/common/ExportButton";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 import { exportFromCSV } from "../utils/exportUtils.js";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const EMPTY_FORM = {
     ppk_code: "",
@@ -412,7 +413,7 @@ export default function ListingTracker() {
 
     const handleDelete = async (row) => {
         if (
-            !window.confirm(
+            !await confirmWithGlass(
                 `Delete "${row.product_name || row.sku || row.ppk_code}"?`
             )
         ) {
@@ -436,7 +437,7 @@ export default function ListingTracker() {
         const filters = activeFilters({ search, collection, category, photoshoot, listed });
         const filtered = hasActiveFilters(filters);
 
-        const confirmed = window.confirm(
+        const confirmed = await confirmWithGlass(
             filtered
                 ? `${deleteAllMessage(true, total, "products")} Continue?`
                 : `No filter is applied. This will permanently delete ALL ${formatNumber(total)} products. Continue?`

@@ -34,6 +34,7 @@ import "../styles/premium/GalleryPremium.css";
 import PremiumHero from "../components/premium/PremiumHero";
 import { formatCount } from "../utils/premiumFormat";
 import GalleryCamera from "../components/gallery/GalleryCamera";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const getStoredUser = () => {
     try {
@@ -705,7 +706,7 @@ export default function Gallery() {
 
     const deletePhoto = async (photo) => {
         if (
-            !window.confirm(
+            !await confirmWithGlass(
                 `Delete "${photo.file_name}" from Gallery?`
             )
         ) {
@@ -746,7 +747,7 @@ export default function Gallery() {
     const deleteAll = async () => {
         if (!canDeleteAll) return;
 
-        const confirmed = window.confirm(
+        const confirmed = await confirmWithGlass(
             `${deleteAllMessage(isFilteredDelete, isFilteredDelete ? pagination?.total : null, "Gallery items")}\n\nPhotos uploaded by other modules will remain in their original module. Only Gallery-owned files will be physically removed.`
         );
 

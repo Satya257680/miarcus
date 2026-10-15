@@ -4,6 +4,7 @@ import { lndApi, fullUrl, errorMessage } from "../services/lndApi";
 import usePermission from "../hooks/usePermission";
 import "../styles/pages/LearningDevelopment.css";
 import "../styles/pages/LndManage.css";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 // =================================================================
 // LEARNING & DEVELOPMENT — PROGRAM MANAGEMENT (Edit / Full)
@@ -66,7 +67,7 @@ export default function LndManage() {
   };
 
   const removeProgram = async (p) => {
-    if (!window.confirm(`Delete "${p.title}" with all its modules, files and progress? This cannot be undone.`)) return;
+    if (!await confirmWithGlass(`Delete "${p.title}" with all its modules, files and progress? This cannot be undone.`)) return;
     try { await lndApi.deleteProgram(p.id); flash("success", "Program deleted"); load(); }
     catch (e) { flash("error", errorMessage(e)); }
   };
@@ -85,7 +86,7 @@ export default function LndManage() {
   const deleteSelected = async () => {
     const targets = programs.filter((p) => selectedIds.includes(p.id));
     if (!targets.length) return flash("error", "Select at least one program first");
-    if (!window.confirm(`Delete ${targets.length} selected program(s), including modules and learner progress? This cannot be undone.`)) return;
+    if (!await confirmWithGlass(`Delete ${targets.length} selected program(s), including modules and learner progress? This cannot be undone.`)) return;
     try {
       for (const p of targets) await lndApi.deleteProgram(p.id);
       setSelectedIds([]); flash("success", `${targets.length} program(s) deleted`); await load();
@@ -158,7 +159,7 @@ export default function LndManage() {
           <button className={`lnd-btn lnd-btn--ghost ${view === "report" ? "lm-on" : ""}`} onClick={() => setView("report")}>Learner Report</button>
           {canAdd && <label className={`lnd-btn lnd-btn--ghost lm-upload ${importing ? "is-busy" : ""}`}>⇧ {importing ? "Importing…" : "Import / Bulk Upload"}<input type="file" accept=".csv,text/csv" disabled={importing} onChange={(e) => { importPrograms(e.target.files?.[0]); e.target.value = ""; }} /></label>}
           <button className="lnd-btn lnd-btn--ghost" onClick={exportPrograms}>⇩ Export</button>
-          {canFull && <><button className="lnd-btn lnd-btn--ghost lm-danger" onClick={deleteSelected}>▤ Delete Selected{selectedIds.length ? ` (${selectedIds.length})` : ""}</button><button className="lnd-btn lnd-btn--ghost lm-danger" onClick={async () => { if (!programs.length) return flash("error", "There are no programs to delete"); if (!window.confirm(`Delete ALL ${programs.length} programs, including modules, media and learner progress? This cannot be undone.`)) return; try { for (const p of programs) await lndApi.deleteProgram(p.id); setSelectedIds([]); flash("success", `Deleted ${programs.length} programs`); await load(); } catch (e) { flash("error", errorMessage(e, "Delete all stopped because a program could not be deleted")); await load(); } }}>Delete All</button></>}
+          {canFull && <><button className="lnd-btn lnd-btn--ghost lm-danger" onClick={deleteSelected}>▤ Delete Selected{selectedIds.length ? ` (${selectedIds.length})` : ""}</button><button className="lnd-btn lnd-btn--ghost lm-danger" onClick={async () => { if (!programs.length) return flash("error", "There are no programs to delete"); if (!await confirmWithGlass(`Delete ALL ${programs.length} programs, including modules, media and learner progress? This cannot be undone.`)) return; try { for (const p of programs) await lndApi.deleteProgram(p.id); setSelectedIds([]); flash("success", `Deleted ${programs.length} programs`); await load(); } catch (e) { flash("error", errorMessage(e, "Delete all stopped because a program could not be deleted")); await load(); } }}>Delete All</button></>}
           {canAdd && <button className="lnd-btn lm-create" onClick={() => setEditing({ ...EMPTY_PROGRAM })}>＋ Create Program</button>}
         </div>
       </div>
@@ -284,7 +285,7 @@ function ProgramContent({ program, onBack, flash, perms, toast }) {
   };
 
   const removeModule = async (m) => {
-    if (!window.confirm(`Delete module "${m.title}" with its files, questions and progress?`)) return;
+    if (!await confirmWithGlass(`Delete module "${m.title}" with its files, questions and progress?`)) return;
     try { await lndApi.deleteModule(m.id); flash("success", "Module deleted"); load(); }
     catch (e) { flash("error", errorMessage(e)); }
   };
@@ -444,7 +445,7 @@ function MediaTab({ moduleId, programId, initialMedia, flash }) {
   };
 
   const remove = async (m) => {
-    if (!window.confirm(`Delete "${m.name}"?`)) return;
+    if (!await confirmWithGlass(`Delete "${m.name}"?`)) return;
     try { await lndApi.deleteMedia(m.id); setMedia((list) => list.filter((x) => x.id !== m.id)); }
     catch (e) { flash("error", errorMessage(e)); }
   };
@@ -576,7 +577,7 @@ function Report({ canEdit, canFull, flash }) {
 
   const deleteRow = async (row) => {
     const key = `${row.userId}-${row.programId}`;
-    if (!window.confirm(`Delete ${row.name}'s progress for ${row.program}? This also removes the certificate record, if issued.`)) return;
+    if (!await confirmWithGlass(`Delete ${row.name}'s progress for ${row.program}? This also removes the certificate record, if issued.`)) return;
     setDeletingKey(key);
     try {
       const result = await lndApi.deleteReportProgress(row.userId, row.programId);

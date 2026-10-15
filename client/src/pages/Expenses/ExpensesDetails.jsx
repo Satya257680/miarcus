@@ -1,6 +1,7 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import axios from "./expenseApi";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 import {
     FaShieldAlt,
     FaFileInvoice,
@@ -116,7 +117,7 @@ function ExpenseDetails({ id, onClose, onDeleted }) {
     const deleteExpense = async () => {
         if (!canDelete || deleting || !expense?.id) return;
 
-        const confirmed = window.confirm(
+        const confirmed = await confirmWithGlass(
             `Delete Expense #${expense.id}? This will permanently remove its checks, items and uploaded bill.`
         );
         if (!confirmed) return;
