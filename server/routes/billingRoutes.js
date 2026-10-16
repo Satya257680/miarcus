@@ -26,6 +26,21 @@ const billingController = require(
    BILLING PERMISSIONS
 ====================================================== */
 
+// Filter Access (per-user store scope). Runs after the Billing permission
+// check, so it only narrows what an already-permitted user can see.
+const {
+    attachFilterScope,
+    validateFilterValues,
+    requireRecordStoreInScope
+} = require("../middleware/filterAccessMiddleware");
+
+const billingScope = attachFilterScope("Billing");
+const billInScope = (param = "id") => requireRecordStoreInScope(
+    "SELECT store_id FROM bills WHERE id = ? LIMIT 1",
+    param,
+    "Bill"
+);
+
 const canViewBilling =
     permissionMiddleware(
         "Billing",
@@ -88,6 +103,7 @@ router.get(
     "/stores",
     authMiddleware,
     canViewBilling,
+    billingScope,
     billingController.getStores
 );
 
@@ -109,6 +125,8 @@ router.get(
     "/reports/daily",
     authMiddleware,
     canViewBilling,
+    billingScope,
+    validateFilterValues,
     billingController.dailyReport
 );
 
@@ -135,6 +153,8 @@ router.get(
     "/audit/:billId",
     authMiddleware,
     canViewBilling,
+    billingScope,
+    billInScope("billId"),
     billingController.audit
 );
 
@@ -159,6 +179,8 @@ router.get(
     "/",
     authMiddleware,
     canViewBilling,
+    billingScope,
+    validateFilterValues,
     billingController.getBills
 );
 
@@ -182,6 +204,8 @@ router.post(
     "/",
     authMiddleware,
     canAddBilling,
+    billingScope,
+    validateFilterValues,
     billingController.createBill
 );
 
@@ -205,6 +229,9 @@ router.put(
     "/:id",
     authMiddleware,
     canEditBilling,
+    billingScope,
+    billInScope(),
+    validateFilterValues,
     billingController.updateBill
 );
 
@@ -242,6 +269,7 @@ router.post(
     "/delete-all",
     authMiddleware,
     canDeleteBilling,
+    billingScope,
     billingController.deleteAllBills
 );
 
@@ -249,6 +277,8 @@ router.delete(
     "/:id",
     authMiddleware,
     canDeleteBilling,
+    billingScope,
+    billInScope(),
     billingController.deleteBill
 );
 
@@ -256,6 +286,8 @@ router.post(
     "/:id/cancel",
     authMiddleware,
     canEditBilling,
+    billingScope,
+    billInScope(),
     billingController.cancelBill
 );
 
@@ -285,6 +317,8 @@ router.get(
     "/:id",
     authMiddleware,
     canViewBilling,
+    billingScope,
+    billInScope(),
     billingController.getBillById
 );
 

@@ -32,6 +32,21 @@ const permission = (moduleName, requiredPermission) =>
 const controller = (method) =>
     lazy(() => require("../controllers/attendanceController")[method]);
 
+// Filter Access (per-user store scope) for Attendance Reports. Runs after
+// the Attendance permission check, so it only narrows access.
+const filterAccessMw = (name, ...args) =>
+    lazy(() => require("../middleware/filterAccessMiddleware")[name](...args));
+const attendanceScope = filterAccessMw("attachFilterScope", "Attendance Reports");
+// validateFilterValues is itself the middleware (not a factory).
+const validateFilters = lazy(() => require("../middleware/filterAccessMiddleware").validateFilterValues);
+// /photo/:id/... and /:id are attendance record IDs.
+const recordInScope = filterAccessMw(
+    "requireRecordStoreInScope",
+    "SELECT store_id FROM attendance_records WHERE id = ? LIMIT 1",
+    "id",
+    "Attendance record"
+);
+
 const createUploadMiddleware = () => {
     const multer = require("multer");
     const fs = require("fs");
@@ -153,24 +168,32 @@ router.get(
         "Full"
     ),
 
+    attendanceScope,
+    recordInScope,
     controller("serveAttendancePhoto")
 );
 
 router.get(
     "/photo/:id/:type/details",
     permission("Attendance", "Full"),
+    attendanceScope,
+    recordInScope,
     controller("photoDetails")
 );
 
 router.get(
     "/photo/:id/:type/download",
     permission("Attendance", "Full"),
+    attendanceScope,
+    recordInScope,
     controller("downloadAttendancePhoto")
 );
 
 router.delete(
     "/photo/:id/:type",
     permission("Attendance", "Full"),
+    attendanceScope,
+    recordInScope,
     controller("deleteAttendancePhoto")
 );
 
@@ -186,6 +209,8 @@ router.get(
         "Full"
     ),
 
+    attendanceScope,
+    validateFilters,
     controller("reports")
 );
 
@@ -216,6 +241,7 @@ router.get(
         "Full"
     ),
 
+    attendanceScope,
     controller("stores")
 );
 
@@ -242,6 +268,8 @@ router.delete(
         "Full"
     ),
 
+    attendanceScope,
+    validateFilters,
     controller("deleteAll")
 );
 
@@ -257,6 +285,8 @@ router.delete(
         "Full"
     ),
 
+    attendanceScope,
+    recordInScope,
     controller("deleteRecord")
 );
 

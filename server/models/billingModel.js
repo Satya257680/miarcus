@@ -398,12 +398,21 @@ Billing.getStores = (callback) => {
    GET ALL BILLS
 ====================================================== */
 
+// `scope` = Filter Access store scope ({ sql, params } from
+// utils/filterAccess.storeScopeSql). Kept separate from `filters`
+// (the raw query string) so a browser can never supply it.
 Billing.getBills = (
     filters = {},
-    callback
+    callback,
+    scope = null
 ) => {
     const where = [];
     const params = [];
+
+    if (scope && scope.sql) {
+        where.push(scope.sql);
+        params.push(...(scope.params || []));
+    }
 
     if (filters.date) {
         where.push(
@@ -1058,8 +1067,13 @@ Billing.cancelBill = async (
 
 Billing.dailyReport = (
     filters = {},
-    callback
+    callback,
+    scope = null
 ) => {
+
+    // Filter Access store scope (see Billing.getBills).
+    const scopeClause = scope && scope.sql ? ` AND ${scope.sql}` : "";
+    const scopeParams = scope && scope.sql ? (scope.params || []) : [];
 
     const date =
         filters.date ||
@@ -1079,6 +1093,9 @@ Billing.dailyReport = (
             filters.store_id
         );
     }
+
+    storeClause += scopeClause;
+    summaryParams.push(...scopeParams);
 
     /* ------------------------------------------------
        SUMMARY
@@ -1213,6 +1230,9 @@ Billing.dailyReport = (
                     filters.store_id
                 );
             }
+
+            detailStoreClause += scopeClause;
+            detailParams.push(...scopeParams);
 
             const detailSql = `
                 SELECT

@@ -6,6 +6,7 @@
 // narrow what an already-permitted user can see or touch.
 // ======================================================
 
+const db = require("../config/db");
 const filterAccess = require("../utils/filterAccess");
 
 // Loads the signed-in user's scope for `moduleName` into req.filterScope.
@@ -51,6 +52,25 @@ const requireActionPointInScope = (param = "id") => async (req, res, next) => {
     }
 };
 
+// Single-record routes of store-scoped modules. `lookupSql` returns the
+// record's store_id for the id in req.params[param]; a record in a store
+// outside the user's Filter Access answers "not found".
+const requireRecordStoreInScope = (lookupSql, param = "id", label = "Record") => async (req, res, next) => {
+    try {
+        const allowed = filterAccess.allowedStoreIds(req.filterScope);
+        if (!allowed) return next();
+        const rows = await db.query(lookupSql, [req.params[param]]);
+        if (!rows || !rows.length) return next();
+        if (!allowed.map(Number).includes(Number(rows[0].store_id))) {
+            return res.status(404).json({ success: false, message: `${label} not found.` });
+        }
+        return next();
+    } catch (error) {
+        console.error("Filter access record check failed:", error);
+        return res.status(500).json({ success: false, message: "Unable to verify filter access." });
+    }
+};
+
 // Module-wide maintenance operations (e.g. re-check every answer) are
 // only for users whose filter access is not narrowed.
 const requireUnrestrictedScope = (req, res, next) => {
@@ -68,5 +88,6 @@ module.exports = {
     attachFilterScope,
     validateFilterValues,
     requireActionPointInScope,
+    requireRecordStoreInScope,
     requireUnrestrictedScope,
 };

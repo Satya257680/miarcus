@@ -40,11 +40,15 @@ exports.getStores = (req, res) => {
 
             }
 
-            filterReferenceRows(req, "departments", results)
+            // BUG FIX: the store list was trimmed with the *department*
+            // rule ("departments"), which kept only the store whose id
+            // equals the user's department id — so non-admin users (e.g.
+            // ASM) got an empty store dropdown on Checklist Submit.
+            filterReferenceRows(req, "stores", results)
                 .then((scopedResults) => res.status(200).json({ success: true, count: scopedResults.length, data: scopedResults }))
                 .catch((scopeError) => {
-                    console.error("Scope department filter options failed:", scopeError);
-                    return res.status(500).json({ success: false, message: "Failed to apply department access scope" });
+                    console.error("Scope store filter options failed:", scopeError);
+                    return res.status(500).json({ success: false, message: "Failed to apply store access scope" });
                 });
 
         }

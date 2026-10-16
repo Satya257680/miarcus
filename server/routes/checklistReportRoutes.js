@@ -10,6 +10,22 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+// Filter Access (per-user store scope). Runs after permissionMiddleware,
+// so it only narrows what an already-permitted user can see.
+const {
+    attachFilterScope,
+    validateFilterValues,
+    requireRecordStoreInScope
+} = require("../middleware/filterAccessMiddleware");
+
+const crScope = attachFilterScope("Checklist Reports");
+const trackerScope = attachFilterScope("Checklist Tracker");
+const reportInScope = requireRecordStoreInScope(
+    "SELECT store_id FROM checklist_submissions WHERE id = ? LIMIT 1",
+    "id",
+    "Checklist Report"
+);
+
 // ======================================================
 // BULK UPLOAD MULTER CONFIGURATION
 //
@@ -99,6 +115,8 @@ router.get(
 
     ),
 
+    crScope,
+    validateFilterValues,
     getAllReports
 
 );
@@ -122,6 +140,8 @@ router.get(
 
     ),
 
+    crScope,
+    validateFilterValues,
     exportReports
 
 );
@@ -178,6 +198,8 @@ router.delete(
         "Checklist Reports",
         "Full"
     ),
+    crScope,
+    validateFilterValues,
     deleteAllReports
 );
 
@@ -198,6 +220,8 @@ router.get(
         "Checklist Reports",
         "View"
     ),
+    crScope,
+    validateFilterValues,
     getChecklistReportSummary
 );
 
@@ -218,6 +242,8 @@ router.get(
         "Checklist Reports",
         "View"
     ),
+    trackerScope,
+    validateFilterValues,
     getChecklistCompliance
 );
 
@@ -241,6 +267,8 @@ router.get(
 
     ),
 
+    crScope,
+    reportInScope,
     getReportById
 
 );
@@ -264,6 +292,8 @@ router.put(
 
     ),
 
+    crScope,
+    reportInScope,
     attachmentUpload.single("attachment"),
 
     updateReport
@@ -289,6 +319,8 @@ router.delete(
 
     ),
 
+    crScope,
+    reportInScope,
     deleteReport
 
 );
@@ -311,6 +343,8 @@ router.get(
         "Checklist Reports",
         "View"
     ),
+    crScope,
+    reportInScope,
     (req, res) => {
         const ChecklistSubmission = require("../models/checklistSubmissionModel");
         ChecklistSubmission.getAnswerPhotos(req.params.id, (err, data) => {

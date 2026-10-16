@@ -212,16 +212,46 @@ router.get(
 
     ),
 
+    // Stores the user can submit a checklist for:
+    //   1. administrators and all-store users (e.g. ASM designations) ->
+    //      every store; everyone else -> the stores assigned to them;
+    //   2. then narrowed by the user's Filter Access global Store default,
+    //      if an administrator set one (nothing set = unchanged).
+    // BUG FIX: all-store users used to be routed through
+    // storeController.getStores, which trimmed the list with the
+    // department rule and returned no stores at all.
     async (req, res, next) => {
         try {
             const { getStoreScope } = require("../services/notificationAudience");
-            const scope = await getStoreScope(req.user?.id);
-            if (scope.allStores) return getStores(req, res, next);
+            const filterAccess = require("../utils/filterAccess");
             const Store = require("../models/storeModel");
+
+            const scope = await getStoreScope(req.user?.id);
+            const admin = filterAccess.isAdministrator(req.user);
+
+            let globalStore = null;
+            if (!admin) {
+                const globals = await filterAccess.getGlobalPolicies(req.user.id);
+                globalStore = globals.store || null;
+            }
+
             Store.getAllStores((err, rows) => {
                 if (err) return res.status(500).json({ success: false, message: "Failed to fetch stores" });
-                const allowed = new Set(scope.storeIds.map(Number));
-                const data = (rows || []).filter((store) => allowed.has(Number(store.id)));
+
+                let data = rows || [];
+
+                if (!admin && !scope.allStores) {
+                    const assigned = new Set((scope.storeIds || []).map(Number));
+                    data = data.filter((store) => assigned.has(Number(store.id)));
+                }
+
+                if (globalStore?.policy === "selected") {
+                    const allowed = new Set(globalStore.ids.map(Number));
+                    data = data.filter((store) => allowed.has(Number(store.id)));
+                } else if (globalStore?.policy === "none") {
+                    data = [];
+                }
+
                 return res.status(200).json({ success: true, count: data.length, data });
             });
         } catch (error) {

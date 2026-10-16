@@ -107,6 +107,15 @@ defineBulkModule("checklist-reports", {
 
 const MAX_PAGE_LIMIT = 500;
 
+const filterAccess = require("../utils/filterAccess");
+
+// Filter Access store scope for the signed-in user (req.filterScope is set
+// by middleware/filterAccessMiddleware in routes/checklistReportRoutes.js).
+const storeScope = (req) => {
+    const { sql, params } = filterAccess.storeScopeSql(req.filterScope, "cs.store_id");
+    return sql ? { scope_sql: sql, scope_params: params } : {};
+};
+
 const getFilters = (req) => {
     const wantsAll = String(req.query.all || "").toLowerCase() === "true";
 
@@ -123,6 +132,7 @@ const getFilters = (req) => {
         employee_id: req.query.employee_id || null,
         from_date: req.query.from_date || null,
         to_date: req.query.to_date || null,
+        ...storeScope(req),
     };
 };
 
@@ -306,6 +316,10 @@ exports.deleteAllReports = (req, res) => {
         });
     }
 
+    // A user with narrowed Filter Access only ever deletes reports of
+    // the stores they are allowed to see.
+    Object.assign(filters, storeScope(req));
+
     ChecklistReport.deleteAll({ filters }, (err, result) => {
         if (err) {
             console.error("DELETE ALL CHECKLIST REPORTS ERROR:", err);
@@ -348,7 +362,7 @@ exports.deleteAllReports = (req, res) => {
 // GET /api/checklist-reports/export
 // ======================================================
 exports.exportReports = (req, res) => {
-    ChecklistReport.exportReports((err, rows) => {
+    ChecklistReport.exportReports(storeScope(req), (err, rows) => {
         if (err) {
             console.error("EXPORT CHECKLIST REPORTS ERROR:", err);
             return res.status(500).json({

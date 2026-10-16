@@ -1,4 +1,5 @@
 const { readDeleteScope } = require("../utils/deleteScope");
+const filterAccess = require("../utils/filterAccess");
 const fs = require("fs/promises");
 const path = require("path");
 
@@ -979,9 +980,11 @@ const reports = async (req, res) => {
     }
 
     try {
+        // Filter Access: only the stores this user may see.
         const data =
             await Attendance.getReport(
-                req.query
+                req.query,
+                filterAccess.storeScopeSql(req.filterScope, "a.store_id")
             );
 
         return res.json({
@@ -1057,8 +1060,12 @@ const stores = async (req, res) => {
     }
 
     try {
+        // Filter Access: the store dropdown lists only allowed stores.
         const data =
-            await Attendance.getStores();
+            filterAccess.filterRowsByStore(
+                req.filterScope,
+                await Attendance.getStores()
+            );
 
         return res.json({
             success: true,
@@ -1240,8 +1247,16 @@ const deleteAll = async (
             });
         }
 
+        // Filter Access: a restricted user's "Delete All" only removes
+        // attendance of the stores they are allowed to see.
+        const storeScope = filterAccess.storeScopeSql(req.filterScope, "a.store_id");
+        let deleteFilters = scope.filtered ? filters : null;
+        if (storeScope.sql) {
+            deleteFilters = { ...(deleteFilters || {}), scope_sql: storeScope.sql, scope_params: storeScope.params };
+        }
+
         const deletedPhotos =
-            await Attendance.deleteAllRecords(scope.filtered ? filters : null);
+            await Attendance.deleteAllRecords(deleteFilters);
 
         await Promise.all(
             deletedPhotos.flatMap(

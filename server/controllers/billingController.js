@@ -4,6 +4,14 @@ const Billing = require("../models/billingModel");
    ACTOR / LOGGED-IN USER
 ====================================================== */
 
+const db = require("../config/db");
+const filterAccess = require("../utils/filterAccess");
+
+// Filter Access store scope for Billing (req.filterScope is set by
+// middleware/filterAccessMiddleware in routes/billingRoutes.js).
+const billingScope = (req) =>
+    filterAccess.storeScopeSql(req.filterScope, "b.store_id");
+
 const actorId = (req) => {
     return (
         req.user?.id ||
@@ -327,7 +335,12 @@ exports.getStores = (
 ) => {
 
     Billing.getStores(
-        (err, stores) => {
+        (err, allStores) => {
+
+            // Filter Access: only the stores this user may see.
+            const stores = err
+                ? allStores
+                : filterAccess.filterRowsByStore(req.filterScope, allStores);
 
             if (err) {
 
@@ -395,7 +408,8 @@ exports.getBills = (
                 data:
                     data || []
             });
-        }
+        },
+        billingScope(req)
     );
 };
 
@@ -811,7 +825,8 @@ exports.dailyReport = (
                         details: []
                     }
             });
-        }
+        },
+        billingScope(req)
     );
 };
 
@@ -902,11 +917,23 @@ exports.deleteAllBills = async (req, res) => {
             ? await Billing.getAllBillIds()
             : (Array.isArray(body.ids) ? body.ids : []);
 
-        if (!ids.length) {
+        // Filter Access: a restricted user only deletes bills of the
+        // stores they are allowed to see.
+        const scope = billingScope(req);
+        let targetIds = ids;
+        if (scope.sql && ids.length) {
+            const clean = [...new Set(ids.map(Number).filter((n) => n > 0))];
+            const rows = clean.length
+                ? await db.query(`SELECT b.id FROM bills b WHERE b.id IN (?) AND ${scope.sql}`, [clean, ...scope.params])
+                : [];
+            targetIds = rows.map((row) => Number(row.id));
+        }
+
+        if (!targetIds.length) {
             return res.status(400).json({ success: false, message: "No bills selected to delete." });
         }
 
-        const result = await Billing.deleteBills(ids, actorId(req));
+        const result = await Billing.deleteBills(targetIds, actorId(req));
         return res.json({
             success: true,
             deleted: result.deleted,

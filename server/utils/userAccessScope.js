@@ -45,6 +45,17 @@ async function filterReferenceRows(req, kind, rows) {
         const ids = idsFrom(override.store_ids);
         if (override.all_stores === false) return list.filter((r) => ids?.includes(Number(r.id)));
         if (ids) return list.filter((r) => ids.includes(Number(r.id)));
+        // No explicit override: users the portal already treats as
+        // all-store (e.g. ASM-type designations, see
+        // services/notificationAudience.getStoreScope) see every store;
+        // everyone else sees the stores assigned to them.
+        try {
+            const { getStoreScope } = require("../services/notificationAudience");
+            const storeScope = await getStoreScope(userId);
+            if (storeScope?.allStores) return list;
+        } catch (error) {
+            console.warn("Store scope lookup failed, using assigned stores:", error.message);
+        }
         try {
             const assigned = await db.query("SELECT store_id FROM user_stores WHERE user_id=?", [userId]);
             const assignedIds = (assigned || []).map((r) => Number(r.store_id)).filter(Number.isFinite);

@@ -3,6 +3,7 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
+const pettyCashPermission = require("../middleware/pettyCashPermissionMiddleware");
 const { attachFilterScope } = require("../middleware/filterAccessMiddleware");
 const { MODULES } = require("../utils/filterAccess");
 const controller = require("../controllers/filterAccessController");
@@ -24,7 +25,11 @@ router.get(
             return res.status(400).json({ success: false, message: "Filter options are not available for this module." });
         }
         req.filterModule = moduleName;
-        return permissionMiddleware(moduleName, "View")(req, res, next);
+        const def = MODULES[moduleName];
+        // Same permission the module's own list endpoint requires.
+        if (def.guard === "pettyCash") return pettyCashPermission("View")(req, res, next);
+        const [rbacModule, level] = def.rbac || [moduleName, "View"];
+        return permissionMiddleware(rbacModule, level)(req, res, next);
     },
     (req, res, next) => attachFilterScope(req.filterModule)(req, res, next),
     controller.getOptions
@@ -39,5 +44,7 @@ router.get("/users/:id", authMiddleware, controller.getUser);
 router.put("/users/:id/modules/:module", authMiddleware, controller.saveModule);
 router.delete("/users/:id/modules/:module", authMiddleware, controller.resetModule);
 router.delete("/users/:id", authMiddleware, controller.resetUser);
+router.post("/bulk/preview", authMiddleware, controller.bulkPreview);
+router.post("/bulk/apply", authMiddleware, controller.bulkApply);
 
 module.exports = router;

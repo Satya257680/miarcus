@@ -656,9 +656,16 @@ const getReport = async ({
     from = "",
     to = "",
     status = ""
-}) => {
+}, scope = {}) => {
     const where = ["1=1"];
     const params = [];
+
+    // Filter Access store scope (utils/filterAccess.storeScopeSql). Passed
+    // as a separate argument so nothing from the query string can reach it.
+    if (scope && scope.sql) {
+        where.push(scope.sql);
+        params.push(...(scope.params || []));
+    }
 
     // --------------------------------------------------
     // SEARCH
@@ -1028,6 +1035,9 @@ const deleteAllRecords = async (filters = null) => {
         if (filters.from) { where.push("a.work_date >= ?"); params.push(filters.from); }
         if (filters.to) { where.push("a.work_date <= ?"); params.push(filters.to); }
         if (filters.status) { where.push("a.status = ?"); params.push(filters.status); }
+        // Filter Access store scope: a restricted user only deletes
+        // attendance of the stores they are allowed to see.
+        if (filters.scope_sql) { where.push(filters.scope_sql); params.push(...(filters.scope_params || [])); }
 
         // Never widen a filtered delete into "delete everything".
         if (!where.length) return [];

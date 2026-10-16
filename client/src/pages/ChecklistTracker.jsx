@@ -111,10 +111,11 @@ function ChecklistTracker() {
     useEffect(() => {
         Promise.allSettled([
             axios.get(`${API}/checklist-types`),
-            axios.get(`${API}/stores`),
+            // Stores this user may see (Filter Access, read-only lookup).
+            axios.get(`${API}/filter-access/options`, { params: { module: "Checklist Tracker" } }),
         ]).then(([typeRes, storeRes]) => {
             if (typeRes.status === "fulfilled") setChecklistTypes(typeRes.value.data?.data || []);
-            if (storeRes.status === "fulfilled") setAllStores(storeRes.value.data?.data || []);
+            if (storeRes.status === "fulfilled") setAllStores(storeRes.value.data?.filters?.store?.options || []);
         });
     }, []);
 

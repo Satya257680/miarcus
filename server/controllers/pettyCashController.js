@@ -3,6 +3,12 @@ const Audit = require("../models/auditModel");
 const { sendGenericEmail } = require("../services/emailService");
 
 function actorId(req) { return Number(req.user?.id || req.user?.user_id || 0); }
+const filterAccess = require("../utils/filterAccess");
+
+// Filter Access: store IDs this user may see in Petty Cash, or null when
+// not restricted (req.filterScope is set in routes/pettyCashRoutes.js).
+const allowedStores = (req) => filterAccess.allowedStoreIds(req.filterScope);
+
 function isAdmin(req) {
     const u = req.user || {};
     return Number(u?.is_admin) === 1;
@@ -59,17 +65,17 @@ function emailTemplate(title, detail, color="#146c80") {
 }
 
 exports.options = async (req,res)=>{
-    try { res.json({success:true,data:await PettyCash.getOptions(actorId(req),isAdmin(req))}); }
+    try { res.json({success:true,data:await PettyCash.getOptions(actorId(req),isAdmin(req),allowedStores(req))}); }
     catch(error){ console.error("Petty Cash options error:",error); res.status(500).json({success:false,message:"Unable to load petty cash options."}); }
 };
 
 exports.summary = async (req,res)=>{
-    try { res.json({success:true,data:await PettyCash.getSummary(actorId(req),isAdmin(req),req.query?.store_id||"")}); }
+    try { res.json({success:true,data:await PettyCash.getSummary(actorId(req),isAdmin(req),req.query?.store_id||"",allowedStores(req))}); }
     catch(error){ console.error("Petty Cash summary error:",error); res.status(500).json({success:false,message:"Unable to load petty cash summary."}); }
 };
 
 exports.getAll = async (req,res)=>{
-    try { res.json({success:true,data:await PettyCash.getAll(req.query||{},actorId(req),isAdmin(req))}); }
+    try { res.json({success:true,data:await PettyCash.getAll(req.query||{},actorId(req),isAdmin(req),allowedStores(req))}); }
     catch(error){ console.error("Petty Cash list error:",error); res.status(500).json({success:false,message:"Unable to load petty cash advances."}); }
 };
 
@@ -144,17 +150,17 @@ exports.nextNumber = async (req,res)=>{
 };
 
 exports.listExpenses = async (req,res)=>{
-    try { res.json({success:true,data:await PettyCash.listExpenses(req.query||{},actorId(req),isAdmin(req))}); }
+    try { res.json({success:true,data:await PettyCash.listExpenses(req.query||{},actorId(req),isAdmin(req),allowedStores(req))}); }
     catch(error){ console.error("Petty Cash expenses register error:",error); res.status(500).json({success:false,message:"Unable to load petty cash expenses."}); }
 };
 
 exports.listDeposits = async (req,res)=>{
-    try { res.json({success:true,data:await PettyCash.listDeposits(req.query||{},actorId(req),isAdmin(req))}); }
+    try { res.json({success:true,data:await PettyCash.listDeposits(req.query||{},actorId(req),isAdmin(req),allowedStores(req))}); }
     catch(error){ console.error("Petty Cash deposits register error:",error); res.status(500).json({success:false,message:"Unable to load petty cash deposits."}); }
 };
 
 exports.auditLog = async (req,res)=>{
-    try { res.json({success:true,data:await PettyCash.getAuditLog(req.query||{},actorId(req),isAdmin(req))}); }
+    try { res.json({success:true,data:await PettyCash.getAuditLog(req.query||{},actorId(req),isAdmin(req),allowedStores(req))}); }
     catch(error){ console.error("Petty Cash audit log error:",error); res.status(500).json({success:false,message:"Unable to load the petty cash audit trail."}); }
 };
 
@@ -164,7 +170,7 @@ exports.emailReport = async (req,res)=>{
         const me=await PettyCash.getUserContact(actorId(req));
         if(!me?.email) return res.status(400).json({success:false,message:"Your user profile has no email address."});
         const filters=req.body||{};
-        const rows=await PettyCash.getAll({search:filters.search||"",store_id:filters.store_id||"",status:filters.status||"",from:filters.from||"",to:filters.to||""},actorId(req),isAdmin(req));
+        const rows=await PettyCash.getAll({search:filters.search||"",store_id:filters.store_id||"",status:filters.status||"",from:filters.from||"",to:filters.to||""},actorId(req),isAdmin(req),allowedStores(req));
         const totals=rows.reduce((t,r)=>({a:t.a+number(r.advance_amount),e:t.e+number(r.total_expense),d:t.d+number(r.total_deposit),b:t.b+number(r.balance)}),{a:0,e:0,d:0,b:0});
         const cell='style="padding:7px 9px;border-bottom:1px solid #eee;font-size:12px"';
         const head='style="padding:8px 9px;background:#241b4b;color:#fff;font-size:11px;text-align:left"';
@@ -275,7 +281,7 @@ exports.bulkCancel = async (req,res)=>{
         if (deleteAll) {
             // Delete All means every record the current user is allowed to
             // delete. Administrators get every Petty Cash record.
-            rows = await PettyCash.getDeleteCandidates(userId, isAdmin(req));
+            rows = await PettyCash.getDeleteCandidates(userId, isAdmin(req), allowedStores(req));
         } else {
             if (!requestedIds.length) {
                 return res.status(400).json({
@@ -295,7 +301,8 @@ exports.bulkCancel = async (req,res)=>{
                     to:req.body?.to||""
                 },
                 userId,
-                isAdmin(req)
+                isAdmin(req),
+                allowedStores(req)
             );
         }
 

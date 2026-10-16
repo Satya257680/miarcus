@@ -1,3 +1,4 @@
+const { storeScopeSql } = require("../utils/filterAccess");
 const db = require("../config/db");
 
 // ======================================================
@@ -77,6 +78,13 @@ exports.getChecklistCompliance = async (req, res) => {
             subParams.push(storeId);
         }
 
+        // Filter Access (Checklist Tracker): only the user's stores.
+        const scope = storeScopeSql(req.filterScope, "cs.store_id");
+        if (scope.sql) {
+            subWhere += ` AND ${scope.sql}`;
+            subParams.push(...scope.params);
+        }
+
         // ---------- stores in scope ----------
         // Active stores, plus any inactive store that still submitted
         // in the selected range (so nothing submitted is ever hidden).
@@ -92,6 +100,11 @@ exports.getChecklistCompliance = async (req, res) => {
         if (storeId) {
             storeSql += " AND s.id = ?";
             storeParams.push(storeId);
+        }
+        const storeListScope = storeScopeSql(req.filterScope, "s.id");
+        if (storeListScope.sql) {
+            storeSql += ` AND ${storeListScope.sql}`;
+            storeParams.push(...storeListScope.params);
         }
         storeSql += " ORDER BY s.store_name ASC";
 

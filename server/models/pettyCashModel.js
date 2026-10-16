@@ -1,5 +1,13 @@
 const db = require("../config/db");
 
+// Filter Access store scope. `storeIds` is null (no restriction) or the
+// store IDs the user may see in Petty Cash (utils/filterAccess.allowedStoreIds).
+const storeIdsClause = (storeIds, column = "a.store_id") => {
+    if (!Array.isArray(storeIds)) return { sql: "", params: [] };
+    if (!storeIds.length) return { sql: "1 = 0", params: [] };
+    return { sql: `${column} IN (?)`, params: [storeIds] };
+};
+
 const MODULE = "Petty Cash";
 
 const PettyCash = {
@@ -272,9 +280,11 @@ const PettyCash = {
 
     // Shared WHERE builder for the advance-level filters used by the
     // Manage Expenses / Manage Deposits registers.
-    scopeFilters(filters = {}, userId, admin = false) {
+    scopeFilters(filters = {}, userId, admin = false, storeIds = null) {
         const where = [];
         const params = [];
+        const fa = storeIdsClause(storeIds);
+        if (fa.sql) { where.push(fa.sql); params.push(...fa.params); }
         if (!admin) {
             where.push(`EXISTS (SELECT 1 FROM user_stores scope_us WHERE scope_us.user_id=? AND scope_us.store_id=a.store_id)`);
             params.push(userId);
@@ -285,8 +295,8 @@ const PettyCash = {
         return { where, params };
     },
 
-    async listExpenses(filters = {}, userId, admin = false) {
-        const { where, params } = PettyCash.scopeFilters(filters, userId, admin);
+    async listExpenses(filters = {}, userId, admin = false, storeIds = null) {
+        const { where, params } = PettyCash.scopeFilters(filters, userId, admin, storeIds);
         if (filters.search) {
             const term = `%${filters.search}%`;
             where.push(`(a.advance_no LIKE ? OR e.expense_type LIKE ? OR COALESCE(e.description,'') LIKE ? OR COALESCE(s.store_name,'') LIKE ? OR COALESCE(u.name,'') LIKE ?)`);
@@ -312,8 +322,8 @@ const PettyCash = {
         `, params);
     },
 
-    async listDeposits(filters = {}, userId, admin = false) {
-        const { where, params } = PettyCash.scopeFilters(filters, userId, admin);
+    async listDeposits(filters = {}, userId, admin = false, storeIds = null) {
+        const { where, params } = PettyCash.scopeFilters(filters, userId, admin, storeIds);
         if (filters.search) {
             const term = `%${filters.search}%`;
             where.push(`(a.advance_no LIKE ? OR COALESCE(d.reference_no,'') LIKE ? OR COALESCE(s.store_name,'') LIKE ? OR COALESCE(depositor.name,'') LIKE ? OR COALESCE(receiver.name,'') LIKE ?)`);
@@ -350,9 +360,11 @@ const PettyCash = {
     },
 
     // Module-wide audit trail for the "Audit Trail" page.
-    async getAuditLog(filters = {}, userId, admin = false) {
+    async getAuditLog(filters = {}, userId, admin = false, storeIds = null) {
         const where = ["al.module_name=?"];
         const params = [MODULE];
+        const fa = storeIdsClause(storeIds);
+        if (fa.sql) { where.push(fa.sql); params.push(...fa.params); }
         if (!admin) {
             where.push(`(al.changed_by=? OR EXISTS (
                 SELECT 1 FROM petty_cash_advances sa
@@ -409,7 +421,7 @@ const PettyCash = {
         return rows.length > 0;
     },
 
-    async getOptions(userId, admin = false) {
+    async getOptions(userId, admin = false, storeIds = null) {
         const stores = admin
             ? await db.query(`SELECT id, store_name, store_code FROM stores WHERE LOWER(COALESCE(status,'Active')) <> 'inactive' ORDER BY store_name`)
             : await db.query(`
@@ -430,7 +442,13 @@ const PettyCash = {
                 ORDER BY u.name
             `, [userId]);
 
-        return { stores: stores || [], users: users || [] };
+        // Filter Access: the store dropdown lists only allowed stores.
+        const allowed = Array.isArray(storeIds) ? new Set(storeIds.map(Number)) : null;
+        const visibleStores = allowed
+            ? (stores || []).filter((row) => allowed.has(Number(row.id)))
+            : (stores || []);
+
+        return { stores: visibleStores, users: users || [] };
     },
 
     async createAdvance(data) {
@@ -482,9 +500,11 @@ const PettyCash = {
         await db.query(`UPDATE petty_cash_advances SET status=?, updated_at=NOW() WHERE id=?`, [status, advanceId]);
     },
 
-    async getAll(filters = {}, userId, admin = false) {
+    async getAll(filters = {}, userId, admin = false, storeIds = null) {
         const where = [];
         const params = [];
+        const fa = storeIdsClause(storeIds);
+        if (fa.sql) { where.push(fa.sql); params.push(...fa.params); }
         if (!admin) {
             where.push(`EXISTS (SELECT 1 FROM user_stores scope_us WHERE scope_us.user_id=? AND scope_us.store_id=a.store_id)`);
             params.push(userId);
@@ -604,7 +624,14 @@ const PettyCash = {
         }
     },
 
-    async getDeleteCandidates(userId, admin=false) {
+    async getDeleteCandidates(userId, admin=false, storeIds = null) {
+        const rows = await PettyCash.getDeleteCandidatesUnscoped(userId, admin);
+        if (!Array.isArray(storeIds)) return rows;
+        const allowed = new Set(storeIds.map(Number));
+        return (rows || []).filter((row) => allowed.has(Number(row.store_id)));
+    },
+
+    async getDeleteCandidatesUnscoped(userId, admin=false) {
         if (admin) {
             return db.query(`SELECT a.id,a.advance_no,a.paid_by,a.received_by,a.store_id FROM petty_cash_advances a ORDER BY a.id`);
         }
@@ -617,12 +644,13 @@ const PettyCash = {
         `, [userId,userId]);
     },
 
-    async getSummary(userId, admin=false, storeId="") {
+    async getSummary(userId, admin=false, storeId="", storeIds = null) {
         const scope = admin ? "" : `AND EXISTS (SELECT 1 FROM user_stores us WHERE us.user_id=? AND us.store_id=a.store_id)`;
         const params = admin ? [] : [userId];
         if (storeId) { /* handled below in each query */ }
-        const storeClause = storeId ? " AND a.store_id=?" : "";
-        const baseParams = storeId ? [...params, storeId] : [...params];
+        const fa = storeIdsClause(storeIds);
+        const storeClause = (storeId ? " AND a.store_id=?" : "") + (fa.sql ? ` AND ${fa.sql}` : "");
+        const baseParams = [...params, ...(storeId ? [storeId] : []), ...fa.params];
         const rows = await db.query(`SELECT COUNT(*) total_advances,COALESCE(SUM(advance_amount),0) total_advanced,
             COALESCE(SUM((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id)),0) total_expense,
             COALESCE(SUM((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id)),0) total_deposit,

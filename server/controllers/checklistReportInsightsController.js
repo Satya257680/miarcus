@@ -1,3 +1,4 @@
+const { storeScopeSql } = require("../utils/filterAccess");
 const db = require("../config/db");
 
 // ======================================================
@@ -16,6 +17,13 @@ exports.getChecklistReportSummary = async (req, res) => {
     try {
         const params = [];
         let where = "WHERE 1=1";
+
+        // Filter Access store scope (set by the route middleware).
+        const scope = storeScopeSql(req.filterScope, "cs.store_id");
+        if (scope.sql) {
+            where += ` AND ${scope.sql}`;
+            params.push(...scope.params);
+        }
 
         if (req.query.store_id) {
             where += " AND cs.store_id = ?";

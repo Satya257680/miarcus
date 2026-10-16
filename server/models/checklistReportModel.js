@@ -190,6 +190,13 @@ ChecklistReport.getAll = (
     }
 
 
+    // Filter Access store scope (utils/filterAccess.storeScopeSql).
+    if (filters.scope_sql) {
+        sql += ` AND ${filters.scope_sql} `;
+        values.push(...(filters.scope_params || []));
+    }
+
+
 
 
 
@@ -1054,6 +1061,11 @@ const buildReportFilterSql = (filters = {}) => {
         sql += " AND cs.store_id = ? ";
         values.push(filters.store_id);
     }
+    // Filter Access store scope (utils/filterAccess.storeScopeSql).
+    if (filters.scope_sql) {
+        sql += ` AND ${filters.scope_sql} `;
+        values.push(...(filters.scope_params || []));
+    }
     if (filters.checklist_type_id) {
         sql += " AND cs.checklist_type_id = ? ";
         values.push(filters.checklist_type_id);
@@ -1314,6 +1326,13 @@ LEFT JOIN departments d
     }
 
 
+    // Filter Access store scope (utils/filterAccess.storeScopeSql).
+    if (filters.scope_sql) {
+        sql += ` AND ${filters.scope_sql} `;
+        values.push(...(filters.scope_params || []));
+    }
+
+
 
 
 
@@ -1463,11 +1482,24 @@ LEFT JOIN departments d
 // EXPORT REPORTS
 // ======================================================
 
+// exportReports(callback)                       -> every report row
+// exportReports({ scope_sql, scope_params }, cb) -> limited to the
+//                                                    user's Filter Access
 ChecklistReport.exportReports = (
+
+    options,
 
     callback
 
 ) => {
+
+    if (typeof options === "function") {
+        callback = options;
+        options = {};
+    }
+
+    const scopeSql = options?.scope_sql ? ` AND ${options.scope_sql}` : "";
+    const scopeParams = options?.scope_sql ? (options.scope_params || []) : [];
 
     const sql = `
 
@@ -1570,6 +1602,7 @@ ChecklistReport.exportReports = (
             WHERE open_ap.submission_answer_id = csa.id
               AND LOWER(COALESCE(open_ap.status, 'Open')) <> 'closed'
         )
+        ${scopeSql}
 
         GROUP BY
 
@@ -1631,6 +1664,8 @@ ChecklistReport.exportReports = (
     db.query(
 
         sql,
+
+        scopeParams,
 
         callback
 

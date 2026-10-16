@@ -1,12 +1,18 @@
 // ======================================================
 // FILTER ACCESS CONTROLLER
 // ======================================================
-// /api/filter-access/options        – read-only lookup for module filters
-//                                      (any user with View on the module)
-// /api/filter-access/catalog         – admin: every value + modules
-// /api/filter-access/users           – admin: users + access summary
-// /api/filter-access/users/:id       – admin: one user's module policies
-// PUT/DELETE .../users/:id/modules/:module, DELETE .../users/:id
+// GET    /api/filter-access/options?module=…   read-only filter options
+//                                              (module View permission only)
+// GET    /api/filter-access/catalog            admin: modules + every value
+// GET    /api/filter-access/users              admin: users + access summary
+// GET    /api/filter-access/users/:id          admin: one user's rules
+// PUT    /api/filter-access/users/:id/modules/:module   save (module or "*")
+// DELETE /api/filter-access/users/:id/modules/:module   reset one module
+// DELETE /api/filter-access/users/:id          reset everything
+// POST   /api/filter-access/bulk/preview       admin: users in a group
+// POST   /api/filter-access/bulk/apply         admin: apply to confirmed users
+//
+// Module "*" = the user's global defaults (all supported modules).
 // ======================================================
 
 const db = require("../config/db");
@@ -14,6 +20,11 @@ const filterAccess = require("../utils/filterAccess");
 
 let Audit = null;
 try { Audit = require("../models/auditModel"); } catch { Audit = null; }
+
+const { GLOBAL, MODULES, FILTER_KEYS, FILTER_LABELS } = filterAccess;
+
+// Largest group a single bulk request may change.
+const BULK_LIMIT = 1000;
 
 const denyUnlessAdmin = (req, res) => {
     if (!filterAccess.isAdministrator(req.user)) {
@@ -30,13 +41,19 @@ const audit = (data) => {
 
 const moduleFrom = (value) => {
     const name = String(value || "").trim();
-    return filterAccess.MODULES[name] ? name : null;
+    if (name === GLOBAL) return GLOBAL;
+    return MODULES[name] ? name : null;
+};
+
+const moduleLabel = (name) => (name === GLOBAL ? "Global defaults" : name);
+
+const validId = (value) => {
+    const id = Number(value);
+    return Number.isInteger(id) && id > 0 ? id : null;
 };
 
 // ------------------------------------------------------
-// READ-ONLY LOOKUP – GET /api/filter-access/options?module=Action Points
-// Mounted after permissionMiddleware(module, "View") in the routes file,
-// so it never grants a module and never needs master-module permissions.
+// READ-ONLY LOOKUP – GET /api/filter-access/options?module=…
 // ------------------------------------------------------
 exports.getOptions = async (req, res) => {
     try {
@@ -47,6 +64,7 @@ exports.getOptions = async (req, res) => {
             success: true,
             module: scope.module,
             restricted: scope.restricted,
+            sources: scope.sources || {},
             filters,
         });
     } catch (error) {
@@ -62,16 +80,22 @@ exports.getCatalog = async (req, res) => {
     if (denyUnlessAdmin(req, res)) return;
     try {
         const values = {};
-        for (const key of filterAccess.FILTER_KEYS) {
+        for (const key of FILTER_KEYS) {
             const rows = await filterAccess.loadMaster(key);
             values[key] = rows.map(({ user_ids, department_ids, ...rest }) => rest);
         }
         res.set("Cache-Control", "no-store");
         return res.json({
             success: true,
-            modules: Object.entries(filterAccess.MODULES).map(([name, def]) => ({
+            global: {
+                name: GLOBAL,
+                label: "Global defaults (all modules)",
+                filters: FILTER_KEYS.map((key) => ({ key, label: FILTER_LABELS[key] })),
+            },
+            modules: Object.entries(MODULES).map(([name, def]) => ({
                 name,
-                filters: def.filters.map((key) => ({ key, label: filterAccess.FILTER_LABELS[key] })),
+                note: def.note || "",
+                filters: def.filters.map((key) => ({ key, label: FILTER_LABELS[key] })),
             })),
             policies: filterAccess.POLICIES,
             values,
@@ -107,24 +131,41 @@ exports.listUsers = async (req, res) => {
             `SELECT user_id, module_name, filter_key, policy, value_ids FROM user_filter_access`
         );
 
-        let globals = [];
+        // Older global overrides (read as global defaults when no "*" row).
+        let legacy = [];
         try {
-            globals = await db.query(`SELECT user_id FROM user_access_overrides`);
+            legacy = await db.query(`
+                SELECT user_id, department_ids, all_departments, store_ids, all_stores,
+                       checklist_type_ids, all_checklist_types
+                FROM user_access_overrides`);
         } catch (error) {
             if (error?.code !== "ER_NO_SUCH_TABLE") throw error;
         }
-        const globalSet = new Set((globals || []).map((r) => Number(r.user_id)));
 
         const byUser = new Map();
-        for (const r of rules || []) {
-            const uid = Number(r.user_id);
+        const put = (uid, moduleName, key, rule) => {
             if (!byUser.has(uid)) byUser.set(uid, {});
             const modules = byUser.get(uid);
-            if (!modules[r.module_name]) modules[r.module_name] = {};
-            modules[r.module_name][r.filter_key] = {
+            if (!modules[moduleName]) modules[moduleName] = {};
+            modules[moduleName][key] = rule;
+        };
+
+        for (const r of rules || []) {
+            put(Number(r.user_id), r.module_name, r.filter_key, {
                 policy: r.policy,
                 ids: r.policy === "selected" ? filterAccess.toIds(r.value_ids) : [],
-            };
+            });
+        }
+
+        for (const row of legacy || []) {
+            const uid = Number(row.user_id);
+            for (const [key, field] of Object.entries(filterAccess.LEGACY_FIELDS)) {
+                if (byUser.get(uid)?.[GLOBAL]?.[key]) continue;
+                const all = row[field.all];
+                const ids = row[field.ids] == null ? null : filterAccess.toIds(row[field.ids]);
+                if (all != null && Number(all) === 1) put(uid, GLOBAL, key, { policy: "all", ids: [] });
+                else if (all != null || ids) put(uid, GLOBAL, key, { policy: "selected", ids: ids || [] });
+            }
         }
 
         res.set("Cache-Control", "no-store");
@@ -146,8 +187,7 @@ exports.listUsers = async (req, res) => {
                     designation: u.designation,
                     store_ids: filterAccess.toIds(u.store_ids),
                     modules,
-                    has_global_override: globalSet.has(Number(u.id)),
-                    has_custom_access: Object.keys(modules).length > 0 || globalSet.has(Number(u.id)),
+                    has_custom_access: Object.keys(modules).length > 0,
                 };
             }),
         });
@@ -162,24 +202,28 @@ exports.listUsers = async (req, res) => {
 // ------------------------------------------------------
 exports.getUser = async (req, res) => {
     if (denyUnlessAdmin(req, res)) return;
-    const userId = Number(req.params.id);
-    if (!Number.isInteger(userId) || userId < 1) {
-        return res.status(400).json({ success: false, message: "Invalid user ID" });
-    }
+    const userId = validId(req.params.id);
+    if (!userId) return res.status(400).json({ success: false, message: "Invalid user ID" });
     try {
         const found = await db.query(`SELECT id, is_admin FROM users WHERE id = ? LIMIT 1`, [userId]);
         if (!found?.length) return res.status(404).json({ success: false, message: "User not found" });
 
         const modules = {};
-        for (const name of Object.keys(filterAccess.MODULES)) {
+        const effective = {};
+        for (const name of Object.keys(MODULES)) {
             modules[name] = await filterAccess.getPolicies(userId, name);
+            effective[name] = (await filterAccess.getEffectivePolicies(userId, name)).sources;
         }
+        const global = await filterAccess.getGlobalPolicies(userId);
+
         res.set("Cache-Control", "no-store");
         return res.json({
             success: true,
             user_id: userId,
             is_admin: filterAccess.isAdministrator(found[0]),
+            global,
             modules,
+            effective_sources: effective,
         });
     } catch (error) {
         console.error("Filter access get user failed:", error);
@@ -188,101 +232,46 @@ exports.getUser = async (req, res) => {
 };
 
 // ------------------------------------------------------
-// ADMIN – SAVE ONE MODULE
+// ADMIN – SAVE ONE MODULE (or "*" = global defaults)
 // body: { filters: { store: { policy: "selected", ids: [1,2] }, ... } }
 // Filters left out of the body keep their current setting.
 // ------------------------------------------------------
 exports.saveModule = async (req, res) => {
     if (denyUnlessAdmin(req, res)) return;
-    const userId = Number(req.params.id);
+    const userId = validId(req.params.id);
     const moduleName = moduleFrom(req.params.module);
-    if (!Number.isInteger(userId) || userId < 1) {
-        return res.status(400).json({ success: false, message: "Invalid user ID" });
-    }
+    if (!userId) return res.status(400).json({ success: false, message: "Invalid user ID" });
     if (!moduleName) {
         return res.status(400).json({ success: false, message: "Filter access is not available for this module." });
     }
 
-    const input = req.body?.filters;
-    if (!input || typeof input !== "object" || Array.isArray(input)) {
-        return res.status(400).json({ success: false, message: "No filter settings were sent." });
-    }
-
-    const allowedKeys = filterAccess.MODULES[moduleName].filters;
-    const changes = [];
-
-    for (const [key, value] of Object.entries(input)) {
-        if (!allowedKeys.includes(key)) {
-            return res.status(400).json({ success: false, message: `Unknown filter "${key}" for ${moduleName}.` });
-        }
-        const policy = String(value?.policy || "").toLowerCase();
-        if (!filterAccess.POLICIES.includes(policy)) {
-            return res.status(400).json({ success: false, message: `Invalid access policy for ${filterAccess.FILTER_LABELS[key]}.` });
-        }
-        changes.push({ key, policy, ids: policy === "selected" ? filterAccess.toIds(value?.ids) : [] });
-    }
-
     try {
-        await filterAccess.ensureTable();
+        const { changes, error } = await filterAccess.validateChanges(moduleName, req.body?.filters);
+        if (error) return res.status(400).json({ success: false, message: error });
 
         const found = await db.query(`SELECT id FROM users WHERE id = ? LIMIT 1`, [userId]);
         if (!found?.length) return res.status(404).json({ success: false, message: "User not found" });
 
-        // Only keep IDs that really exist, so a crafted request cannot
-        // store arbitrary values.
-        for (const change of changes) {
-            if (change.policy !== "selected" || !change.ids.length) continue;
-            const rows = await filterAccess.loadMaster(change.key, change.ids);
-            const valid = new Set(rows.map((r) => Number(r.id)));
-            const unknown = change.ids.filter((id) => !valid.has(id));
-            if (unknown.length) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Some selected ${filterAccess.FILTER_LABELS[change.key]} values no longer exist. Refresh and try again.`,
-                });
-            }
-        }
+        const read = () => (moduleName === GLOBAL
+            ? filterAccess.getGlobalPolicies(userId)
+            : filterAccess.getPolicies(userId, moduleName));
 
-        const before = await filterAccess.getPolicies(userId, moduleName);
-
-        for (const change of changes) {
-            if (change.policy === "default") {
-                await db.query(
-                    `DELETE FROM user_filter_access WHERE user_id = ? AND module_name = ? AND filter_key = ?`,
-                    [userId, moduleName, change.key]
-                );
-            } else {
-                await db.query(
-                    `INSERT INTO user_filter_access (user_id, module_name, filter_key, policy, value_ids, updated_by)
-                     VALUES (?, ?, ?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE policy = VALUES(policy), value_ids = VALUES(value_ids),
-                                             updated_by = VALUES(updated_by)`,
-                    [
-                        userId,
-                        moduleName,
-                        change.key,
-                        change.policy,
-                        change.policy === "selected" ? JSON.stringify(change.ids) : null,
-                        req.user?.id || null,
-                    ]
-                );
-            }
-        }
-
-        const after = await filterAccess.getPolicies(userId, moduleName);
+        const before = await read();
+        await filterAccess.applyRules(userId, moduleName, changes, req.user?.id);
+        const after = await read();
 
         audit({
             module_name: "Filter Access",
             reference_id: userId,
             action: "UPDATE",
-            old_data: { module: moduleName, filters: before },
-            new_data: { module: moduleName, filters: after },
+            old_data: { module: moduleLabel(moduleName), filters: before },
+            new_data: { module: moduleLabel(moduleName), filters: after },
             changed_by: req.user?.id || null,
         });
 
         return res.json({
             success: true,
-            message: `Filter access for ${moduleName} saved. It applies from the user's next request.`,
+            message: `${moduleLabel(moduleName)} saved. It applies from the user's next request.`,
             filters: after,
         });
     } catch (error) {
@@ -292,27 +281,31 @@ exports.saveModule = async (req, res) => {
 };
 
 // ------------------------------------------------------
-// ADMIN – RESET ONE MODULE
+// ADMIN – RESET ONE MODULE (or "*")
 // ------------------------------------------------------
 exports.resetModule = async (req, res) => {
     if (denyUnlessAdmin(req, res)) return;
-    const userId = Number(req.params.id);
+    const userId = validId(req.params.id);
     const moduleName = moduleFrom(req.params.module);
-    if (!Number.isInteger(userId) || userId < 1 || !moduleName) {
+    if (!userId || !moduleName) {
         return res.status(400).json({ success: false, message: "Invalid request" });
     }
     try {
         await filterAccess.ensureTable();
-        await db.query(`DELETE FROM user_filter_access WHERE user_id = ? AND module_name = ?`, [userId, moduleName]);
+        if (moduleName === GLOBAL) {
+            await filterAccess.clearGlobal(userId, req.user?.id);
+        } else {
+            await db.query(`DELETE FROM user_filter_access WHERE user_id = ? AND module_name = ?`, [userId, moduleName]);
+        }
         audit({
             module_name: "Filter Access",
             reference_id: userId,
             action: "RESET_MODULE",
             old_data: null,
-            new_data: { module: moduleName },
+            new_data: { module: moduleLabel(moduleName) },
             changed_by: req.user?.id || null,
         });
-        return res.json({ success: true, message: `${moduleName} is back on default access.` });
+        return res.json({ success: true, message: `${moduleLabel(moduleName)} is back on default access.` });
     } catch (error) {
         console.error("Filter access module reset failed:", error);
         return res.status(500).json({ success: false, message: "Unable to reset filter access." });
@@ -321,23 +314,18 @@ exports.resetModule = async (req, res) => {
 
 // ------------------------------------------------------
 // ADMIN – RESET EVERYTHING FOR A USER
-// Removes every per-module rule and the existing global overrides
-// (user_access_overrides) so only role-based rules remain.
+// Removes every module rule and the global defaults (including the older
+// user_access_overrides values) so only role-based rules remain. The
+// older module_names list is not touched.
 // ------------------------------------------------------
 exports.resetUser = async (req, res) => {
     if (denyUnlessAdmin(req, res)) return;
-    const userId = Number(req.params.id);
-    if (!Number.isInteger(userId) || userId < 1) {
-        return res.status(400).json({ success: false, message: "Invalid user ID" });
-    }
+    const userId = validId(req.params.id);
+    if (!userId) return res.status(400).json({ success: false, message: "Invalid user ID" });
     try {
         await filterAccess.ensureTable();
-        await db.query(`DELETE FROM user_filter_access WHERE user_id = ?`, [userId]);
-        try {
-            await db.query(`DELETE FROM user_access_overrides WHERE user_id = ?`, [userId]);
-        } catch (error) {
-            if (error?.code !== "ER_NO_SUCH_TABLE") throw error;
-        }
+        await db.query(`DELETE FROM user_filter_access WHERE user_id = ? AND module_name <> ?`, [userId, GLOBAL]);
+        await filterAccess.clearGlobal(userId, req.user?.id);
         audit({
             module_name: "Filter Access",
             reference_id: userId,
@@ -350,5 +338,129 @@ exports.resetUser = async (req, res) => {
     } catch (error) {
         console.error("Filter access reset failed:", error);
         return res.status(500).json({ success: false, message: "Unable to reset filter access." });
+    }
+};
+
+// ------------------------------------------------------
+// ADMIN – BULK: PREVIEW
+// body: { department_ids?, designation_ids?, store_ids? }
+// ------------------------------------------------------
+const readGroup = (body = {}) => ({
+    department_ids: filterAccess.toIds(body.department_ids),
+    designation_ids: filterAccess.toIds(body.designation_ids),
+    store_ids: filterAccess.toIds(body.store_ids),
+});
+
+const groupIsEmpty = (group) =>
+    !group.department_ids.length && !group.designation_ids.length && !group.store_ids.length;
+
+exports.bulkPreview = async (req, res) => {
+    if (denyUnlessAdmin(req, res)) return;
+    try {
+        const group = readGroup(req.body);
+        if (groupIsEmpty(group)) {
+            return res.status(400).json({ success: false, message: "Choose at least one department, designation or store." });
+        }
+        const users = await filterAccess.findUsersByGroup(group);
+        return res.json({
+            success: true,
+            total: users.length,
+            limit: BULK_LIMIT,
+            users: users.map((u) => ({
+                id: Number(u.id),
+                name: u.name,
+                employee_id: u.employee_id,
+                department: u.department,
+                designation: u.designation,
+                stores: u.stores || "",
+                status: u.status || "Active",
+                is_admin: filterAccess.isAdministrator(u),
+            })),
+        });
+    } catch (error) {
+        console.error("Filter access bulk preview failed:", error);
+        return res.status(500).json({ success: false, message: "Unable to find matching users." });
+    }
+};
+
+// ------------------------------------------------------
+// ADMIN – BULK: APPLY
+// body: { department_ids?, designation_ids?, store_ids?,  (the group)
+//         user_ids: [...],                                (confirmed in preview)
+//         module: "Action Points" | ... | "*",
+//         filters: { store: { policy, ids }, ... } }      (only these change)
+//
+// The group is looked up again on the server. Only users that are BOTH in
+// the group and in the confirmed list are changed, so a crafted request
+// cannot reach anyone outside the previewed group. Filters not sent are
+// left exactly as they were for every user.
+// ------------------------------------------------------
+exports.bulkApply = async (req, res) => {
+    if (denyUnlessAdmin(req, res)) return;
+    try {
+        const group = readGroup(req.body);
+        if (groupIsEmpty(group)) {
+            return res.status(400).json({ success: false, message: "Choose at least one department, designation or store." });
+        }
+
+        const moduleName = moduleFrom(req.body?.module);
+        if (!moduleName) {
+            return res.status(400).json({ success: false, message: "Filter access is not available for this module." });
+        }
+
+        const { changes, error } = await filterAccess.validateChanges(moduleName, req.body?.filters);
+        if (error) return res.status(400).json({ success: false, message: error });
+
+        const confirmed = filterAccess.toIds(req.body?.user_ids);
+        if (!confirmed.length) {
+            return res.status(400).json({ success: false, message: "Confirm the users to update first." });
+        }
+        if (confirmed.length > BULK_LIMIT) {
+            return res.status(400).json({ success: false, message: `At most ${BULK_LIMIT} users can be updated at once.` });
+        }
+
+        const members = await filterAccess.findUsersByGroup(group);
+        const memberMap = new Map(members.map((u) => [Number(u.id), u]));
+        const targets = confirmed.filter((id) => memberMap.has(id));
+        const skipped = confirmed.filter((id) => !memberMap.has(id));
+
+        const updated = [];
+        const failed = [];
+        for (const userId of targets) {
+            try {
+                await filterAccess.applyRules(userId, moduleName, changes, req.user?.id);
+                updated.push(userId);
+            } catch (err) {
+                console.error(`Filter access bulk apply failed for user ${userId}:`, err);
+                failed.push({ id: userId, name: memberMap.get(userId)?.name || `User #${userId}`, error: "Could not be saved" });
+            }
+        }
+
+        audit({
+            module_name: "Filter Access",
+            reference_id: null,
+            action: "BULK_UPDATE",
+            old_data: { group, module: moduleLabel(moduleName) },
+            new_data: {
+                filters: Object.fromEntries(changes.map((c) => [c.key, { policy: c.policy, ids: c.ids }])),
+                updated,
+                failed: failed.map((f) => f.id),
+                skipped,
+            },
+            changed_by: req.user?.id || null,
+        });
+
+        return res.status(failed.length && !updated.length ? 500 : 200).json({
+            success: failed.length === 0,
+            message: `${updated.length} user(s) updated${failed.length ? `, ${failed.length} failed` : ""}${skipped.length ? `, ${skipped.length} skipped (no longer in the group)` : ""}.`,
+            module: moduleLabel(moduleName),
+            updated: updated.length,
+            updated_ids: updated,
+            failed,
+            skipped,
+        });
+    } catch (error) {
+        console.error("Filter access bulk apply failed:", error);
+        return res.status(500).json({ success: false, message: "Unable to apply filter access." });
     }
 };

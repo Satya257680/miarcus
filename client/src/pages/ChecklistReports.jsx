@@ -383,7 +383,12 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
                 fetchReportsPage({ page: 1 }),
 
-                axios.get(`${API}/stores`),
+                // Stores this user may filter by (Filter Access). Read-only
+                // lookup: needs Checklist Reports "View" only, not Store
+                // Management permission.
+                axios.get(`${API}/filter-access/options`, {
+                    params: { module: "Checklist Reports" }
+                }),
 
                 axios.get(`${API}/checklist-types`),
 
@@ -428,7 +433,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
                 setStores(
 
-                    storeRes.value.data.data || []
+                    storeRes.value.data?.filters?.store?.options || []
 
                 );
 
@@ -937,9 +942,20 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
                 return;
             }
 
+            // Full store details (address, opening date…) come from Store
+            // Management; users without that permission still get the
+            // export using the stores they are allowed to filter by.
+            let storesForExport = stores;
+            try {
+                const storeRes = await axios.get(`${API}/stores`);
+                if (Array.isArray(storeRes.data?.data)) storesForExport = storeRes.data.data;
+            } catch {
+                storesForExport = stores;
+            }
+
             await exportManagementHealthCheck({
                 records,
-                stores,
+                stores: storesForExport,
                 mode: "checklist",
                 filename: "Store_Health_Check_Report.xlsx",
             });

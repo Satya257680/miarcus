@@ -1026,3 +1026,151 @@
 .dark .fa-pop-item:hover { background: rgba(139, 92, 246, .14); }
 [data-theme="dark"] .fa-pop-item.on,
 .dark .fa-pop-item.on { background: rgba(139, 92, 246, .22); }
+
+/* =====================================================
+   HERO ACTIONS + BULK ASSIGN
+===================================================== */
+
+.fa-hero-actions {
+    position: relative;
+    z-index: 1;
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fa-hero-actions .fa-refresh { align-self: stretch; justify-content: center; }
+
+.fa-bulk-btn {
+    background: rgba(255, 255, 255, .16);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, .45);
+    box-shadow: none;
+}
+
+.fa-bulk-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .26); }
+
+.fa-note svg { vertical-align: -1px; margin-right: 3px; }
+
+.fa-bulk { width: min(980px, 100%); }
+
+.fa-bulk-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    background: var(--page-bg, #f7f6fd);
+}
+
+.fa-step h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 4px;
+    font-size: 17px;
+}
+
+.fa-step-no {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 13px;
+    background: linear-gradient(110deg, #5724ed, #8b3cff);
+}
+
+.fa-step .fa-module-card { margin: 12px 0; padding: 12px 14px; }
+
+.fa-group-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 12px 0 14px;
+}
+
+.fa-group-grid label { display: grid; gap: 6px; min-width: 0; }
+.fa-group-grid label > span { font-size: 12px; font-weight: 700; color: var(--text-secondary, #5f6683); }
+.fa-group-grid label > span small { font-weight: 500; }
+
+.fa-find { padding: 11px 18px; }
+
+.fa-rules-list .fa-rule + .fa-rule { margin-top: 10px; }
+
+.fa-review-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 6px 0 10px;
+    font-size: 13px;
+}
+
+.fa-review-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color, #ebe7f5);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+}
+
+.fa-review-row {
+    display: grid;
+    grid-template-columns: 22px minmax(150px, 1.4fr) minmax(90px, 1fr) minmax(110px, 1fr) minmax(120px, 1.4fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.fa-review-row + .fa-review-row { border-top: 1px solid var(--border-color, #f0edf6); }
+.fa-review-row.on { background: rgba(139, 92, 246, .05); }
+.fa-review-row input { accent-color: #6d28d9; width: 15px; height: 15px; }
+.fa-review-name { display: grid; gap: 2px; min-width: 0; }
+.fa-review-name small { color: var(--text-secondary, #8a90a8); font-size: 11px; }
+.fa-review-stores { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary, #5f6683); }
+
+.fa-result {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.fa-result.ok { color: #046c4e; background: #e6f8f0; border: 1px solid #b7ebd3; }
+.fa-result.warn { color: #9a5b00; background: #fff7e6; border: 1px solid #ffe0a3; }
+.fa-result ul { margin: 4px 0 0; padding-left: 18px; }
+
+.fa-foot-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-secondary, #5f6683);
+}
+
+.fa-confirm { background: linear-gradient(110deg, #d97706, #f59e0b); box-shadow: 0 8px 18px rgba(217, 119, 6, .25); }
+
+.fa-toast.warn { background: linear-gradient(110deg, #b45309, #d97706); }
+
+@media (max-width: 860px) {
+    .fa-group-grid { grid-template-columns: 1fr; }
+    .fa-review-row { grid-template-columns: 22px 1fr auto; }
+    .fa-review-row > span:nth-child(3),
+    .fa-review-row > span:nth-child(4),
+    .fa-review-row > span:nth-child(5) { display: none; }
+}
+
+@media (max-width: 760px) {
+    .fa-hero-actions { align-self: stretch; }
+    .fa-bulk .fa-modal-foot > div { flex-wrap: wrap; }
+}
