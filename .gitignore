@@ -225,3 +225,7 @@ desktop.ini
 # OS/editor temporary files
 ~*
 .#*
+# Generated analysis and temporary test files
+graphify-out/
+graphify-structure.txt
+opencode-test.txt
