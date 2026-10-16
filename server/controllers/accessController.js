@@ -46,6 +46,42 @@ const getMyAccess = async (req, res) => {
             ? "Full"
             : await lnd.getGrantedLevel(userId);
 
+        // Optional per-user scope overrides (NULL means existing/default access rules).
+        // Missing table is tolerated during rollout; apply server-side in module queries
+        // through the shared scope helper when each module is migrated.
+        let accessScope = {
+            department_ids: null, all_departments: null,
+            store_ids: null, all_stores: null,
+            checklist_type_ids: null, all_checklist_types: null,
+            module_names: null,
+        };
+        try {
+            const scopeRows = await db.query(
+                "SELECT department_ids, all_departments, store_ids, all_stores, checklist_type_ids, all_checklist_types, module_names FROM user_access_overrides WHERE user_id = ? LIMIT 1",
+                [userId]
+            );
+            const scope = scopeRows?.[0];
+            if (scope) {
+                const parse = (value) => {
+                    if (value == null || value === "") return null;
+                    if (typeof value === "object") return value;
+                    try { return JSON.parse(value); } catch { return null; }
+                };
+                accessScope = {
+                    department_ids: parse(scope.department_ids),
+                    all_departments: scope.all_departments == null ? null : Boolean(scope.all_departments),
+                    store_ids: parse(scope.store_ids),
+                    all_stores: scope.all_stores == null ? null : Boolean(scope.all_stores),
+                    checklist_type_ids: parse(scope.checklist_type_ids),
+                    all_checklist_types: scope.all_checklist_types == null ? null : Boolean(scope.all_checklist_types),
+                    module_names: parse(scope.module_names),
+                };
+            }
+        } catch (scopeError) {
+            // The SQL migration may not have been run yet. Keep existing access behavior.
+            if (scopeError?.code !== "ER_NO_SUCH_TABLE") console.error("Access scope lookup failed:", scopeError.message);
+        }
+
         let pageAccess = {};
 
         if (!administrator) {
@@ -64,6 +100,7 @@ const getMyAccess = async (req, res) => {
             lndOwner,
             permissions,
             pageAccess,
+            accessScope,
         });
     } catch (error) {
         console.error("Load my access failed:", error);

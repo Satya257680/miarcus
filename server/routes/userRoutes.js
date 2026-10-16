@@ -73,6 +73,8 @@ const {
     "../controllers/accessController"
 );
 
+const userAccessConfig = require("../controllers/userAccessConfigController");
+
 
 // ======================================================
 // USERS RBAC PERMISSION HELPER
@@ -161,6 +163,13 @@ router.get(
     getMyAccess
 
 );
+
+// Optional, per-user department/store/checklist/module access overrides.
+// Admin-only endpoints are intentionally declared before /:id routes.
+router.get("/access-config", authMiddleware, userAccessConfig.list);
+router.get("/:id/access-config", authMiddleware, userAccessConfig.getOne);
+router.put("/:id/access-config", authMiddleware, userAccessConfig.save);
+router.delete("/:id/access-config", authMiddleware, userAccessConfig.clear);
 
 
 // ======================================================

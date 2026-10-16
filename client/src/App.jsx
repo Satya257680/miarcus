@@ -52,6 +52,7 @@ const EmployeeLocationReports = lazy(() => import("./pages/EmployeeLocationRepor
 // ADMIN / SETTINGS MODULES
 // ======================================================
 const Users = lazy(() => import("./pages/Users"));
+const UserAccessManagement = lazy(() => import("./pages/UserAccessManagement"));
 const PasswordManagement = lazy(() => import("./pages/PasswordManagement"));
 const StoreStatus = lazy(() => import("./pages/StoreStatus"));
 const Departments = lazy(() => import("./pages/Departments"));
@@ -528,6 +529,16 @@ function App() {
                         element={
                             <ModulePermissionRoute adminOnly>
                                 <TravelPlanEmailSettings />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    {/* ADMIN USER ACCESS OVERRIDES */}
+                    <Route
+                        path="/settings/user-access"
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <UserAccessManagement />
                             </ModulePermissionRoute>
                         }
                     />

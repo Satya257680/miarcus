@@ -1482,6 +1482,17 @@ function Sidebar({ collapsed }) {
                                         </NavLink>
                                     )}
 
+                                    {/* USER ACCESS MANAGEMENT (ADMIN ONLY) */}
+                                    {isAdministrator && (
+                                        <NavLink
+                                            to="/settings/user-access"
+                                            className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}
+                                        >
+                                            <FaUserShield />
+                                            <span>User Access</span>
+                                        </NavLink>
+                                    )}
+
                                     {/* DEPARTMENTS */}
 
                                     {canDepartments && (
