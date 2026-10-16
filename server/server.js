@@ -550,6 +550,7 @@ async function initializeDatabase() {
             if (typeof ActionPoint.ensureRuleForeignKeyRemoved === "function") {
                 await ActionPoint.ensureRuleForeignKeyRemoved();
             }
+            await require("./utils/filterAccess").ensureTable();
             console.log("✅ Action Point comment/history schema verified");
         } catch (error) {
             console.error("❌ Action Point workflow schema initialization failed:", error.message);
@@ -1957,6 +1958,16 @@ loadRoute(
     "./routes/storePresenceRoutes",
     "/api/store-presence",
     "Store Presence Routes"
+);
+
+// ======================================================
+// FILTER ACCESS (per-user, per-module filter scope)
+// ======================================================
+
+loadRoute(
+    "./routes/filterAccessRoutes",
+    "/api/filter-access",
+    "Filter Access Routes"
 );
 
 // ======================================================

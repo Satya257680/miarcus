@@ -52,7 +52,7 @@ const EmployeeLocationReports = lazy(() => import("./pages/EmployeeLocationRepor
 // ADMIN / SETTINGS MODULES
 // ======================================================
 const Users = lazy(() => import("./pages/Users"));
-const UserAccessManagement = lazy(() => import("./pages/UserAccessManagement"));
+const FilterAccess = lazy(() => import("./pages/FilterAccess"));
 const PasswordManagement = lazy(() => import("./pages/PasswordManagement"));
 const StoreStatus = lazy(() => import("./pages/StoreStatus"));
 const Departments = lazy(() => import("./pages/Departments"));
@@ -533,14 +533,20 @@ function App() {
                         }
                     />
 
-                    {/* ADMIN USER ACCESS OVERRIDES */}
+                    {/* ADMIN FILTER ACCESS (formerly "User Access") */}
                     <Route
-                        path="/settings/user-access"
+                        path="/settings/filter-access"
                         element={
                             <ModulePermissionRoute adminOnly>
-                                <UserAccessManagement />
+                                <FilterAccess />
                             </ModulePermissionRoute>
                         }
+                    />
+
+                    {/* Old bookmark / link -> new page */}
+                    <Route
+                        path="/settings/user-access"
+                        element={<Navigate to="/settings/filter-access" replace />}
                     />
 
                     {/* USERS */}

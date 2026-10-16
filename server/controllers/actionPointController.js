@@ -6,6 +6,15 @@ const actionPointService = require("../services/actionPointService");
 const { readUpload, BulkReport, translateDbError, saveExtraData } = require("../utils/bulkUploadEngine");
 const { defineBulkModule, COMMON_GUIDELINES } = require("../config/bulkUploadModules");
 const { readDeleteScope } = require("../utils/deleteScope");
+const filterAccess = require("../utils/filterAccess");
+
+// Filter Access scope of the signed-in user (set by
+// middleware/filterAccessMiddleware.attachFilterScope) as SQL for the
+// Action Point model's list / count / export queries.
+const scopeFilters = (req) => {
+    const { sql, params } = filterAccess.buildScopeSql(req.filterScope);
+    return { scope_sql: sql || null, scope_params: params };
+};
 const checklistReportService = require("../services/checklistReportService");
 const { getDepartmentIdByName } = require("../models/userModel");
 
@@ -492,6 +501,8 @@ exports.getAllActionPoints = async (req, res) => {
             start_date: req.query.start_date || null,
             end_date: req.query.end_date || null,
             search: req.query.search || "",
+            designation_id: req.query.designation_id || null,
+            ...scopeFilters(req),
             offset,
             limit
         };
@@ -536,6 +547,8 @@ exports.exportActionPointsCSV = async (req, res) => {
             start_date: req.query.start_date || null,
             end_date: req.query.end_date || null,
             search: req.query.search || "",
+            designation_id: req.query.designation_id || null,
+            ...scopeFilters(req),
             offset: 0,
             limit: 100000
         };
@@ -659,7 +672,15 @@ exports.getActionPointsByNSO = async (req, res) => {
 
     try {
 
-        const data = await actionPointService.getByNSO(req.params.newStoreOpeningId);
+        let data = await actionPointService.getByNSO(req.params.newStoreOpeningId);
+
+        // Keep only the Action Points inside the user's Filter Access.
+        if (req.filterScope?.restricted && Array.isArray(data) && data.length) {
+            const allowed = new Set(
+                await filterAccess.actionPointIdsInScope(req.filterScope, data.map((row) => row.id))
+            );
+            data = data.filter((row) => allowed.has(Number(row.id)));
+        }
 
         return res.status(200).json({
             success: true,
@@ -1368,9 +1389,18 @@ exports.deleteAllActionPoints = async (req, res) => {
         // Filters applied on the page -> the client sends the matching ids
         // and only those Action Points are deleted. No filters -> all.
         const scope = readDeleteScope(req);
+        let ids = scope.filtered ? (scope.ids || []) : null;
+
+        // A user with narrowed Filter Access can only ever delete
+        // Action Points inside that access — "Delete All" becomes
+        // "delete all I can see", and posted IDs outside it are dropped.
+        if (req.filterScope?.restricted) {
+            ids = await filterAccess.actionPointIdsInScope(req.filterScope, ids);
+        }
+
         const result = await actionPointService.deleteAll(
             req.user.id,
-            scope.filtered ? (scope.ids || []) : null
+            ids
         );
         return res.status(200).json(result);
 

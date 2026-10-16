@@ -18,6 +18,18 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+// Filter Access (per-user store / department / designation / checklist
+// type / NSO project scope). Always runs AFTER permissionMiddleware, so
+// it can only narrow access, never grant it.
+const {
+    attachFilterScope,
+    validateFilterValues,
+    requireActionPointInScope,
+    requireUnrestrictedScope
+} = require("../middleware/filterAccessMiddleware");
+
+const apScope = attachFilterScope("Action Points");
+
 // A large bulk-upload file needs more processing time than Express's/
 // Node's default request timeout allows — shared middleware, kept in
 // sync with the Checklist Reports bulk-upload route (see
@@ -76,6 +88,8 @@ router.get(
         "Action Points",
         "View"
     ),
+    apScope,
+    validateFilterValues,
     getAllActionPoints
 );
 
@@ -98,6 +112,8 @@ router.get(
         "Action Points",
         "View"
     ),
+    apScope,
+    validateFilterValues,
     exportActionPointsCSV
 );
 
@@ -116,6 +132,12 @@ router.get(
         "Action Points",
         "View"
     ),
+    apScope,
+    (req, res, next) => {
+        req.query.new_store_opening_id = req.params.newStoreOpeningId;
+        next();
+    },
+    validateFilterValues,
     getActionPointsByNSO
 );
 
@@ -182,6 +204,8 @@ router.get(
         "Action Points",
         "View"
     ),
+    apScope,
+    validateFilterValues,
     getActionPointSummary
 );
 
@@ -192,6 +216,8 @@ router.post(
         "Action Points",
         "Full"
     ),
+    apScope,
+    requireUnrestrictedScope,
     reclassifyActionPoints
 );
 
@@ -211,6 +237,8 @@ router.get(
         "Action Points",
         "View"
     ),
+    apScope,
+    requireActionPointInScope(),
     getActionPointById
 );
 
@@ -238,6 +266,8 @@ router.post(
     ),
     upload.single("attachment"),
     syncGalleryAttachment("Action Points", "attachment"),
+    apScope,
+    validateFilterValues,
     createActionPoint
 );
 
@@ -252,6 +282,8 @@ router.get(
     "/:id/history",
     authMiddleware,
     permissionMiddleware("Action Points", "View"),
+    apScope,
+    requireActionPointInScope(),
     getActionPointHistory
 );
 
@@ -264,6 +296,8 @@ router.put(
     "/:id/status",
     authMiddleware,
     permissionMiddleware("Action Points", "Edit"),
+    apScope,
+    requireActionPointInScope(),
     changeActionPointStatus
 );
 
@@ -293,6 +327,8 @@ router.put(
         "Action Points",
         "Edit"
     ),
+    apScope,
+    requireActionPointInScope(),
     takeAction
 );
 
@@ -320,6 +356,9 @@ router.put(
     ),
     upload.single("attachment"),
     syncGalleryAttachment("Action Points", "attachment"),
+    apScope,
+    requireActionPointInScope(),
+    validateFilterValues,
     updateActionPoint
 );
 
@@ -339,6 +378,8 @@ router.delete(
         "Action Points",
         "Full"
     ),
+    apScope,
+    requireActionPointInScope(),
     deleteActionPoint
 );
 
@@ -361,6 +402,7 @@ router.delete(
         "Action Points",
         "Full"
     ),
+    apScope,
     deleteAllActionPoints
 );
 

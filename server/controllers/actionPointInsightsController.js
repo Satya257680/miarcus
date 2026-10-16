@@ -1,6 +1,7 @@
 const db = require("../config/db");
 const ActionPoint = require("../models/actionPointModel");
 const { reclassify } = require("../services/actionPointReclassifyService");
+const { buildScopeSql } = require("../utils/filterAccess");
 
 // ======================================================
 // GET /api/action-points/summary
@@ -14,6 +15,13 @@ exports.getActionPointSummary = async (req, res) => {
         if (req.query.store_id) {
             where += " AND ap.store_id = ?";
             params.push(Number(req.query.store_id));
+        }
+
+        // KPI cards count only what the user's Filter Access allows.
+        const scope = buildScopeSql(req.filterScope);
+        if (scope.sql) {
+            where += ` AND ${scope.sql}`;
+            params.push(...scope.params);
         }
 
         // Same SLA rule as the list's view=overdue filter and the live

@@ -242,11 +242,25 @@ function ActionPoints() {
     // SEARCH
     // ======================================================
 
+    // `searchInput` is what the box shows and updates on every key
+    // press; `search` is the value actually sent to the API. A local
+    // 300 ms debounce (below) copies one into the other only after the
+    // user stops typing, so typing never fires a request per letter.
+    const [searchInput, setSearchInput] = useState("");
+
     const [search, setSearch] = useState("");
 
     // ======================================================
     // FILTERS
     // ======================================================
+
+    const [designation, setDesignation] = useState("");
+
+    const [designations, setDesignations] = useState([]);
+
+    // Filter Access policy per filter from /api/filter-access/options
+    // ({ store: { policy, hidden }, ... }). A hidden filter is not shown.
+    const [filterAccess, setFilterAccess] = useState({});
 
     const [store, setStore] = useState("");
 
@@ -273,6 +287,30 @@ function ActionPoints() {
     // ======================================================
 
     const [currentPage, setCurrentPage] = useState(1);
+
+    // ======================================================
+    // SEARCH DEBOUNCE (Action Points only, 300 ms)
+    // ======================================================
+    // Each key press restarts the timer (the cleanup cancels the
+    // pending one), and unmounting cancels it too. Only when the user
+    // has paused for 300 ms does `search` change, which triggers the
+    // existing fetch effect exactly once. Whitespace-only edits never
+    // trigger a request.
+
+    useEffect(() => {
+        const next = searchInput.trim();
+        if (next === search) return undefined;
+
+        // Both updates are batched into one render (React 18+), so the
+        // list is fetched once, already on page 1.
+        const timer = window.setTimeout(() => {
+            setSearch(next);
+            setCurrentPage(1);
+        }, 300);
+
+        return () => window.clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchInput]);
 
     const [pageSize] = useState(10);
 
@@ -425,6 +463,7 @@ const fetchActionPointsOnce = () =>
                 department_id: department,
                 checklist_type_id: checklistType,
                 new_store_opening_id: nsoProject,
+                designation_id: designation,
                 priority,
                 status,
                 view,
@@ -536,81 +575,41 @@ const fetchActionPoints = async ({ silent = false } = {}) => {
 
 const fetchFilters = async () => {
 
+    // One read-only lookup returns only the values this user may filter
+    // by in Action Points (Filter Access). It needs Action Points "View"
+    // only, so the dropdowns work without Departments / Store Management
+    // / Checklist Types / NSO permissions (before, one 403 from any of
+    // those master endpoints emptied every dropdown).
     try {
 
-        const [
+        const res = await axios.get("/api/filter-access/options", {
+            params: { module: "Action Points" }
+        });
 
-            storeRes,
+        const filters = res.data?.filters || {};
+        const optionsOf = (key) =>
+            Array.isArray(filters[key]?.options) ? filters[key].options : [];
 
-            deptRes,
+        setStores(optionsOf("store"));
+        setDepartments(optionsOf("department"));
+        setDesignations(optionsOf("designation"));
+        setChecklists(optionsOf("checklist_type"));
+        setNsoProjects(optionsOf("nso_project"));
 
-            checklistRes,
-            nsoRes
-
-        ] = await Promise.all([
-
-            axios.get(
-
-                "/api/stores"
-
-            ),
-
-            axios.get(
-
-                "/api/departments"
-
-            ),
-
-            axios.get(
-
-                "/api/checklist-types"
-
-            ),
-
-            axios.get(
-
-                "/api/new-store-openings",
-                { params: { page: 1, limit: 1000 } }
-
+        setFilterAccess(
+            Object.fromEntries(
+                Object.entries(filters).map(([key, value]) => [
+                    key,
+                    { policy: value?.policy || "default", hidden: Boolean(value?.hidden) }
+                ])
             )
-
-        ]);
-
-
-
-        setStores(
-
-            storeRes.data.data || []
-
-        );
-
-
-
-        setDepartments(
-
-            deptRes.data.data || []
-
-        );
-
-
-
-        setChecklists(
-
-            checklistRes.data.data || []
-
-        );
-
-        setNsoProjects(
-
-            nsoRes.data.data || []
-
         );
 
     }
 
     catch (err) {
 
-        console.error(err);
+        console.error("Action Point filter options failed:", err);
 
     }
 
@@ -669,6 +668,8 @@ useEffect(() => {
     checklistType,
 
     nsoProject,
+
+    designation,
 
     priority,
 
@@ -839,6 +840,7 @@ const deleteFilters = activeFilters({
     department_id: department,
     checklist_type_id: checklistType,
     new_store_opening_id: nsoProject,
+    designation_id: designation,
     priority,
     status,
     view,
@@ -1048,6 +1050,8 @@ const handleManagementExport = async () => {
                     store_id: store,
                     department_id: department,
                     checklist_type_id: checklistType,
+                    new_store_opening_id: nsoProject,
+                    designation_id: designation,
                     priority,
                     status,
                     view,
@@ -1066,10 +1070,18 @@ const handleManagementExport = async () => {
             return;
         }
 
-        const storesResponse = await axios.get("/api/stores");
-        const storesForExport = Array.isArray(storesResponse.data?.data)
-            ? storesResponse.data.data
-            : [];
+        // Full store details (address, opening date…) come from Store
+        // Management. Users without that permission still get the
+        // export, using the store names they are allowed to filter by.
+        let storesForExport = stores;
+        try {
+            const storesResponse = await axios.get("/api/stores");
+            if (Array.isArray(storesResponse.data?.data)) {
+                storesForExport = storesResponse.data.data;
+            }
+        } catch {
+            storesForExport = stores;
+        }
 
         await exportManagementHealthCheck({
             records: rows,
@@ -1131,7 +1143,11 @@ const handleSuccess = () => {
 
 const handleClearFilters = () => {
 
+    setSearchInput("");
+
     setSearch("");
+
+    setDesignation("");
 
     setStore("");
 
@@ -1195,6 +1211,8 @@ useEffect(() => {
     priority,
 
     checklistType,
+
+    designation,
 
     startDate,
 
@@ -1300,7 +1318,7 @@ useEffect(() => {
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [canView, currentPage, pageSize, search, store, department, checklistType, nsoProject, priority, status, startDate, endDate]);
+}, [canView, currentPage, pageSize, search, store, department, checklistType, nsoProject, designation, priority, status, startDate, endDate]);
 
 
 
@@ -1887,16 +1905,9 @@ return (
 
         <PageToolbar
 
-            search={search}
+            search={searchInput}
 
-            setSearch={(value) => {
-                setSearch(value);
-                // New search -> start from page 1, otherwise a narrower
-                // result can look empty while you're still on page 5.
-                setCurrentPage(1);
-            }}
-
-            debounceMs={700}
+            setSearch={setSearchInput}
 
             placeholder="Search Action Points..."
 
@@ -1975,6 +1986,7 @@ return (
                 STORE
             ========================================== */}
 
+            {!filterAccess.store?.hidden && (
             <div className="filter-group">
 
                 <label>Store</label>
@@ -2004,20 +2016,28 @@ return (
                 </select>
 
             </div>
+            )}
 
             {/* ==========================================
                 DEPARTMENT
             ========================================== */}
 
+            {!filterAccess.department?.hidden && (
             <div className="filter-group">
 
                 <label>Department</label>
 
                 <select
                     value={department}
-                    onChange={(e) =>
-                        setDepartment(e.target.value)
-                    }
+                    onChange={(e) => {
+                        const next = e.target.value;
+                        setDepartment(next);
+                        // Keep Designation consistent with the department.
+                        const current = designations.find((d) => String(d.id) === String(designation));
+                        if (next && current && current.department_id != null && String(current.department_id) !== String(next)) {
+                            setDesignation("");
+                        }
+                    }}
                 >
 
                     <option value="">
@@ -2038,11 +2058,55 @@ return (
                 </select>
 
             </div>
+            )}
+
+            {/* ==========================================
+                DESIGNATION (of the employee who submitted)
+            ========================================== */}
+
+            {!filterAccess.designation?.hidden && (
+            <div className="filter-group">
+
+                <label>Designation</label>
+
+                <select
+                    value={designation}
+                    onChange={(e) =>
+                        setDesignation(e.target.value)
+                    }
+                >
+
+                    <option value="">
+                        All Designations
+                    </option>
+
+                    {designations
+                        .filter((item) =>
+                            !department ||
+                            item.department_id == null ||
+                            String(item.department_id) === String(department)
+                        )
+                        .map((item) => (
+
+                        <option
+                            key={item.id}
+                            value={item.id}
+                        >
+                            {item.designation_name}
+                        </option>
+
+                    ))}
+
+                </select>
+
+            </div>
+            )}
 
             {/* ==========================================
                 NEW STORE OPENING
             ========================================== */}
 
+            {!filterAccess.nso_project?.hidden && (
             <div className="filter-group">
 
                 <label>NSO Project</label>
@@ -2072,6 +2136,7 @@ return (
                 </select>
 
             </div>
+            )}
 
             {/* ==========================================
                 STATUS
@@ -2186,6 +2251,7 @@ return (
     CHECKLIST
 ========================================== */}
 
+{!filterAccess.checklist_type?.hidden && (
 <div className="filter-group">
 
     <label>Checklist Type</label>
@@ -2215,6 +2281,7 @@ return (
     </select>
 
 </div>
+)}
 
 {/* ==========================================
     START DATE

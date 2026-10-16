@@ -342,6 +342,41 @@ const apViewSql = (view) => AP_VIEW_SQL[String(view || "").trim().toLowerCase()]
 ActionPoint.AP_SLA_MINUTES_SQL = AP_SLA_MINUTES_SQL;
 ActionPoint.apViewSql = apViewSql;
 
+// ======================================================
+// DESIGNATION FILTER + FILTER ACCESS SCOPE
+// ======================================================
+// designation_id filters by the designation of the employee who
+// submitted the checklist. filters.scope_sql / scope_params come from
+// utils/filterAccess.buildScopeSql() and narrow every list, count and
+// export to the signed-in user's Filter Access.
+const accessFilterSql = (filters, values) => {
+    let sql = "";
+
+    if (filters.designation_id) {
+        sql += `
+            AND EXISTS (
+                SELECT 1
+                FROM checklist_submissions dsg_cs
+                INNER JOIN users dsg_u ON dsg_u.id = dsg_cs.submitted_by
+                WHERE dsg_cs.id = ap.submission_id
+                  AND dsg_u.designation_id = ?
+            )
+        `;
+        values.push(filters.designation_id);
+    }
+
+    if (filters.scope_sql) {
+        sql += `
+            AND ${filters.scope_sql}
+        `;
+        values.push(...(filters.scope_params || []));
+    }
+
+    return sql;
+};
+
+ActionPoint.accessFilterSql = accessFilterSql;
+
 ActionPoint.getAll = (
     filters,
     callback
@@ -672,6 +707,9 @@ ActionPoint.getAll = (
     }
 
 
+    sql += accessFilterSql(filters, values);
+
+
     // ==================================================
     // ORDER
     //
@@ -910,6 +948,9 @@ ActionPoint.count = (
             keyword
         );
     }
+
+
+    sql += accessFilterSql(filters, values);
 
 
     db.query(
@@ -2233,6 +2274,9 @@ ActionPoint.exportData = (
             keyword
         );
     }
+
+
+    sql += accessFilterSql(filters, values);
 
 
     sql += `

@@ -1482,14 +1482,14 @@ function Sidebar({ collapsed }) {
                                         </NavLink>
                                     )}
 
-                                    {/* USER ACCESS MANAGEMENT (ADMIN ONLY) */}
+                                    {/* FILTER ACCESS (ADMIN ONLY) */}
                                     {isAdministrator && (
                                         <NavLink
-                                            to="/settings/user-access"
+                                            to="/settings/filter-access"
                                             className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}
                                         >
                                             <FaUserShield />
-                                            <span>User Access</span>
+                                            <span>Filter Access</span>
                                         </NavLink>
                                     )}
 
