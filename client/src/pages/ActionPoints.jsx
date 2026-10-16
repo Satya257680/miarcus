@@ -222,6 +222,17 @@ function ActionPoints() {
 
     const [loading, setLoading] = useState(true);
 
+    // The full-page "Loading Action Points" screen is only for the very
+    // first load. Later fetches (search, filters, paging) show the
+    // table's own loading state instead. Before, every keystroke in the
+    // search box swapped the whole page (search box included) for the
+    // loader, so typing stopped after each letter.
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+    // Only the newest request may update the table, so a slow, older
+    // search ("m") can never overwrite a newer one ("mrpl").
+    const fetchSeqRef = useRef(0);
+
     const [managementExporting, setManagementExporting] = useState(false);
 
     // Re-render the SLA countdown every minute without changing the stored Action Point status.
@@ -425,6 +436,10 @@ const fetchActionPointsOnce = () =>
 
 const fetchActionPoints = async ({ silent = false } = {}) => {
 
+    const seq = ++fetchSeqRef.current;
+
+    const isLatest = () => seq === fetchSeqRef.current;
+
     try {
 
         if (!silent) setLoading(true);
@@ -434,10 +449,15 @@ const fetchActionPoints = async ({ silent = false } = {}) => {
         try {
             res = await fetchActionPointsOnce();
         } catch (firstError) {
+            if (!isLatest()) return;
             console.warn("Action Points load failed, retrying once:", firstError.message);
             await new Promise((resolve) => setTimeout(resolve, 900));
+            if (!isLatest()) return;
             res = await fetchActionPointsOnce();
         }
+
+        // A newer search/filter request has started — drop this result.
+        if (!isLatest()) return;
 
         const result = res.data || {};
 
@@ -476,6 +496,8 @@ const fetchActionPoints = async ({ silent = false } = {}) => {
 
     catch (err) {
 
+        if (!isLatest()) return;
+
         console.error(err);
 
         alert(
@@ -492,7 +514,15 @@ const fetchActionPoints = async ({ silent = false } = {}) => {
 
     finally {
 
-        if (!silent) setLoading(false);
+        if (isLatest()) {
+
+            // Always clear: an earlier non-silent fetch may have been
+            // superseded by this one and never got to clear it.
+            setLoading(false);
+
+            setHasLoadedOnce(true);
+
+        }
 
     }
 
@@ -1305,7 +1335,7 @@ if (!canView) {
 // LOADING
 // ======================================================
 
-if (loading) {
+if (loading && !hasLoadedOnce) {
 
     return (
 
@@ -1859,7 +1889,14 @@ return (
 
             search={search}
 
-            setSearch={setSearch}
+            setSearch={(value) => {
+                setSearch(value);
+                // New search -> start from page 1, otherwise a narrower
+                // result can look empty while you're still on page 5.
+                setCurrentPage(1);
+            }}
+
+            debounceMs={700}
 
             placeholder="Search Action Points..."
 

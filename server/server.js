@@ -42,6 +42,18 @@ app.disable("x-powered-by");
 app.use(requestId);
 app.use(securityHeaders);
 
+// Some browser calls (e.g. the "offline" ping sent by an older cached
+// frontend build when a tab closes / on logout) arrive as
+// /api/api/... because the base URL already ended in /api. Collapse the
+// duplicated prefix so they reach the real route instead of logging
+// "API Route Not Found: POST /api/api/store-presence/offline".
+app.use((req, res, next) => {
+    if (req.url.startsWith("/api/api/")) {
+        req.url = req.url.slice(4);
+    }
+    next();
+});
+
 // Render sits behind a trusted reverse proxy. This keeps req.ip accurate
 // for authentication rate limiting without trusting arbitrary client headers.
 app.set("trust proxy", 1);

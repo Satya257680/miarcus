@@ -15,30 +15,61 @@ async function addColumnIfMissing(table, column, definition) {
 async function seedHeadOffice() {
     // Store Management remains the source of truth for stores.
     // This only creates the requested MI Arcus Head Office once.
-    const rows = await db.query(
-        `SELECT id FROM stores WHERE store_code = ? OR store_name = ? LIMIT 1`,
-        ["MIARCUS-HO", "MI Arcus Head Office"]
-    );
+    //
+    // FIX: on the live database stores.store_code is a NUMBER column, so
+    // inserting the text code "MIARCUS-HO" failed on every restart
+    // ("Incorrect integer value: 'MIARCUS-HO' for column 'store_code'").
+    // Worse, `WHERE store_code = 'MIARCUS-HO'` on a number column is
+    // read by MySQL as `store_code = 0`, which could match a wrong store.
+    // Look the column type up first and only use the text code when the
+    // column can hold text.
+    const columns = await db.query(`SHOW COLUMNS FROM stores LIKE 'store_code'`);
+    const column = Array.isArray(columns) ? columns[0] : null;
+    const type = String(column?.Type || "").toLowerCase();
+    const numericCode = /int|decimal|numeric|float|double/.test(type);
 
-    if (Array.isArray(rows) && rows.length === 0) {
-        await db.query(`
-            INSERT INTO stores
-            (store_name, store_code, country, city, state, address, manager_name, contact_number, email, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            "MI Arcus Head Office",
-            "MIARCUS-HO",
-            "India",
-            "Head Office",
-            "Odisha",
-            "MI Arcus Head Office",
-            "MI Arcus",
-            "",
-            "",
-            "Active"
-        ]);
-        console.log("✅ MI Arcus Head Office store created.");
+    const rows = numericCode
+        ? await db.query(
+            `SELECT id FROM stores WHERE store_name = ? LIMIT 1`,
+            ["MI Arcus Head Office"]
+        )
+        : await db.query(
+            `SELECT id FROM stores WHERE store_code = ? OR store_name = ? LIMIT 1`,
+            ["MIARCUS-HO", "MI Arcus Head Office"]
+        );
+
+    if (Array.isArray(rows) && rows.length > 0) return;
+
+    let storeCode = "MIARCUS-HO";
+
+    if (numericCode) {
+        if (column && String(column.Null).toUpperCase() === "YES") {
+            storeCode = null;
+        } else {
+            const maxRows = await db.query(
+                `SELECT COALESCE(MAX(store_code), 0) + 1 AS next_code FROM stores`
+            );
+            storeCode = Number(maxRows?.[0]?.next_code) || 1;
+        }
     }
+
+    await db.query(`
+        INSERT INTO stores
+        (store_name, store_code, country, city, state, address, manager_name, contact_number, email, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+        "MI Arcus Head Office",
+        storeCode,
+        "India",
+        "Head Office",
+        "Odisha",
+        "MI Arcus Head Office",
+        "MI Arcus",
+        "",
+        "",
+        "Active"
+    ]);
+    console.log("✅ MI Arcus Head Office store created.");
 }
 
 const Expense = {

@@ -160,7 +160,7 @@ function Topbar({ toggleSidebar }) {
         // Mark this user offline on the admin Store Status board.
         try {
           await axios.post(
-            `${API}/api/store-presence/offline`,
+            "/api/store-presence/offline",
             {},
             { headers: { Authorization: `Bearer ${token}` } }
           );

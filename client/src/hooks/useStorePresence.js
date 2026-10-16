@@ -17,8 +17,13 @@ import axios from "../axiosConfig";
 
 const HEARTBEAT_MS = 30 * 1000;
 
+// Strip a trailing "/api" too: if the base URL is ever configured as
+// https://host/api, appending "/api/store-presence/offline" would
+// otherwise produce /api/api/... (server logged "API Route Not Found").
 const apiBase = () =>
-    String(axios.defaults.baseURL || "").replace(/\/+$/, "");
+    String(axios.defaults.baseURL || "")
+        .replace(/\/+$/, "")
+        .replace(/\/api$/i, "");
 
 export default function useStorePresence() {
     const location = useLocation();

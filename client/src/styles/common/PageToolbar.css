@@ -265,3 +265,27 @@
 }
 
 }
+
+/* Clear (×) button inside the debounced search box */
+.toolbar-search input {
+  padding-right: 34px;
+}
+
+.toolbar-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.toolbar-search-clear:hover {
+  color: #475569;
+}

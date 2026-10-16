@@ -517,13 +517,20 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // so it's clear something happened.
     // ======================================================
 
+    // Only the newest refresh may update the table, so a slow search for
+    // a partial word can't come back late and overwrite the real result.
+    const refreshSeqRef = useRef(0);
+
     const silentRefresh = async (overrides = {}, { quiet = false } = {}) => {
+
+        const seq = ++refreshSeqRef.current;
 
         if (!quiet) setTableLoading(true);
 
         try {
 
             const data = await fetchReportsPage(overrides);
+            if (seq !== refreshSeqRef.current) return;
             applyReportsResponse(data);
 
         } catch (err) {
@@ -536,7 +543,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         } finally {
 
-            setTableLoading(false);
+            if (seq === refreshSeqRef.current) setTableLoading(false);
 
         }
 
@@ -565,16 +572,16 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // DEBOUNCE SEARCH
     // ======================================================
 
-    useEffect(() => {
-
-        const timer = setTimeout(() => {
-            setDebouncedSearch(search);
-            setCurrentPage(1);
-        }, 400);
-
-        return () => clearTimeout(timer);
-
-    }, [search]);
+    // The search box (PageToolbar debounceMs below) now waits until the
+    // user presses Enter or stops typing, and only then calls
+    // applySearch(). The old 400 ms timer here fired in the middle of
+    // normal typing, sending a search over ~590k rows for every partial
+    // word.
+    const applySearch = (value) => {
+        setSearch(value);
+        setDebouncedSearch(value);
+        setCurrentPage(1);
+    };
 
     // ======================================================
     // RE-FETCH WHENEVER PAGE, PAGE SIZE OR FILTERS CHANGE
@@ -1643,7 +1650,9 @@ const uploadChecklistReport = async (file, assembled) => {
 
     search={search}
 
-    setSearch={setSearch}
+    setSearch={applySearch}
+
+    debounceMs={700}
 
     placeholder="Search Checklist Reports..."
 
