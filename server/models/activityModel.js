@@ -701,11 +701,13 @@ Activity.create = (
 
             created_by,
 
-            assigned_to
+            assigned_to,
+
+            reference_id
 
         )
 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
     `;
 
@@ -730,7 +732,11 @@ Activity.create = (
 
             data.created_by,
 
-            data.assigned_to || null
+            data.assigned_to || null,
+
+            // activities.reference_id is NOT NULL without a default on
+            // the live database; 0 = "not linked to a record".
+            Number(data.reference_id) || 0
 
         ],
 

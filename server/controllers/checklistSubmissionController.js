@@ -630,6 +630,9 @@ exports.createSubmission = async (req, res) => {
                     module_name:
                         "Checklist Submission",
 
+                    reference_id:
+                        submissionId,
+
                     status:
                         "Open",
 

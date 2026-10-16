@@ -661,20 +661,13 @@ ActionPoint.getAll = (
             `%${filters.search}%`;
 
 
+        // FIX: the search block above has exactly 12 "?" placeholders.
+        // Previously 13 keywords were pushed here, so the extra keyword
+        // shifted into the LIMIT clause ("LIMIT '%s%', 0") and MySQL
+        // returned a syntax error -> HTTP 500 "Unable to fetch Action
+        // Points" whenever the search bar was used.
         values.push(
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword
+            ...Array(12).fill(keyword)
         );
     }
 
@@ -1579,6 +1572,38 @@ ActionPoint.ensureHistoryTable = async () => {
             INDEX idx_action_point_history_user (changed_by, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+};
+
+// ======================================================
+// DROP STALE rule_id FOREIGN KEY
+//
+// Older installations have a foreign key (fk_action_rule) on
+// action_points.rule_id pointing ONLY at nso_rules. The inspection
+// engine now raises Action Points from issue_control_rules as well
+// (see getById(), which LEFT JOINs both tables), so any rule id that
+// exists only in issue_control_rules failed the FK check. The INSERT
+// threw, the whole inspection aborted, no Action Point was created and
+// the answer showed up in Checklist Reports as "No Action Needed".
+// rule_id is a polymorphic reference, so the FK is removed (the index
+// on rule_id stays for performance).
+// ======================================================
+
+ActionPoint.ensureRuleForeignKeyRemoved = async () => {
+    const rows = await db.query(`
+        SELECT CONSTRAINT_NAME
+        FROM information_schema.KEY_COLUMN_USAGE
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'action_points'
+          AND COLUMN_NAME = 'rule_id'
+          AND REFERENCED_TABLE_NAME IS NOT NULL
+    `);
+
+    for (const row of rows || []) {
+        const name = String(row.CONSTRAINT_NAME || "").replace(/`/g, "");
+        if (!name) continue;
+        await db.query(`ALTER TABLE action_points DROP FOREIGN KEY \`${name}\``);
+        console.log(`✅ action_points: dropped stale foreign key ${name} on rule_id`);
+    }
 };
 
 ActionPoint.ensureCommentColumn = async () => {

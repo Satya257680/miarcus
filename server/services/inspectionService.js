@@ -1251,6 +1251,44 @@ const createActionPoints = (
                                         result
                                     ) => {
 
+                                        // FIX: rules come from issue_control_rules,
+                                        // but older databases still carry an FK
+                                        // (fk_action_rule) that only accepts
+                                        // nso_rules ids. That made the INSERT fail,
+                                        // aborted the whole inspection and sent
+                                        // problem answers to Checklist Reports as
+                                        // "No Action Needed". Retry without the
+                                        // rule link so the Action Point is still
+                                        // raised.
+                                        if (
+                                            err &&
+                                            err.code === "ER_NO_REFERENCED_ROW_2" &&
+                                            /rule_id/i.test(String(err.sqlMessage || err.message || "")) &&
+                                            actionPointData.rule_id
+                                        ) {
+
+                                            console.warn(
+                                                `[Inspection] rule_id ${actionPointData.rule_id} rejected by a stale foreign key; creating Action Point without rule link.`
+                                            );
+
+                                            return ActionPoint.create(
+
+                                                { ...actionPointData, rule_id: null },
+
+                                                (retryErr, retryResult) => {
+
+                                                    if (retryErr) {
+                                                        return rejectCreate(retryErr);
+                                                    }
+
+                                                    resolveCreate(retryResult);
+
+                                                }
+
+                                            );
+
+                                        }
+
                                         if (err) {
 
                                             return rejectCreate(

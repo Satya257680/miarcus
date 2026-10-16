@@ -542,7 +542,7 @@ const getSubmissionActionPoints = async (submissionId) => {
         return await db.query(`
             SELECT ap.id, ap.priority, ap.status, ap.sla_value, ap.sla_minutes,
                    q.question, csa.answer, csa.remarks,
-                   d.name AS department_name,
+                   d.department_name AS department_name,
                    au.name AS assigned_to_name, au.email AS assigned_to_email
             FROM action_points ap
             LEFT JOIN questions q ON q.id = ap.question_id

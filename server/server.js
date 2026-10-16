@@ -535,6 +535,9 @@ async function initializeDatabase() {
             if (typeof ActionPoint.ensureHistoryActorColumn === "function") {
                 await ActionPoint.ensureHistoryActorColumn();
             }
+            if (typeof ActionPoint.ensureRuleForeignKeyRemoved === "function") {
+                await ActionPoint.ensureRuleForeignKeyRemoved();
+            }
             console.log("✅ Action Point comment/history schema verified");
         } catch (error) {
             console.error("❌ Action Point workflow schema initialization failed:", error.message);
