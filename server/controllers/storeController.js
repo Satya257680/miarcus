@@ -1,5 +1,6 @@
 const { readDeleteScope } = require("../utils/deleteScope");
 const Store = require("../models/storeModel");
+const { filterReferenceRows } = require("../utils/userAccessScope");
 
 const { logActivity } = require("../utils/activityLogger");
 const { runBulkUpload, call: bulkCall, sql: bulkSql, isEmail, parseYesNo } = require("../utils/bulkUploadEngine");
@@ -39,15 +40,12 @@ exports.getStores = (req, res) => {
 
             }
 
-            return res.status(200).json({
-
-                success: true,
-
-                count: results.length,
-
-                data: results
-
-            });
+            filterReferenceRows(req, "departments", results)
+                .then((scopedResults) => res.status(200).json({ success: true, count: scopedResults.length, data: scopedResults }))
+                .catch((scopeError) => {
+                    console.error("Scope department filter options failed:", scopeError);
+                    return res.status(500).json({ success: false, message: "Failed to apply department access scope" });
+                });
 
         }
 

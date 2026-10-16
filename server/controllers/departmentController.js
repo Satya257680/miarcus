@@ -1,5 +1,6 @@
 const { readDeleteScope, sendFilteredResult } = require("../utils/deleteScope");
 const Department = require("../models/departmentModel");
+const { filterReferenceRows } = require("../utils/userAccessScope");
 
 const { logActivity } = require("../utils/activityLogger");
 
@@ -54,15 +55,12 @@ exports.getDepartments = (req, res) => {
 
             }
 
-            return res.status(200).json({
-
-                success: true,
-
-                count: results.length,
-
-                data: results
-
-            });
+            filterReferenceRows(req, "departments", results)
+                .then((scopedResults) => res.status(200).json({ success: true, count: scopedResults.length, data: scopedResults }))
+                .catch((scopeError) => {
+                    console.error("Scope department filter options failed:", scopeError);
+                    return res.status(500).json({ success: false, message: "Failed to apply department access scope" });
+                });
 
         }
 

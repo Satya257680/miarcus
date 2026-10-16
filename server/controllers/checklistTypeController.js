@@ -1,5 +1,6 @@
 const { readDeleteScope, eachId, cbToPromise, sendFilteredResult } = require("../utils/deleteScope");
 const ChecklistType = require("../models/checklistTypeModel");
+const { filterReferenceRows } = require("../utils/userAccessScope");
 const ExcelJS = require("exceljs");
 const db = require("../config/db");
 
@@ -36,15 +37,12 @@ exports.getChecklistTypes = (req, res) => {
 
             }
 
-            return res.status(200).json({
-
-                success: true,
-
-                count: rows.length,
-
-                data: rows
-
-            });
+            filterReferenceRows(req, "checklistTypes", rows)
+                .then((scopedRows) => res.status(200).json({ success: true, count: scopedRows.length, data: scopedRows }))
+                .catch((scopeError) => {
+                    console.error("Scope checklist type filter options failed:", scopeError);
+                    return res.status(500).json({ success: false, message: "Failed to apply checklist type access scope" });
+                });
 
         }
 
