@@ -87,7 +87,8 @@ const {
 
     getChecklistBulkUploadStatus,
 
-    exportReports
+    exportReports,
+    getReportsExportChunk
 
 } = require("../controllers/checklistReportController");
 
@@ -143,6 +144,32 @@ router.get(
     crScope,
     validateFilterValues,
     exportReports
+
+);
+
+// ======================================================
+// EXPORT IN CHUNKS (used by the Export / Management XLSX buttons)
+// GET /api/checklist-reports/export-chunk
+// Keep before /:id.
+// ======================================================
+
+router.get(
+
+    "/export-chunk",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Reports",
+
+        "View"
+
+    ),
+
+    crScope,
+    validateFilterValues,
+    getReportsExportChunk
 
 );
 

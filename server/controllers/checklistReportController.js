@@ -188,6 +188,72 @@ exports.getAllReports = (req, res) => {
 };
 
 // ======================================================
+// EXPORT IN CHUNKS
+// GET /api/checklist-reports/export-chunk?cursor=<id>&size=<n>&<filters>
+//
+// FIX (HTTP 502 on Export / Management XLSX): the export used to ask
+// /api/checklist-reports?all=true for every matching row at once
+// (~600,000 rows). That one query + JSON response exceeded the proxy
+// timeout (502) and kept the server busy, so the page's own list
+// request failed right after it as well.
+//
+// Each call now returns the rows of the next batch of submissions
+// (newest id first) plus `next_cursor`. The browser keeps calling with
+// that cursor until `done` is true. Same filters and the same row
+// shape as the list endpoint; no COUNT query per call.
+// ======================================================
+const EXPORT_CHUNK_DEFAULT = 1000;
+const EXPORT_CHUNK_MAX = 2000;
+
+exports.getReportsExportChunk = (req, res) => {
+    const filters = getFilters(req);
+    const cursor = Number(req.query.cursor) || 0;
+    const size = Math.min(
+        Math.max(Number(req.query.size) || EXPORT_CHUNK_DEFAULT, 1),
+        EXPORT_CHUNK_MAX
+    );
+
+    ChecklistReport.getExportSubmissionIds(filters, cursor, size, (idErr, idRows) => {
+        if (idErr) {
+            console.error("CHECKLIST REPORT EXPORT CHUNK IDS ERROR:", idErr);
+            return res.status(500).json({
+                success: false,
+                message: "Unable to export Checklist Reports.",
+                error: idErr.message,
+            });
+        }
+
+        const ids = (idRows || []).map((row) => Number(row.id)).filter(Boolean);
+
+        if (!ids.length) {
+            return res.status(200).json({ success: true, data: [], next_cursor: null, done: true, submissions: 0 });
+        }
+
+        const done = ids.length < size;
+        const nextCursor = done ? null : ids[ids.length - 1];
+
+        ChecklistReport.getAll({ ...filters, all: true, submission_ids: ids }, (err, rows) => {
+            if (err) {
+                console.error("CHECKLIST REPORT EXPORT CHUNK ERROR:", err);
+                return res.status(500).json({
+                    success: false,
+                    message: "Unable to export Checklist Reports.",
+                    error: err.message,
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                data: Array.isArray(rows) ? rows : [],
+                next_cursor: nextCursor,
+                done,
+                submissions: ids.length,
+            });
+        });
+    });
+};
+
+// ======================================================
 // GET ONE REPORT/SUBMISSION
 // GET /api/checklist-reports/:id
 // ======================================================
@@ -729,4 +795,5 @@ module.exports = {
     bulkUploadChecklistReports: exports.bulkUploadChecklistReports,
     getChecklistBulkUploadStatus: exports.getChecklistBulkUploadStatus,
     exportReports: exports.exportReports,
+    getReportsExportChunk: exports.getReportsExportChunk,
 };

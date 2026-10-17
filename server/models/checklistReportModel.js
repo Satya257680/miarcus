@@ -196,6 +196,20 @@ ChecklistReport.getAll = (
         values.push(...(filters.scope_params || []));
     }
 
+    // EXPORT CHUNK: only these submissions (see getExportSubmissionIds
+    // below and controllers/checklistReportController.getReportsExportChunk).
+    if (Array.isArray(filters.submission_ids)) {
+        const ids = filters.submission_ids
+            .map(Number)
+            .filter((id) => Number.isInteger(id) && id > 0);
+        if (!ids.length) {
+            sql += ` AND 1 = 0 `;
+        } else {
+            sql += ` AND cs.id IN (${ids.map(() => "?").join(", ")}) `;
+            values.push(...ids);
+        }
+    }
+
 
 
 
@@ -505,7 +519,9 @@ sql += `
 
         cs.id DESC,
 
-        q.sequence_no ASC
+        q.sequence_no ASC,
+
+        csa.id ASC
 
 `;
 
@@ -543,6 +559,84 @@ db.query(
 
 
 };
+// ======================================================
+// EXPORT: NEXT BATCH OF SUBMISSION IDS (keyset on the primary key)
+// ------------------------------------------------------
+// The CSV / XLSX / PDF export used to request every row in one call
+// (`all=true`). With ~600,000 answer rows that single grouped/sorted
+// query + JSON response ran past the proxy timeout -> HTTP 502, and
+// kept the server busy so the next list request failed too.
+//
+// The export now walks the submissions in batches: this returns the
+// next `size` submission ids below `beforeId` (cs.id DESC, a primary
+// key range scan — cheap and stable), applying the submission-level
+// filters (store, Filter Access scope, checklist type, NSO project,
+// dates). getAll() then loads the answer rows of just those
+// submissions, still applying every filter (employee, search …).
+// ======================================================
+
+ChecklistReport.getExportSubmissionIds = (
+
+    filters,
+
+    beforeId,
+
+    size,
+
+    callback
+
+) => {
+
+    let sql = `
+        SELECT cs.id
+        FROM checklist_submissions cs
+        WHERE 1 = 1
+    `;
+
+    const values = [];
+
+    if (Number(beforeId) > 0) {
+        sql += ` AND cs.id < ? `;
+        values.push(Number(beforeId));
+    }
+
+    if (filters.store_id) {
+        sql += ` AND cs.store_id = ? `;
+        values.push(filters.store_id);
+    }
+
+    if (filters.scope_sql) {
+        sql += ` AND ${filters.scope_sql} `;
+        values.push(...(filters.scope_params || []));
+    }
+
+    if (filters.checklist_type_id) {
+        sql += ` AND cs.checklist_type_id = ? `;
+        values.push(filters.checklist_type_id);
+    }
+
+    if (filters.new_store_opening_id) {
+        sql += ` AND cs.new_store_opening_id = ? `;
+        values.push(filters.new_store_opening_id);
+    }
+
+    if (filters.from_date) {
+        sql += ` AND DATE(cs.submission_date) >= ? `;
+        values.push(filters.from_date);
+    }
+
+    if (filters.to_date) {
+        sql += ` AND DATE(cs.submission_date) <= ? `;
+        values.push(filters.to_date);
+    }
+
+    sql += ` ORDER BY cs.id DESC LIMIT ? `;
+    values.push(Math.max(1, Number(size) || 1000));
+
+    db.query(sql, values, callback);
+
+};
+
 // ======================================================
 // GET REPORT BY ID
 // WITH ANSWERS

@@ -88,6 +88,10 @@ function ChecklistReports() {
 
     const [managementExporting, setManagementExporting] = useState(false);
 
+    // Progress of a chunked export ("Exporting… 120,000 rows"); null when idle.
+    const [exportProgress, setExportProgress] = useState(null);
+    const exportRunningRef = useRef(false);
+
     // ======================================================
     // SERVER-SIDE PAGINATION TOTALS
     //
@@ -839,10 +843,75 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // the way the old `?limit=10000` fetch used to cap the whole page.
     // ======================================================
 
+    // FIX (HTTP 502): one `all=true` request for ~600,000 rows timed out
+    // at the proxy and left the server busy (the next list request
+    // failed too). The export now walks the data in small batches via
+    // GET /checklist-reports/export-chunk (same filters, same row shape),
+    // following `next_cursor` until `done`. Each batch is retried once.
+    // Rows are then put in the same order as the table (newest
+    // submission first, questions in sequence).
+    const EXPORT_CHUNK_SIZE = 1000;
+
     const fetchAllFilteredReports = async () => {
-        const data = await fetchReportsPage({ page: 1, limit: 0, search: debouncedSearch, all: true });
-        return (data?.data || []).map((report) => ({ ...report, status: "Completed" }));
+        const baseParams = buildReportParams({ search: debouncedSearch });
+        delete baseParams.page;
+        delete baseParams.limit;
+        delete baseParams.all;
+
+        const rows = [];
+        let cursor = null;
+        let guard = 0;
+
+        setExportProgress({ rows: 0 });
+
+        try {
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                const params = { ...baseParams, size: EXPORT_CHUNK_SIZE };
+                if (cursor) params.cursor = cursor;
+
+                const load = () => axios.get(`${API}/checklist-reports/export-chunk`, { params });
+                let res;
+                try {
+                    res = await load();
+                } catch (firstError) {
+                    console.warn("Checklist Reports export batch failed, retrying once:", firstError?.message);
+                    await new Promise((resolve) => setTimeout(resolve, 1200));
+                    res = await load();
+                }
+
+                const data = res.data || {};
+                if (Array.isArray(data.data)) for (const row of data.data) rows.push(row);
+                setExportProgress({ rows: rows.length });
+
+                if (data.done || !data.next_cursor) break;
+                if (Number(data.next_cursor) === Number(cursor)) break; // safety: no progress
+                cursor = data.next_cursor;
+
+                guard += 1;
+                if (guard > 100000) break;
+            }
+        } finally {
+            setExportProgress(null);
+        }
+
+        const time = (v) => {
+            const t = Date.parse(String(v || "").replace(" ", "T"));
+            return Number.isFinite(t) ? t : 0;
+        };
+        rows.sort((a, b) =>
+            (time(b.created_at) - time(a.created_at)) ||
+            (Number(b.id) - Number(a.id)) ||
+            ((Number(a.sequence_no) || 0) - (Number(b.sequence_no) || 0)) ||
+            ((Number(a.answer_id) || 0) - (Number(b.answer_id) || 0))
+        );
+
+        return rows.map((report) => ({ ...report, status: "Completed" }));
     };
+
+    // A PDF of hundreds of thousands of rows cannot be rendered by the
+    // browser; CSV / XLSX handle large exports.
+    const PDF_MAX_ROWS = 20000;
 
     // ======================================================
     // EXPORT CSV
@@ -850,13 +919,23 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     const handleExport = async (format = "csv") => {
 
+        if (exportRunningRef.current) return;
+        exportRunningRef.current = true;
+
+        try {
+
         let exportRows;
 
         try {
             exportRows = await fetchAllFilteredReports();
         } catch (err) {
             console.error("CHECKLIST REPORT EXPORT FETCH ERROR:", err);
-            alert("Unable to load Checklist Reports for export.");
+            alert(err.response?.data?.message || "Unable to load Checklist Reports for export. Please try again.");
+            return;
+        }
+
+        if (format === "pdf" && exportRows.length > PDF_MAX_ROWS) {
+            alert(`PDF export is limited to ${PDF_MAX_ROWS.toLocaleString()} rows (${exportRows.length.toLocaleString()} match the current filters). Please use CSV or Excel, or narrow the filters.`);
             return;
         }
 
@@ -920,6 +999,10 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
             title: "Checklist Reports",
         });
 
+        } finally {
+            exportRunningRef.current = false;
+        }
+
     };
 
     // ======================================================
@@ -931,6 +1014,8 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     const handleManagementExport = async () => {
 
         if (!canView) return;
+        if (exportRunningRef.current) return;
+        exportRunningRef.current = true;
 
         try {
             setManagementExporting(true);
@@ -964,6 +1049,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
             alert(error?.message || "Unable to create Management XLSX export.");
         } finally {
             setManagementExporting(false);
+            exportRunningRef.current = false;
         }
     };
 
@@ -1702,6 +1788,11 @@ const uploadChecklistReport = async (file, assembled) => {
             <FaFileExcel />
             {managementExporting ? "Creating XLSX..." : "Management XLSX"}
         </button>
+    )}
+    {exportProgress && (
+        <span className="toolbar-btn" role="status" aria-live="polite" style={{ cursor: "default" }}>
+            Exporting… {Number(exportProgress.rows || 0).toLocaleString()}{totalRecords ? ` / ${Number(totalRecords).toLocaleString()}` : ""} rows
+        </span>
     )}
 
 </PageToolbar>
