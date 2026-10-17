@@ -20,6 +20,9 @@ router.get("/overview", need("View"), c.overview);
 router.get("/programs/:id", need("View"), c.programDetail);
 router.get("/modules/:id", need("View"), c.moduleDetail);
 router.post("/modules/:id/complete", need("View"), c.markComplete);
+// Alias with a clearer name: "I have completed this lesson" (unlocks the
+// assessment, or completes the module when it has no assessment).
+router.post("/modules/:id/content-done", need("View"), c.markComplete);
 router.post("/modules/:id/exam/start", need("View"), c.examStart);
 router.post("/exam/:attemptId/submit", need("View"), c.examSubmit);
 router.get("/programs/:id/certificate", need("View"), c.certificate);
@@ -33,12 +36,17 @@ router.delete("/admin/programs/:id", need("Full"), c.deleteProgram);
 router.put("/admin/programs/:id/assignments", need("Edit"), c.saveAssignments);
 router.post("/admin/programs/:id/thumb", need("Edit"), uploadImage, c.setProgramThumb);
 router.get("/admin/programs/:id", need("Edit"), c.adminProgram);
+router.post("/admin/programs/:id/publish", need("Edit"), c.publishProgram);
+router.post("/admin/programs/:id/unpublish", need("Edit"), c.unpublishProgram);
+router.post("/admin/programs/:id/notify", need("Edit"), c.notifyUpdate);
+router.get("/admin/programs/:id/learners", need("Edit"), c.programLearners);
 
 router.post("/admin/modules", need("Add"), c.createModule);
 router.put("/admin/modules/reorder", need("Edit"), c.reorderModules);
 router.put("/admin/modules/:id", need("Edit"), c.updateModule);
 router.delete("/admin/modules/:id", need("Full"), c.deleteModule);
 router.post("/admin/modules/:id/media", need("Edit"), uploadMedia, c.uploadModuleMedia);
+router.post("/admin/modules/:id/thumb", need("Edit"), uploadImage, c.setModuleThumb);
 router.get("/admin/modules/:id/questions", need("Edit"), c.getQuestions);
 router.put("/admin/modules/:id/questions", need("Edit"), c.saveQuestions);
 router.delete("/admin/media/:id", need("Edit"), c.deleteMedia);

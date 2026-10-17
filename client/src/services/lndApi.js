@@ -19,6 +19,9 @@ export const lndApi = {
   program: (id) => get(`/programs/${id}`),
   module: (id) => get(`/modules/${id}`),
   complete: (id) => post(`/modules/${id}/complete`, {}),
+  // "I have completed this lesson" → unlocks the assessment (or completes
+  // the module when it has no assessment).
+  contentDone: (id) => post(`/modules/${id}/content-done`, {}),
   examStart: (id) => post(`/modules/${id}/exam/start`, {}),
   examSubmit: (attemptId, answers) => post(`/exam/${attemptId}/submit`, { answers }),
   certificate: (programId) => get(`/programs/${programId}/certificate`),
@@ -30,6 +33,15 @@ export const lndApi = {
   createProgram: (body) => post("/admin/programs", body),
   updateProgram: (id, body) => put(`/admin/programs/${id}`, body),
   deleteProgram: (id) => del(`/admin/programs/${id}`),
+  publishProgram: (id) => post(`/admin/programs/${id}/publish`, {}),
+  unpublishProgram: (id) => post(`/admin/programs/${id}/unpublish`, {}),
+  notifyLearners: (id, message) => post(`/admin/programs/${id}/notify`, { message }),
+  programLearners: (id) => get(`/admin/programs/${id}/learners`),
+  uploadModuleThumb: (id, file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return post(`/admin/modules/${id}/thumb`, form, { timeout: 0 });
+  },
   saveAssignments: (id, assignments) => put(`/admin/programs/${id}/assignments`, { assignments }),
   uploadProgramThumb: (id, file) => {
     const form = new FormData();
