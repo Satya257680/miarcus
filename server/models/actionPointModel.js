@@ -2175,6 +2175,16 @@ ActionPoint.exportData = (
 
         WHERE 1 = 1
 
+        -- FIX (filtered export): same visibility rule as the Action
+        -- Points list/count (getAll / count above). Closed checklist
+        -- Action Points have moved to Checklist Reports, so they are not
+        -- part of the Action Points export either. Manual Action Points
+        -- (no checklist link) stay included.
+        AND NOT (
+            LOWER(COALESCE(ap.status, 'Open')) = 'closed'
+            AND (ap.submission_answer_id IS NOT NULL OR ap.submission_id IS NOT NULL)
+        )
+
     `;
 
 
@@ -2182,63 +2192,84 @@ ActionPoint.exportData = (
 
 
     // ==================================================
-    // STORE
+    // FIX (filtered export): every filter below mirrors
+    // ActionPoint.getAll exactly, so the exported rows are the same rows
+    // the page shows for the active filters (Store, Department, NSO
+    // Project, Status, Show/view, Priority, Checklist Type, From Date,
+    // To Date, Search, plus Designation + Filter Access scope via
+    // accessFilterSql). Previously Department, NSO Project, Checklist
+    // Type and both dates were ignored here.
     // ==================================================
 
+    // STORE
     if (filters.store_id) {
-
         sql += `
             AND ap.store_id = ?
         `;
-
-        values.push(
-            filters.store_id
-        );
+        values.push(filters.store_id);
     }
 
+    // DEPARTMENT
+    if (filters.department_id) {
+        sql += `
+            AND ap.department_id = ?
+        `;
+        values.push(filters.department_id);
+    }
 
-    // ==================================================
+    // NEW STORE OPENING (NSO PROJECT)
+    if (filters.new_store_opening_id) {
+        sql += `
+            AND ap.new_store_opening_id = ?
+        `;
+        values.push(filters.new_store_opening_id);
+    }
+
     // STATUS
-    // ==================================================
-
     if (filters.status) {
-
         sql += `
             AND ap.status = ?
         `;
-
-        values.push(
-            filters.status
-        );
+        values.push(filters.status);
     }
-
 
     // QUICK VIEW (overdue / today / high)
     sql += apViewSql(filters.view);
 
-
-    // ==================================================
     // PRIORITY
-    // ==================================================
-
     if (filters.priority) {
-
         sql += `
             AND ap.priority = ?
         `;
-
-        values.push(
-            filters.priority
-        );
+        values.push(filters.priority);
     }
 
+    // CHECKLIST TYPE
+    if (filters.checklist_type_id) {
+        sql += `
+            AND q.checklist_type_id = ?
+        `;
+        values.push(filters.checklist_type_id);
+    }
 
-    // ==================================================
-    // SEARCH
-    // ==================================================
+    // FROM DATE
+    if (filters.start_date) {
+        sql += `
+            AND COALESCE(cs.submission_date, DATE(ap.created_at)) >= ?
+        `;
+        values.push(filters.start_date);
+    }
 
+    // TO DATE
+    if (filters.end_date) {
+        sql += `
+            AND COALESCE(cs.submission_date, DATE(ap.created_at)) <= ?
+        `;
+        values.push(filters.end_date);
+    }
+
+    // SEARCH (same 12 columns as the list, incl. submitted-by name)
     if (filters.search) {
-
         sql += `
             AND (
                 s.store_name LIKE ?
@@ -2246,8 +2277,9 @@ ActionPoint.exportData = (
                 OR s.state LIKE ?
                 OR ct.checklist_name LIKE ?
                 OR q.question LIKE ?
-                OR d.department_name LIKE ?
                 OR csa.answer LIKE ?
+                OR u.name LIKE ?
+                OR d.department_name LIKE ?
                 OR ap.status LIKE ?
                 OR ap.priority LIKE ?
                 OR ap.remarks LIKE ?
@@ -2255,23 +2287,10 @@ ActionPoint.exportData = (
             )
         `;
 
-
-        const keyword =
-            `%${filters.search}%`;
-
+        const keyword = `%${filters.search}%`;
 
         values.push(
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword,
-            keyword
+            ...Array(12).fill(keyword)
         );
     }
 

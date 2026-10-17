@@ -217,6 +217,8 @@ const getActiveRules = () => {
 
                 SELECT
                     icr.id,
+                    icr.question_id,
+                    icr.checklist_type,
                     icr.question_text AS trigger_column,
                     icr.expected_answer,
                     icr.issue_answer,
@@ -397,6 +399,42 @@ const normalizeText = (
 
 const legacyRulesToRepair = new Map();
 
+// ------------------------------------------------------
+// FIND THE ISSUE CONTROL CENTER RULE FOR AN ANSWER
+// ------------------------------------------------------
+// Same matching the Issue Control Center screen uses: the rule's
+// question_id first (exact link to the checklist question), then the
+// question text (whitespace/case-insensitive) for rules saved without a
+// question_id or after a question was re-created with the same text.
+// Returns null when the question has no ACTIVE rule.
+// ------------------------------------------------------
+const findRuleForAnswer = (rules, answer) => {
+
+    if (!Array.isArray(rules) || !rules.length || !answer) {
+        return null;
+    }
+
+    const questionId = Number(answer.question_id);
+
+    if (Number.isInteger(questionId) && questionId > 0) {
+        const byId = rules.find(
+            (item) => item.question_id != null && Number(item.question_id) === questionId
+        );
+        if (byId) return byId;
+    }
+
+    const questionText = normalizeText(answer.question);
+
+    if (!questionText) {
+        return null;
+    }
+
+    return rules.find(
+        (item) => normalizeText(item.trigger_column) === questionText
+    ) || null;
+
+};
+
 const evaluateRules = (
 
     answers,
@@ -409,15 +447,9 @@ const evaluateRules = (
 
     answers.forEach((answer) => {
 
-        const questionText = normalizeText(answer.question);
-
-        if (!questionText) {
-            return;
-        }
-
-        const rule = rules.find(
-            (item) => normalizeText(item.trigger_column) === questionText
-        );
+        // Only answers with an ACTIVE Issue Control Center rule are
+        // evaluated. No rule -> no guess, no Action Point.
+        const rule = findRuleForAnswer(rules, answer);
 
         if (!rule) {
             return;
@@ -1070,6 +1102,28 @@ const notifyActionPoint = async ({
 // CREATE ACTION POINTS
 // ======================================================
 
+const findExistingActionPoint = async (submissionId, answerId, questionId) => {
+
+    const rows = await db.query(
+        `
+        SELECT id, status
+        FROM action_points
+        WHERE submission_answer_id = ?
+           OR (
+                submission_answer_id IS NULL
+                AND submission_id = ?
+                AND question_id = ?
+           )
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [answerId, submissionId, questionId || 0]
+    );
+
+    return rows?.[0] || null;
+
+};
+
 const createActionPoints = (
 
     submission,
@@ -1137,6 +1191,32 @@ const createActionPoints = (
                             `Missing checklist submission answer ID for question ${item.question_id}.`
 
                         );
+
+                    }
+
+
+                    // ==================================================
+                    // DUPLICATE GUARD
+                    // ==================================================
+                    // One submitted answer -> at most one Action Point,
+                    // however often inspection / Re-check runs. An
+                    // existing Action Point (any status, incl. Closed)
+                    // linked to this answer — or, for imported rows with
+                    // no answer link, to the same submission + question —
+                    // means the answer is already handled.
+                    const existingActionPoint = await findExistingActionPoint(
+                        submission.id,
+                        item.answer_id,
+                        item.question_id
+                    );
+
+                    if (existingActionPoint) {
+
+                        console.log(
+                            `[Inspection] Action Point #${existingActionPoint.id} already exists for submission #${submission.id}, answer #${item.answer_id}; not creating a duplicate.`
+                        );
+
+                        continue;
 
                     }
 
@@ -1687,22 +1767,33 @@ const runInspection = async (
 
 
         // ==================================================
-        // AUTOMATIC PROBLEM DETECTION
+        // AUTOMATIC PROBLEM DETECTION — DISABLED
         // ==================================================
+        //
+        // FIX (Issue Control Center routing): answers are routed ONLY by
+        // the question's active Issue Control Center rule:
+        //   no-issue answer       -> Checklist Reports (no Action Point)
+        //   issue-trigger answer  -> Action Point
+        // A question with no active rule is NOT guessed from its wording
+        // any more (that guess turned answers like "Any City Manager
+        // visit? -> No" into Action Points, and inserted a new automatic
+        // row into the old nso_rules table on every submission, which the
+        // engine never read back). Such answers go to Checklist Reports;
+        // configure a rule in Issue Control Center to raise them.
+        // buildAutomaticProblems() is kept exported for compatibility but
+        // is no longer called here.
 
-        const automaticProblems =
+        const automaticProblems = [];
 
-            await buildAutomaticProblems(
+        const answersWithoutRule = answers.filter(
+            (answer) => !findRuleForAnswer(rules, answer)
+        ).length;
 
-                answers,
-
-                rules,
-
-                submission,
-
-                userId
-
+        if (answersWithoutRule > 0) {
+            console.log(
+                `[Inspection] Submission #${submissionId}: ${answersWithoutRule} answer(s) have no active Issue Control Center rule and were not raised as Action Points.`
             );
+        }
 
 
         try {
@@ -1856,7 +1947,10 @@ const runInspection = async (
 
 
             automatic_rules:
-                automaticProblems.length
+                automaticProblems.length,
+
+            answers_without_rule:
+                answersWithoutRule
 
         };
 
@@ -1901,6 +1995,10 @@ module.exports = {
     getSubmissionAnswers,
 
     getActiveRules,
+
+    findRuleForAnswer,
+
+    findExistingActionPoint,
 
     isAutomaticProblem,
 

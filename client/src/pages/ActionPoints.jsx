@@ -997,14 +997,29 @@ const handleExport = async (format = "csv") => {
 
     try {
 
+        // FIX (filtered export): send the SAME active filters the table
+        // uses (Store, Department, Designation, NSO Project, Status,
+        // Show/view, Priority, Checklist Type, From/To Date and Search).
+        // Before, no params were sent, so CSV / XLSX / PDF always
+        // contained every Action Point (e.g. 1,170 rows while the page
+        // showed 14 for "MRPL - ABOHAR"). `deleteFilters` (above) holds
+        // only the filters that are actually set, so with no filters the
+        // export is unfiltered exactly as before.
         const response = await axios.get(
             "/api/action-points/export",
             {
+                params: deleteFilters,
                 responseType: "blob"
             }
         );
 
         const csvText = await response.data.text();
+
+        // Header line only -> nothing matches the selected filters.
+        if (isFilteredDelete && String(csvText || "").trim().split(/\r?\n/).length <= 1) {
+            alert("No Action Points found for the selected filters.");
+            return;
+        }
 
         await exportFromCSV({
             csvText,

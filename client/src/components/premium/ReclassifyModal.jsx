@@ -6,11 +6,15 @@ import "../../styles/premium/ChecklistPremium.css";
 // ======================================================
 // RE-CHECK ANSWERS
 // ======================================================
-// Previews and applies the polarity-aware re-classification of
-// existing checklist answers (POST /api/action-points/reclassify):
-//   • wrongly raised OPEN Action Points  → Checklist Reports
-//   • missed problems (e.g. "Are there any tile issues?" → "Yes")
-//                                         → new Action Points
+// Previews and applies the re-check of existing checklist answers
+// against the ACTIVE Issue Control Center rules
+// (POST /api/action-points/reclassify):
+//   • OPEN Action Points whose answer is the rule's no-issue answer
+//                                         → Checklist Reports
+//   • answers matching the rule's issue-trigger answer that have no
+//     Action Point yet                    → one new Action Point
+//   • questions with no active rule are not guessed — their Action
+//     Points are only reported as "needs review".
 // ======================================================
 
 export default function ReclassifyModal({ isOpen, onClose, onApplied }) {
@@ -61,7 +65,7 @@ export default function ReclassifyModal({ isOpen, onClose, onApplied }) {
                         <span className="premium-modal-icon"><FaMagic /></span>
                         <div>
                             <h3>Re-check checklist answers</h3>
-                            <p>Understands the question: “Any paint issues?” → <b>No</b> is fine, “Any tile issues?” → <b>Yes</b> needs action.</p>
+                            <p>Follows each question's active Issue Control Center rule: the <b>no-issue</b> answer goes to Checklist Reports, the <b>issue-trigger</b> answer needs an Action Point.</p>
                         </div>
                     </div>
                     <button type="button" className="premium-modal-close" onClick={onClose} aria-label="Close"><FaTimes /></button>
@@ -87,23 +91,35 @@ export default function ReclassifyModal({ isOpen, onClose, onApplied }) {
                                 <div className="premium-reclass-card tone-green">
                                     <span>Move to Checklist Reports</span>
                                     <strong>{preview.removed_action_points}</strong>
-                                    <small>Open Action Points whose answer is actually fine (No issue / N/A / 0)</small>
+                                    <small>Existing open Action Points whose answer is the rule's no-issue answer</small>
                                 </div>
                                 <div className="premium-reclass-card tone-red">
                                     <span>Raise as Action Points</span>
                                     <strong>{preview.created_action_points}</strong>
-                                    <small>Answers that report a problem but had no Action Point</small>
+                                    <small>Answers matching the rule's issue-trigger answer that have no Action Point yet</small>
                                 </div>
                                 <div className="premium-reclass-card tone-slate">
                                     <span>Rules corrected</span>
                                     <strong>{preview.repaired_rules}</strong>
-                                    <small>Auto rules that expected the wrong answer</small>
+                                    <small>Rules whose configuration was actually corrected</small>
                                 </div>
                             </div>
 
                             {preview.skipped_in_progress > 0 && (
                                 <p className="premium-reclass-note">
                                     {preview.skipped_in_progress} Action Point(s) already being worked on (In Progress / action recorded) are left untouched.
+                                </p>
+                            )}
+
+                            {preview.needs_review_no_rule > 0 && (
+                                <p className="premium-reclass-note">
+                                    {preview.needs_review_no_rule} open Action Point(s) belong to questions with no active Issue Control Center rule. They are left unchanged — add a rule for those questions to have them re-checked.
+                                </p>
+                            )}
+
+                            {typeof preview.evaluated_answers === "number" && (
+                                <p className="premium-reclass-note">
+                                    Checked {preview.evaluated_answers} answer(s) and {preview.evaluated_action_points || 0} existing Action Point(s) against {preview.active_rules || 0} active rule(s). {preview.answers_without_rule || 0} answer(s) have no active rule and were not evaluated.
                                 </p>
                             )}
 
