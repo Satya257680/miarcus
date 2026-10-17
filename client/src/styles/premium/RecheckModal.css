@@ -1,0 +1,42 @@
+/* Re-check Answers dialog (components/premium/ReclassifyModal.jsx).
+   Builds on the shared premium-modal styles; only rck-* classes here. */
+.rck-modal{max-width:880px;width:min(880px,calc(100vw - 24px))}
+.rck-scope{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 14px;margin-bottom:12px;border:1px solid rgba(119,94,177,.16);border-radius:14px;background:rgba(248,245,255,.85)}
+.rck-check{display:flex;align-items:center;gap:9px;color:#3b2d5c;font-size:13px;cursor:pointer;flex:1 1 320px}
+.rck-check input{width:17px;height:17px;accent-color:#6936df}
+.rck-dates{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;flex:1 1 100%}
+.rck-dates label{display:grid;gap:4px;color:#6c6284;font-size:11px;font-weight:700}
+.rck-dates input{min-height:36px;padding:6px 9px;border:1px solid rgba(130,112,174,.25);border-radius:10px;font:inherit;font-size:12px;color:#2b1855;background:#fff}
+.rck-dates small{color:#8a819e;font-size:11px;padding-bottom:9px}
+.rck-refresh{display:inline-flex;align-items:center;gap:7px;margin-left:auto}
+.rck-progress{display:grid;gap:8px;margin:6px 0 12px;color:#5d5375;font-size:12px}
+.rck-bar{height:8px;border-radius:999px;background:#ece6fb;overflow:hidden}
+.rck-bar span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#7848ef,#5426c4);transition:width .4s ease}
+.rck-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin:16px 0 9px;color:#2b1855;font-size:13.5px;font-weight:820}
+.rck-h span{color:#857b99;font-size:11.5px;font-weight:600}
+.rck-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.rck-stat{display:grid;gap:3px;min-width:0;padding:11px 13px;border:1px solid rgba(119,94,177,.15);border-radius:13px;background:rgba(255,255,255,.85)}
+.rck-stat span{color:#5d5375;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.35px}
+.rck-stat strong{font-size:22px;line-height:1.15;color:#241744}
+.rck-stat small{color:#8a819e;font-size:11px;line-height:1.4}
+.rck-stat.tone-green{border-color:#c8efdb;background:#f1fcf6}.rck-stat.tone-green strong{color:#137b4b}
+.rck-stat.tone-red{border-color:#ffd1d5;background:#fff6f7}.rck-stat.tone-red strong{color:#b4233a}
+.rck-stat.tone-amber{border-color:#f6dca6;background:#fffaf0}.rck-stat.tone-amber strong{color:#9a5b00}
+.rck-stat.tone-violet{border-color:#ddd0ff;background:#f7f3ff}.rck-stat.tone-violet strong{color:#6936df}
+.rck-stat.tone-slate strong{color:#3e3552}
+.rck-reconcile{display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;padding:9px 12px;border-radius:11px;font-size:12px;line-height:1.5}
+.rck-reconcile.ok{background:#f1fcf6;color:#1f6a46}.rck-reconcile.bad{background:#fff6f7;color:#a51f36}
+.rck-reconcile svg{flex-shrink:0;margin-top:3px}
+.rck-details{margin-top:9px;padding:9px 12px;border:1px solid rgba(119,94,177,.16);border-radius:11px;background:#fff;font-size:12px;color:#3e3552}
+.rck-details.warn{border-color:#f6dca6;background:#fffaf0}
+.rck-details summary{cursor:pointer;font-weight:750}
+.rck-details ul{margin:8px 0 0;padding-left:18px;display:grid;gap:5px;max-height:180px;overflow:auto}
+.rck-details small{color:#8a819e}
+.rck-result{display:flex;align-items:flex-start;gap:11px;padding:14px;border-radius:14px;font-size:13px}
+.rck-result>svg{flex-shrink:0;margin-top:3px;font-size:18px}
+.rck-result>div{flex:1;min-width:0;display:grid;gap:10px}
+.rck-result.ok{border:1px solid #c8efdb;background:#f1fcf6;color:#137b4b}
+.rck-result.failed{border:1px solid #ffc9cf;background:#fff4f5;color:#a51f36}
+.rck-error-line{margin:0;font-size:12px;line-height:1.5}
+@media(max-width:700px){.rck-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rck-refresh{margin-left:0}}
+@media(max-width:420px){.rck-grid{grid-template-columns:1fr}}

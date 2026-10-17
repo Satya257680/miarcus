@@ -186,7 +186,8 @@ router.post(
 
 const {
     getActionPointSummary,
-    reclassifyActionPoints
+    reclassifyActionPoints,
+    getReclassifyStatus
 } = require("../controllers/actionPointInsightsController");
 
 // Users for the "Assigned To" dropdown — keep before /:id.
@@ -219,6 +220,19 @@ router.post(
     apScope,
     requireUnrestrictedScope,
     reclassifyActionPoints
+);
+
+// Re-check background job progress / result (preview + apply).
+router.get(
+    "/reclassify/status/:jobId",
+    authMiddleware,
+    permissionMiddleware(
+        "Action Points",
+        "Full"
+    ),
+    apScope,
+    requireUnrestrictedScope,
+    getReclassifyStatus
 );
 
 

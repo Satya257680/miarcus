@@ -24,6 +24,10 @@ const {
     decideIssue
 } = require("../utils/answerClassifier");
 
+// Single rule evaluator shared with the historical Re-check, so a new
+// submission and a re-check give the same result for the same answer.
+const { evaluateAnswer } = require("../utils/issueRuleEvaluator");
+
 
 // ======================================================
 // GET SUBMISSION
@@ -122,6 +126,8 @@ const getSubmissionAnswers = (
 
                     q.checklist_type_id,
 
+                    ct.checklist_name,
+
                     q.answer_type,
 
                     q.sla_value AS question_sla_value,
@@ -144,6 +150,10 @@ const getSubmissionAnswers = (
 
                     ON q.id = csa.question_id
 
+                LEFT JOIN checklist_types ct
+
+                    ON ct.id = q.checklist_type_id
+
                 LEFT JOIN question_departments qd
 
                     ON qd.question_id = q.id
@@ -163,6 +173,8 @@ const getSubmissionAnswers = (
                     q.question,
 
                     q.checklist_type_id,
+
+                    ct.checklist_name,
 
                     q.answer_type,
 
@@ -402,12 +414,21 @@ const legacyRulesToRepair = new Map();
 // ------------------------------------------------------
 // FIND THE ISSUE CONTROL CENTER RULE FOR AN ANSWER
 // ------------------------------------------------------
-// Same matching the Issue Control Center screen uses: the rule's
-// question_id first (exact link to the checklist question), then the
-// question text (whitespace/case-insensitive) for rules saved without a
-// question_id or after a question was re-created with the same text.
-// Returns null when the question has no ACTIVE rule.
+// Exact question first: the rule's question_id = the answer's
+// question_id. Only for rules saved without a usable question link is
+// the question text used, and then the checklist type must match too,
+// so a rule never applies to a different question (or the same wording
+// in another checklist) just because the text is similar.
+// Only ACTIVE rules are passed in (getActiveRules). Returns null when
+// the question has no active rule.
 // ------------------------------------------------------
+const sameChecklistType = (rule, answer) => {
+    const ruleType = normalizeText(rule.checklist_type);
+    const answerType = normalizeText(answer.checklist_name);
+    if (!ruleType || !answerType) return null; // unknown
+    return ruleType === answerType;
+};
+
 const findRuleForAnswer = (rules, answer) => {
 
     if (!Array.isArray(rules) || !rules.length || !answer) {
@@ -415,8 +436,9 @@ const findRuleForAnswer = (rules, answer) => {
     }
 
     const questionId = Number(answer.question_id);
+    const hasQuestionId = Number.isInteger(questionId) && questionId > 0;
 
-    if (Number.isInteger(questionId) && questionId > 0) {
+    if (hasQuestionId) {
         const byId = rules.find(
             (item) => item.question_id != null && Number(item.question_id) === questionId
         );
@@ -429,9 +451,21 @@ const findRuleForAnswer = (rules, answer) => {
         return null;
     }
 
-    return rules.find(
-        (item) => normalizeText(item.trigger_column) === questionText
-    ) || null;
+    return rules.find((item) => {
+        if (normalizeText(item.trigger_column) !== questionText) return false;
+
+        const typeMatch = sameChecklistType(item, answer);
+        if (typeMatch === false) return false;
+
+        // The rule is linked to ANOTHER question with the same wording:
+        // only accept it when the checklist type is known to be equal
+        // (e.g. the question was re-created in the same checklist).
+        const linkedElsewhere = item.question_id != null && hasQuestionId &&
+            Number(item.question_id) !== questionId;
+        if (linkedElsewhere && typeMatch !== true) return false;
+
+        return true;
+    }) || null;
 
 };
 
@@ -455,11 +489,8 @@ const evaluateRules = (
             return;
         }
 
-        const decision = decideIssue(answer, rule);
-
-        if (decision.legacyRule && rule.id) {
-            legacyRulesToRepair.set(rule.id, decision.expectedAnswer);
-        }
+        // Same evaluator as the Re-check (utils/issueRuleEvaluator.js).
+        const decision = evaluateAnswer(answer.answer, rule);
 
         if (!decision.issue) {
             return;
@@ -475,9 +506,7 @@ const evaluateRules = (
 
             answer: answer.answer,
 
-            expected_answer: decision.legacyRule
-                ? decision.expectedAnswer
-                : rule.expected_answer,
+            expected_answer: rule.expected_answer,
 
             remarks: answer.remarks,
 
@@ -1102,6 +1131,57 @@ const notifyActionPoint = async ({
 // CREATE ACTION POINTS
 // ======================================================
 
+// ------------------------------------------------------
+// BUILD THE ACTION POINT ROW for a matched answer.
+// Shared by createActionPoints() and the Re-check so both write
+// exactly the same columns/values (store, question, rule, SLA …).
+// ------------------------------------------------------
+const buildActionPointData = (submission, item, userId) => {
+
+    const rule = item.rule || {};
+
+    const departmentIds =
+        rule.department_ids
+            ? String(rule.department_ids)
+                .split(",")
+                .map(Number)
+                .filter(Boolean)
+            : [];
+
+    // New Store Opening is NOT required. Keep the legacy column NULL.
+    const actionPointData = {
+        new_store_opening_id: null,
+        submission_id: submission.id,
+        submission_answer_id: item.answer_id,
+        rule_id: rule.id || null,
+        store_id: submission.store_id,
+        department_id: departmentIds[0] || null,
+        question_id: item.question_id,
+        assigned_to: null,
+        priority: rule.priority || "Medium",
+        sla_value: Number(rule.sla_days) || 0,
+        sla_minutes:
+            Number(rule.sla_minutes) ||
+            (() => {
+                const value = Number(item.question_sla_value) || 0;
+                const unit = String(item.question_sla_unit || '').toLowerCase();
+                if (value > 0) {
+                    if (unit.includes('minute')) return Math.round(value);
+                    if (unit.includes('hour')) return Math.round(value * 60);
+                    return Math.round(value * 24 * 60);
+                }
+                return (Number(rule.sla_days) || 0) * 24 * 60;
+            })(),
+        status: "Open",
+        remarks: item.remarks || null,
+        attachment: null,
+        created_by: userId || null
+    };
+
+    return { departmentIds, actionPointData };
+
+};
+
 const findExistingActionPoint = async (submissionId, answerId, questionId) => {
 
     const rows = await db.query(
@@ -1221,96 +1301,10 @@ const createActionPoints = (
                     }
 
 
-                    const departmentIds =
-
-                        rule.department_ids
-
-                            ? String(
-                                rule.department_ids
-                            )
-
-                                .split(",")
-
-                                .map(Number)
-
-                                .filter(Boolean)
-
-                            : [];
-
-
-                    // ==================================================
-                    // ACTION POINT DATA
-                    // ==================================================
-                    //
-                    // New Store Opening is NOT required.
-                    //
-                    // Keep the legacy column NULL.
-                    //
-                    // ==================================================
-
-                    const actionPointData = {
-
-                        new_store_opening_id:
-                            null,
-
-                        submission_id:
-                            submission.id,
-
-                        submission_answer_id:
-                            item.answer_id,
-
-                        rule_id:
-                            rule.id || null,
-
-                        store_id:
-                            submission.store_id,
-
-                        department_id:
-                            departmentIds[0] || null,
-
-                        question_id:
-                            item.question_id,
-
-                        assigned_to:
-                            null,
-
-                        priority:
-                            rule.priority ||
-                            "Medium",
-
-                        sla_value:
-                            Number(
-                                rule.sla_days
-                            ) || 0,
-
-                        sla_minutes:
-                            Number(rule.sla_minutes) ||
-                            (() => {
-                                const value = Number(item.question_sla_value) || 0;
-                                const unit = String(item.question_sla_unit || '').toLowerCase();
-                                if (value > 0) {
-                                    if (unit.includes('minute')) return Math.round(value);
-                                    if (unit.includes('hour')) return Math.round(value * 60);
-                                    return Math.round(value * 24 * 60);
-                                }
-                                return (Number(rule.sla_days) || 0) * 24 * 60;
-                            })(),
-
-                        status:
-                            "Open",
-
-                        remarks:
-                            item.remarks ||
-                            null,
-
-                        attachment:
-                            null,
-
-                        created_by:
-                            userId ||
-                            null
-
-                    };
+                    const {
+                        departmentIds,
+                        actionPointData
+                    } = buildActionPointData(submission, item, userId);
 
 
                     const result =
@@ -1369,6 +1363,15 @@ const createActionPoints = (
 
                                         }
 
+                                        // Unique answer index: another process
+                                        // already raised this answer's Action
+                                        // Point -> not an error, no duplicate.
+                                        if (err && err.code === "ER_DUP_ENTRY") {
+
+                                            return resolveCreate(null);
+
+                                        }
+
                                         if (err) {
 
                                             return rejectCreate(
@@ -1389,6 +1392,10 @@ const createActionPoints = (
 
                         );
 
+
+                    if (!result) {
+                        continue;
+                    }
 
                     createdActionPoints.push({
 
@@ -1999,6 +2006,8 @@ module.exports = {
     findRuleForAnswer,
 
     findExistingActionPoint,
+
+    buildActionPointData,
 
     isAutomaticProblem,
 

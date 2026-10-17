@@ -1,6 +1,7 @@
 const db = require("../config/db");
 const ActionPoint = require("../models/actionPointModel");
-const { reclassify } = require("../services/actionPointReclassifyService");
+const { reclassify, preview: previewRecheck, apply: applyRecheck } = require("../services/actionPointReclassifyService");
+const recheckJobs = require("../utils/bulkImportJobManager");
 const { buildScopeSql } = require("../utils/filterAccess");
 
 // ======================================================
@@ -74,38 +75,124 @@ exports.getActionPointSummary = async (req, res) => {
 
 // ======================================================
 // POST /api/action-points/reclassify
-// body: { dryRun: true|false, store_id?, start_date?, end_date? }
+// body: {
+//   dryRun: true|false,
+//   async: true            -> run as a background job (recommended;
+//                              large data never hits the HTTP timeout)
+//   include_missing, from_date, to_date, store_id
+// }
 //
-// Re-checks existing checklist answers with the polarity-aware
-// classifier: removes wrongly created OPEN Action Points (answer is
-// fine → Checklist Reports) and raises missing ones (answer reports a
-// problem → Action Points).
+// Reconciles existing Action Points with the ACTIVE Issue Control
+// Center rules (see services/actionPointReclassifyService.js).
+// Preview never writes. Apply writes in small transactional batches.
 // ======================================================
-exports.reclassifyActionPoints = async (req, res) => {
-    try {
-        const body = req.body || {};
-        const dryRun = !(body.dryRun === false || body.dryRun === "false" || body.apply === true);
+const recheckOptions = (body = {}) => ({
+    include_missing: body.include_missing === true || body.include_missing === "true",
+    from_date: body.from_date || body.start_date || null,
+    to_date: body.to_date || body.end_date || null,
+    store_id: body.store_id || null
+});
 
-        const summary = await reclassify({
-            dryRun,
-            userId: req.user?.id || null,
-            filters: {
-                store_id: body.store_id || null,
-                start_date: body.start_date || null,
-                end_date: body.end_date || null,
-                submission_id: body.submission_id || null
+exports.reclassifyActionPoints = async (req, res) => {
+    const body = req.body || {};
+    const dryRun = !(body.dryRun === false || body.dryRun === "false" || body.apply === true);
+    const options = recheckOptions(body);
+    const userId = req.user?.id || null;
+
+    // ---------- background job (used by the Re-check dialog) ----------
+    if (body.async === true || body.async === "true") {
+        const job = recheckJobs.createJob(dryRun ? "action-point-recheck-preview" : "action-point-recheck-apply", userId, { originalname: "Re-check" });
+        recheckJobs.updateJob(job.id, {
+            status: "running",
+            startedAt: new Date().toISOString(),
+            message: dryRun ? "Preparing preview…" : "Applying re-check…",
+            phase: dryRun ? "Preparing preview…" : "Applying re-check…",
+            result: null
+        });
+
+        const onProgress = (p = {}) => {
+            const patch = {};
+            if (p.phase) { patch.phase = p.phase; patch.message = p.phase; }
+            if (Number.isFinite(p.total)) patch.total = p.total;
+            if (Number.isFinite(p.processed)) patch.processed = p.processed;
+            recheckJobs.updateJob(job.id, patch);
+        };
+
+        setImmediate(async () => {
+            try {
+                const result = dryRun
+                    ? await previewRecheck(options, onProgress)
+                    : await applyRecheck(options, { userId, onProgress });
+                const failed = !dryRun && result.errors && result.errors.length > 0;
+                recheckJobs.finishJob(job.id, {
+                    status: failed ? "failed" : "completed",
+                    success: !failed,
+                    message: failed
+                        ? `Re-check stopped: ${result.errors[0].message}`
+                        : (dryRun ? "Preview ready." : "Re-check applied."),
+                    result
+                });
+            } catch (error) {
+                console.error("ACTION POINT RECHECK JOB ERROR:", error);
+                recheckJobs.finishJob(job.id, {
+                    status: "failed",
+                    success: false,
+                    message: error.message || "Re-check failed.",
+                    result: null
+                });
             }
         });
 
-        return res.json({
+        return res.status(202).json({
             success: true,
+            processing: true,
+            jobId: job.id,
+            statusUrl: `/api/action-points/reclassify/status/${job.id}`
+        });
+    }
+
+    // ---------- synchronous (backwards compatible) ----------
+    try {
+        const summary = dryRun
+            ? await previewRecheck(options)
+            : await applyRecheck(options, { userId });
+
+        const failed = !dryRun && summary.errors && summary.errors.length > 0;
+        return res.status(failed ? 500 : 200).json({
+            success: !failed,
             data: summary,
             message: dryRun
                 ? "Preview ready."
-                : `Re-check complete: ${summary.removed_action_points} moved to Checklist Reports, ${summary.created_action_points} new Action Point(s) raised.`
+                : failed
+                    ? `Re-check stopped: ${summary.errors[0].message}`
+                    : `Re-check applied: ${summary.applied.moved} moved to Checklist Reports, ${summary.applied.created} Action Point(s) created.`
         });
     } catch (error) {
         console.error("ACTION POINT RECLASSIFY ERROR:", error);
-        return res.status(500).json({ success: false, message: "Unable to re-check checklist answers.", error: error.message });
+        return res.status(error.status || 500).json({ success: false, message: error.message || "Unable to re-check checklist answers." });
     }
+};
+
+// GET /api/action-points/reclassify/status/:jobId
+exports.getReclassifyStatus = (req, res) => {
+    const job = recheckJobs.getJob(req.params.jobId, req.user?.id);
+    if (!job || !String(job.type || "").startsWith("action-point-recheck")) {
+        return res.status(404).json({ success: false, message: "Re-check job was not found or has expired." });
+    }
+    return res.json({
+        success: true,
+        job: {
+            id: job.id,
+            type: job.type,
+            status: job.status,
+            success: Boolean(job.success),
+            message: job.message,
+            phase: job.phase || job.message,
+            total: Number(job.total) || 0,
+            processed: Number(job.processed) || 0,
+            startedAt: job.startedAt,
+            finishedAt: job.finishedAt
+        },
+        result: job.result || null
+    });
 };
