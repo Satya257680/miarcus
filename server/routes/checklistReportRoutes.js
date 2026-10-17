@@ -88,9 +88,14 @@ const {
     getChecklistBulkUploadStatus,
 
     exportReports,
-    getReportsExportChunk
+    getReportsExportChunk,
+    createExportTicket,
+    downloadExportFile,
+    EXPORT_TICKET_PURPOSE
 
 } = require("../controllers/checklistReportController");
+
+const { verifyExportTicket } = require("../middleware/exportTicketAuth");
 
 // ======================================================
 // BASE URL
@@ -170,6 +175,57 @@ router.get(
     crScope,
     validateFilterValues,
     getReportsExportChunk
+
+);
+
+// ======================================================
+// SERVER-STREAMED EXPORT FILE (Export -> CSV / Excel)
+// 1. POST /export-ticket : normal login + permission + Filter Access;
+//    returns a 2-minute download link carrying the filters.
+// 2. GET  /export-file   : opened by the browser as a normal download
+//    (no Authorization header possible). The ticket re-authenticates
+//    the user, then the SAME permission + Filter Access checks run.
+// Keep both before /:id.
+// ======================================================
+
+router.post(
+
+    "/export-ticket",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Reports",
+
+        "View"
+
+    ),
+
+    crScope,
+    validateFilterValues,
+    createExportTicket
+
+);
+
+router.get(
+
+    "/export-file",
+
+    extendUploadTimeout,
+    verifyExportTicket(EXPORT_TICKET_PURPOSE),
+
+    permissionMiddleware(
+
+        "Checklist Reports",
+
+        "View"
+
+    ),
+
+    crScope,
+    validateFilterValues,
+    downloadExportFile
 
 );
 

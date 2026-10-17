@@ -254,6 +254,209 @@ exports.getReportsExportChunk = (req, res) => {
 };
 
 // ======================================================
+// SERVER-STREAMED EXPORT FILE (CSV / XLSX)
+// ------------------------------------------------------
+// FIX ("Aw, Snap! Out of Memory" on Checklist Reports): the browser
+// used to download every matching row (~600,000) into memory, sort it,
+// copy it 3-4 times and build the CSV/XLSX in the tab -> Chrome killed
+// the tab (Out of Memory). Now:
+//
+//   1. POST /export-ticket   (normal auth + permission + Filter Access)
+//      -> a 2-minute download ticket that carries the filters.
+//   2. GET  /export-file?ticket=…  -> the server walks the matching
+//      submissions in batches (same keyset as /export-chunk), turns each
+//      batch into CSV lines / XLSX rows and STREAMS them straight into
+//      the browser's download manager. Nothing is held in the tab, and
+//      the server only ever holds one batch.
+//
+// Same columns and values as the previous in-browser export.
+// ======================================================
+const EXPORT_TICKET_PURPOSE = "checklist-report-export";
+const EXPORT_FORMATS = ["csv", "xlsx"];
+const EXPORT_FILTER_KEYS = ["search", "store_id", "checklist_type_id", "new_store_opening_id", "employee_id", "from_date", "to_date"];
+const EXPORT_FILE_BATCH = 1000;
+const XLSX_MAX_ROWS_PER_SHEET = 1000000;
+
+const EXPORT_COLUMNS = [
+    ["Submitted At", 20], ["Status", 12], ["Checklist", 24], ["Store", 26], ["Employee", 22],
+    ["Employee ID", 14], ["Department", 20], ["Question", 45], ["Answer", 25], ["Comment", 30],
+    ["Action Status", 14], ["Priority", 10], ["SLA (Days)", 10], ["Action Taken", 30],
+    ["Action Completed At", 24], ["Device", 14], ["Attachment", 30], ["Latitude", 12], ["Longitude", 12],
+];
+
+// Same mapping the page used for its CSV/XLSX export (JSON dates were
+// ISO strings in the browser, so Date values are written the same way).
+const exportValue = (value) => (value instanceof Date ? value.toISOString() : value);
+const toExportValues = (r) => [
+    exportValue(r.submission_date),
+    "Completed",
+    exportValue(r.checklist_name),
+    exportValue(r.store_name),
+    exportValue(r.employee_name),
+    exportValue(r.employee_id) || "-",
+    exportValue(r.department_name) || "-",
+    exportValue(r.question) || "-",
+    exportValue(r.answer) || "-",
+    exportValue(r.remarks) || "-",
+    r.action_point_id ? (exportValue(r.action_point_status) || "Open") : "Not Required",
+    r.action_point_id ? (exportValue(r.action_point_priority) || "Medium") : "-",
+    r.action_point_id ? (exportValue(r.action_point_sla_days) || 0) : "-",
+    exportValue(r.action_taken) || "-",
+    exportValue(r.action_point_completed_at) || exportValue(r.completion_date) || "-",
+    exportValue(r.device) || "-",
+    exportValue(r.attachment) || "-",
+    exportValue(r.latitude) || "-",
+    exportValue(r.longitude) || "-",
+];
+
+const csvEscape = (value) => {
+    const str = value === null || value === undefined ? "" : String(value);
+    return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+};
+
+const queryP = (fn, ...args) => new Promise((resolve, reject) => {
+    fn(...args, (err, rows) => (err ? reject(err) : resolve(rows)));
+});
+
+// POST /api/checklist-reports/export-ticket   body: { format, filters }
+exports.createExportTicket = (req, res) => {
+    const { signExportTicket, TICKET_TTL_SECONDS } = require("../middleware/exportTicketAuth");
+    const body = req.body || {};
+    const format = String(body.format || "csv").toLowerCase();
+
+    if (!EXPORT_FORMATS.includes(format)) {
+        return res.status(400).json({ success: false, message: "Export format must be CSV or XLSX." });
+    }
+
+    const source = body.filters && typeof body.filters === "object" ? body.filters : body;
+    const query = { format };
+    EXPORT_FILTER_KEYS.forEach((key) => {
+        const value = source[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") query[key] = String(value).trim();
+    });
+
+    const ticket = signExportTicket({ user: req.user, purpose: EXPORT_TICKET_PURPOSE, query });
+
+    return res.status(200).json({
+        success: true,
+        url: `/api/checklist-reports/export-file?ticket=${encodeURIComponent(ticket)}`,
+        expires_in: TICKET_TTL_SECONDS,
+    });
+};
+
+exports.EXPORT_TICKET_PURPOSE = EXPORT_TICKET_PURPOSE;
+
+// GET /api/checklist-reports/export-file?ticket=…
+exports.downloadExportFile = async (req, res) => {
+    const format = String(req.query.format || "csv").toLowerCase() === "xlsx" ? "xlsx" : "csv";
+    const filters = getFilters(req);
+    const stamp = new Date().toISOString().slice(0, 10);
+    const filename = `ChecklistReports_${stamp}.${format}`;
+
+    let aborted = false;
+    req.on("close", () => { if (!res.writableEnded) aborted = true; });
+
+    const waitDrain = () => (res.writableNeedDrain && !aborted
+        ? new Promise((resolve) => { res.once("drain", resolve); res.once("close", resolve); })
+        : Promise.resolve());
+    const write = async (text) => { if (!res.write(text)) await waitDrain(); };
+
+    res.status(200);
+    res.setHeader("Content-Type", format === "xlsx"
+        ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        : "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Accel-Buffering", "no");
+
+    let total = 0;
+    let workbook = null;
+    let sheet = null;
+    let sheetRows = 0;
+    let sheetNo = 0;
+
+    const newSheet = () => {
+        sheetNo += 1;
+        sheet = workbook.addWorksheet(sheetNo === 1 ? "Checklist Reports" : `Checklist Reports (${sheetNo})`);
+        sheet.columns = EXPORT_COLUMNS.map(([, width]) => ({ width }));
+        const header = sheet.addRow(EXPORT_COLUMNS.map(([label]) => label));
+        header.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF356D84" } };
+            cell.alignment = { vertical: "middle", horizontal: "left" };
+        });
+        header.commit();
+        sheetRows = 0;
+    };
+
+    try {
+        if (format === "xlsx") {
+            const ExcelJS = require("exceljs");
+            workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res, useStyles: true, useSharedStrings: false });
+            newSheet();
+        } else {
+            await write("﻿" + EXPORT_COLUMNS.map(([label]) => csvEscape(label)).join(",") + "\r\n");
+        }
+
+        let cursor = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            if (aborted) break;
+
+            const idRows = await queryP(ChecklistReport.getExportSubmissionIds, filters, cursor, EXPORT_FILE_BATCH);
+            const ids = (idRows || []).map((row) => Number(row.id)).filter(Boolean);
+            if (!ids.length) break;
+
+            const rows = await queryP(ChecklistReport.getAll, { ...filters, all: true, submission_ids: ids });
+
+            if (format === "xlsx") {
+                for (const row of rows || []) {
+                    if (sheetRows >= XLSX_MAX_ROWS_PER_SHEET) { sheet.commit(); newSheet(); }
+                    sheet.addRow(toExportValues(row)).commit();
+                    sheetRows += 1;
+                }
+                await waitDrain();
+            } else if (rows && rows.length) {
+                await write(rows.map((row) => toExportValues(row).map(csvEscape).join(",")).join("\r\n") + "\r\n");
+            }
+
+            total += (rows || []).length;
+
+            if (ids.length < EXPORT_FILE_BATCH) break;
+            cursor = ids[ids.length - 1];
+        }
+
+        if (aborted) {
+            console.warn(`CHECKLIST REPORT EXPORT: download cancelled by the user after ${total} rows.`);
+            return;
+        }
+
+        if (format === "xlsx") {
+            sheet.commit();
+            await workbook.commit();
+        }
+        if (!res.writableEnded) res.end();
+
+        Audit.create({
+            module_name: "Checklist Reports",
+            reference_id: null,
+            action: "EXPORT",
+            old_data: null,
+            new_data: { total, format, filters: EXPORT_FILTER_KEYS.reduce((acc, key) => (filters[key] ? { ...acc, [key]: filters[key] } : acc), {}) },
+            changed_by: req.user?.id || null,
+        }, () => {});
+    } catch (error) {
+        console.error("CHECKLIST REPORT EXPORT FILE ERROR:", error);
+        if (!res.headersSent) {
+            return res.status(500).type("text/plain").send("Export failed. Please try again.");
+        }
+        // Headers/data already sent: abort the transfer so the browser
+        // marks the download as failed instead of saving a cut-off file.
+        res.destroy(error);
+    }
+};
+
+// ======================================================
 // GET ONE REPORT/SUBMISSION
 // GET /api/checklist-reports/:id
 // ======================================================
@@ -796,4 +999,7 @@ module.exports = {
     getChecklistBulkUploadStatus: exports.getChecklistBulkUploadStatus,
     exportReports: exports.exportReports,
     getReportsExportChunk: exports.getReportsExportChunk,
+    createExportTicket: exports.createExportTicket,
+    downloadExportFile: exports.downloadExportFile,
+    EXPORT_TICKET_PURPOSE,
 };

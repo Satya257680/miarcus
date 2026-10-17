@@ -852,13 +852,20 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // submission first, questions in sequence).
     const EXPORT_CHUNK_SIZE = 1000;
 
-    const fetchAllFilteredReports = async () => {
+    // Only used for PDF / Management XLSX, which must be built in the
+    // browser: the walk stops as soon as `maxRows` rows or
+    // `maxSubmissions` submissions are reached, so the tab never loads
+    // more than it can render. (CSV / Excel are streamed by the server —
+    // see downloadServerExport below.)
+    const fetchAllFilteredReports = async ({ maxRows = Infinity, maxSubmissions = Infinity } = {}) => {
         const baseParams = buildReportParams({ search: debouncedSearch });
         delete baseParams.page;
         delete baseParams.limit;
         delete baseParams.all;
 
         const rows = [];
+        const submissionIds = new Set();
+        let truncated = false;
         let cursor = null;
         let guard = 0;
 
@@ -881,8 +888,17 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
                 }
 
                 const data = res.data || {};
-                if (Array.isArray(data.data)) for (const row of data.data) rows.push(row);
+                if (Array.isArray(data.data)) {
+                    for (const row of data.data) {
+                        if (!submissionIds.has(row.id) && submissionIds.size >= maxSubmissions) { truncated = true; break; }
+                        if (rows.length >= maxRows) { truncated = true; break; }
+                        submissionIds.add(row.id);
+                        rows.push(row);
+                    }
+                }
                 setExportProgress({ rows: rows.length });
+
+                if (truncated) break;
 
                 if (data.done || !data.next_cursor) break;
                 if (Number(data.next_cursor) === Number(cursor)) break; // safety: no progress
@@ -906,8 +922,46 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
             ((Number(a.answer_id) || 0) - (Number(b.answer_id) || 0))
         );
 
-        return rows.map((report) => ({ ...report, status: "Completed" }));
+        const result = rows.map((report) => ({ ...report, status: "Completed" }));
+        result.truncated = truncated;
+        return result;
     };
+
+    // ======================================================
+    // CSV / EXCEL: SERVER-STREAMED DOWNLOAD
+    //
+    // FIX ("Aw, Snap! Out of Memory"): CSV and Excel used to load every
+    // matching row (~600,000) into this tab and build the file here,
+    // which exhausted Chrome's memory and crashed the page. The server
+    // now builds the file and streams it straight into the browser's
+    // download manager. The page only asks for a short-lived download
+    // ticket (same login, permission and Filter Access checks) and then
+    // starts a normal file download, so memory use stays flat however
+    // many rows match. Same filters, same columns.
+    // ======================================================
+
+    const downloadServerExport = async (format) => {
+        const filters = buildReportParams({ search: debouncedSearch });
+        delete filters.page;
+        delete filters.limit;
+        delete filters.all;
+
+        const { data } = await axios.post(`${API}/checklist-reports/export-ticket`, { format, filters });
+        if (!data?.url) throw new Error("The server did not return a download link.");
+
+        const link = document.createElement("a");
+        link.href = `${API_BASE_URL}${data.url}`;
+        link.rel = "noopener";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+
+    // Management XLSX builds one worksheet per submission in the
+    // browser; beyond this many submissions the workbook cannot be
+    // created in a browser tab.
+    const MANAGEMENT_MAX_SUBMISSIONS = 500;
 
     // A PDF of hundreds of thousands of rows cannot be rendered by the
     // browser; CSV / XLSX handle large exports.
@@ -924,18 +978,34 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         try {
 
+        if (format !== "pdf") {
+            try {
+                await downloadServerExport(format === "xlsx" ? "xlsx" : "csv");
+            } catch (err) {
+                console.error("CHECKLIST REPORT EXPORT ERROR:", err);
+                alert(err.response?.data?.message || "Unable to start the export. Please try again.");
+            }
+            return;
+        }
+
+        // PDF is drawn in the browser: refuse large sets BEFORE loading them.
+        if (totalRecords > PDF_MAX_ROWS) {
+            alert(`PDF export is limited to ${PDF_MAX_ROWS.toLocaleString()} rows (${Number(totalRecords).toLocaleString()} match the current filters). Please use CSV or Excel, or narrow the filters.`);
+            return;
+        }
+
         let exportRows;
 
         try {
-            exportRows = await fetchAllFilteredReports();
+            exportRows = await fetchAllFilteredReports({ maxRows: PDF_MAX_ROWS });
         } catch (err) {
             console.error("CHECKLIST REPORT EXPORT FETCH ERROR:", err);
             alert(err.response?.data?.message || "Unable to load Checklist Reports for export. Please try again.");
             return;
         }
 
-        if (format === "pdf" && exportRows.length > PDF_MAX_ROWS) {
-            alert(`PDF export is limited to ${PDF_MAX_ROWS.toLocaleString()} rows (${exportRows.length.toLocaleString()} match the current filters). Please use CSV or Excel, or narrow the filters.`);
+        if (exportRows.truncated) {
+            alert(`PDF export is limited to ${PDF_MAX_ROWS.toLocaleString()} rows. Please use CSV or Excel, or narrow the filters.`);
             return;
         }
 
@@ -1020,7 +1090,12 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
         try {
             setManagementExporting(true);
 
-            const records = await fetchAllFilteredReports();
+            const records = await fetchAllFilteredReports({ maxSubmissions: MANAGEMENT_MAX_SUBMISSIONS });
+
+            if (records.truncated) {
+                alert(`Management XLSX creates one sheet per checklist submission and is limited to ${MANAGEMENT_MAX_SUBMISSIONS} submissions. Please narrow the filters (for example a store and a date range), or use Export → Excel for all rows.`);
+                return;
+            }
 
             if (!records.length) {
                 alert("No Checklist Reports found for the selected filters.");
