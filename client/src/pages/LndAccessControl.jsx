@@ -63,6 +63,7 @@ const Spark = ({ tone }) => (
 export default function LndAccessControl() {
   const [mode, setMode] = useState("selected");
   const [users, setUsers] = useState([]);
+  const [totalStores, setTotalStores] = useState(0);
   const [audit, setAudit] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -94,6 +95,7 @@ export default function LndAccessControl() {
       const res = await axios.get(`${API}/users`);
       setUsers(res.data?.users || []);
       setMode(res.data?.mode || "selected");
+      setTotalStores(Number(res.data?.totalStores || 0));
       loadAudit();
     } catch (error) {
       setLoadError(error?.response?.data?.message || "Unable to load users");
@@ -301,7 +303,11 @@ export default function LndAccessControl() {
                       </td>
                       <td>{user.designation || "—"}</td>
                       <td>{user.isOwner ? <span className="lac-badge lac-badge--owner">Owner</span> : user.administrator ? <span className="lac-badge lac-badge--admin">Admin</span> : <span className="lac-badge">User</span>}</td>
-                      <td className="lac-place">{[user.department, user.stores].filter(Boolean).join(" · ") || "—"}</td>
+                      <td className="lac-place">{Number(user.storeCount) > 2 ? (
+                        <span className="lac-stores-pill" title={user.stores}>
+                          {totalStores > 0 && Number(user.storeCount) >= totalStores ? `All Stores (${user.storeCount})` : `${user.storeCount} Stores`}
+                        </span>
+                      ) : ([user.department, user.stores].filter(Boolean).join(" · ") || "—")}</td>
                       <td>
                         {user.isOwner ? <span className="lac-fixed">● Full control (always)</span> : (
                           <div className={`lac-level ${can ? "is-can" : "is-cannot"}`} title={LEVEL_HELP[user.level] || "Hidden in the sidebar and blocked on the server"}>

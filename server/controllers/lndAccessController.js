@@ -89,6 +89,9 @@ const listUsers = async (req, res) => {
                    (SELECT GROUP_CONCAT(DISTINCT s.store_name ORDER BY s.store_name SEPARATOR ', ')
                       FROM user_stores us JOIN stores s ON s.id = us.store_id
                      WHERE us.user_id = u.id) AS stores,
+                   (SELECT COUNT(DISTINCT us.store_id)
+                      FROM user_stores us JOIN stores s ON s.id = us.store_id
+                     WHERE us.user_id = u.id) AS store_count,
                    (SELECT MAX(CASE p.permission WHEN 'Full' THEN 4 WHEN 'Edit' THEN 3 WHEN 'Add' THEN 2 WHEN 'View' THEN 1 ELSE 0 END)
                       FROM user_permissions p
                      WHERE p.user_id = u.id AND p.module_name = ?) AS explicit_rank,
@@ -101,6 +104,12 @@ const listUsers = async (req, res) => {
             `,
             [lnd.MODULE_NAME]
         );
+
+        // Total stores → the Department / Store column shows "All Stores (N)"
+        // for users assigned to every store (exact count, not the
+        // GROUP_CONCAT text, which MySQL cuts at 1024 characters).
+        const storeTotalRows = await db.query("SELECT COUNT(*) AS n FROM stores");
+        const totalStores = Number(storeTotalRows?.[0]?.n || 0);
 
         const rankToLevel = (rank) => lnd.LEVELS[Number(rank) || 0] || "None";
 
@@ -116,6 +125,7 @@ const listUsers = async (req, res) => {
                 designation: row.designation || "",
                 department: row.department || "",
                 stores: row.stores || "",
+                storeCount: Number(row.store_count || 0),
                 administrator: Number(row.is_admin) === 1,
                 isOwner: owner,
                 explicitLevel: explicit,
@@ -125,7 +135,7 @@ const listUsers = async (req, res) => {
         });
 
         res.set("Cache-Control", "no-store");
-        return res.json({ success: true, mode, levels: lnd.LEVELS, users });
+        return res.json({ success: true, mode, levels: lnd.LEVELS, users, totalStores });
     } catch (error) {
         console.error("L&D list users failed:", error);
         return res.status(500).json({ success: false, message: "Unable to load users" });

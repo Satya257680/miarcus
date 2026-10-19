@@ -89,6 +89,8 @@
 .lac-user__name { font-weight: 800; }
 .lac-user__sub { font-size: 12.5px; color: var(--mut); }
 .lac-place { max-width: 240px; font-size: 13px; color: #3d3866; }
+/* Users with many stores: one compact pill instead of a long store list. */
+.lac-stores-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; background: #effbf6; color: #137a55; border: 1px solid #bfeedb; cursor: default; }
 .lac-badge { display: inline-flex; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: #f1f0f6; color: #6f6a96; }
 .lac-badge--admin { background: #e8f1ff; color: #2c5bd6; }
 .lac-badge--owner { background: linear-gradient(135deg, #ffe08a, #f2a516); color: #5a3a00; }
