@@ -47,8 +47,10 @@ const upload = multer({
   },
 });
 
+// Kept attachments are served from config/storage UPLOAD_DIR, so they
+// must be written there (not to a hard-coded server/uploads folder).
 const attachmentUpload = multer({
-  dest: path.resolve(__dirname, "../uploads/"),
+  dest: require("../config/storage").UPLOAD_DIR,
 
   limits: {
     fileSize: 10 * 1024 * 1024,

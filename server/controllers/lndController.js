@@ -3,7 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const db = require("../config/db");
 const { JWT_SECRET } = require("../config/security");
-const { uploadPath } = require("../config/storage");
+const { resolveUploadFile } = require("../config/storage");
 const lnd = require("../utils/lndAccess");
 const { ensureSchema } = require("../services/lndSchema");
 const SEED = require("../services/lndSeed");
@@ -73,11 +73,17 @@ const shapeMedia = (m, allowDownload = true) => ({
     allowDownload: !!allowDownload,
 });
 
+// Delete a stored L&D file. Uses resolveUploadFile (no mkdir): the old
+// uploadPath() call threw EEXIST for every real file, so nothing was ever
+// deleted from disk.
 const removeFile = (stored) => {
-    if (!stored) return;
-    try {
-        fs.unlink(uploadPath("lnd", stored), () => {});
-    } catch (_) { /* ignore */ }
+    const file = resolveUploadFile("lnd", stored);
+    if (!file) return;
+    fs.unlink(file, (error) => {
+        if (error && error.code !== "ENOENT") {
+            console.error(`[L&D] Could not delete stored file "${stored}": ${error.code || error.message}`);
+        }
+    });
 };
 
 // -------- visibility (published + assigned to this user) --------
@@ -584,18 +590,43 @@ const streamMedia = async (req, res) => {
         const media = rows?.[0];
         if (!media) return bad(res, "Not found", 404);
 
-        const file = uploadPath("lnd", media.stored_name);
-        if (!fs.existsSync(file)) return bad(res, "File missing", 404);
+        // Read-only resolution (never mkdir) confined to <UPLOAD_DIR>/lnd.
+        const file = resolveUploadFile("lnd", media.stored_name);
+        if (!file) {
+            console.error(`[L&D] Media #${id} has an invalid stored name; refusing to serve it.`);
+            return bad(res, "File not found", 404);
+        }
+        let stat = null;
+        try { stat = fs.statSync(file); } catch (statError) {
+            if (statError.code !== "ENOENT") console.error(`[L&D] Media #${id} stat failed: ${statError.code || statError.message}`);
+        }
+        if (!stat || !stat.isFile()) {
+            // Missing on this server (or an empty folder left behind by the
+            // old mkdir bug) → a clear 404, logged for administrators.
+            console.error(`[L&D] Media #${id} file missing on disk (stored name "${media.stored_name}"). Re-upload it in the module editor.`);
+            return bad(res, "File not found on the server. Please ask an administrator to re-upload it.", 404);
+        }
 
         const download = req.query.dl === "1" && Number(media.allow_download) === 1;
+        const safeName = String(media.original_name || media.stored_name).replace(/["\\\r\n]/g, "_");
         res.set({
             "Content-Type": MIME_BY_EXT[path.extname(media.stored_name).toLowerCase()] || "application/octet-stream",
-            "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${encodeURIComponent(media.original_name)}"`,
+            "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${encodeURIComponent(safeName)}"; filename*=UTF-8''${encodeURIComponent(safeName)}`,
             "Cross-Origin-Resource-Policy": "cross-origin",
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "private, max-age=3600",
+            "Accept-Ranges": "bytes",
         });
-        return res.sendFile(file); // supports HTTP range requests (video seeking)
+        // root + relative name: the dot-file / traversal checks of `send`
+        // only apply to the stored name, not to the configured UPLOAD_DIR.
+        // sendFile answers HTTP Range requests (video seeking / duration).
+        return res.sendFile(path.basename(file), { root: path.dirname(file), dotfiles: "deny" }, (sendError) => {
+            if (!sendError) return;
+            if (sendError.code === "ECONNABORTED" || sendError.code === "ECANCELED" || res.headersSent) return; // viewer closed / seeked
+            console.error(`[L&D] Media #${id} could not be sent: ${sendError.code || sendError.message}`);
+            const status = Number(sendError.status || sendError.statusCode) === 404 ? 404 : 500;
+            bad(res, status === 404 ? "File not found" : "Unable to load file", status);
+        });
     } catch (error) {
         console.error("L&D media error:", error);
         if (!res.headersSent) bad(res, "Unable to load file", 500);
@@ -762,6 +793,24 @@ const publishProgram = wrap(async (req, res) => {
         success: true,
         notify,
         message: `Published. ${notify.queued} learner(s) will be emailed${notify.alreadyNotified ? `, ${notify.alreadyNotified} already notified earlier` : ""}.`,
+    });
+});
+
+// Retry invite emails that failed (or are stuck in "queued") for one
+// program. Explicit admin action; bounded and duplicate-safe (see
+// lndNotificationService.retryFailed).
+const retryEmails = wrap(async (req, res) => {
+    const id = int(req.params.id);
+    const program = id && (await db.query("SELECT id, status FROM lnd_programs WHERE id = ?", [id]))?.[0];
+    if (!program) return bad(res, "Program not found", 404);
+    if (program.status !== "Active") return bad(res, "Publish the program first — emails are only sent for published programs.");
+    const result = await notifications.retryFailed({ programId: id, noticeKey: "invite" });
+    return res.json({
+        success: true,
+        ...result,
+        message: result.retried
+            ? `Retrying ${result.retried} email(s). Refresh in a minute to see the result.${result.skipped ? ` ${result.skipped} skipped (no longer assigned or no email).` : ""}`
+            : "There are no failed emails to retry.",
     });
 });
 
@@ -974,7 +1023,7 @@ const programLearners = wrap(async (req, res) => {
         [id]
     );
     const certs = await db.query("SELECT user_id, code, issued_at FROM lnd_certificates WHERE program_id = ?", [id]);
-    const invites = await db.query("SELECT user_id, status, sent_at FROM lnd_notifications WHERE program_id = ? AND notice_key = 'invite'", [id]);
+    const invites = await db.query("SELECT user_id, status, sent_at, error FROM lnd_notifications WHERE program_id = ? AND notice_key = 'invite'", [id]);
 
     const byProgress = new Map(progress.map((p) => [Number(p.user_id), p]));
     const byCert = new Map(certs.map((c) => [Number(c.user_id), c]));
@@ -1007,8 +1056,12 @@ const programLearners = wrap(async (req, res) => {
                 lastActivity: p?.last_activity || null,
                 status: c ? "Completed" : p ? "In Progress" : "Not Started",
                 certificate: c ? { code: c.code, issuedAt: c.issued_at } : null,
+                // Invite ("New training assigned") email — the only learner
+                // email this module sends. emailError is the sanitised
+                // reason recorded by lndNotificationService.
                 emailStatus: n ? n.status : null,
                 emailSentAt: n?.sent_at || null,
+                emailError: n && n.status === "failed" ? String(n.error || "Send failed") : null,
             };
         });
 
@@ -1272,7 +1325,7 @@ const seed = wrap(async (req, res) => {
 module.exports = {
     overview, programDetail, moduleDetail, markComplete, examStart, examSubmit, certificate, myCertificates, streamMedia,
     adminPrograms, createProgram, updateProgram, deleteProgram, saveAssignments, setProgramThumb, adminProgram,
-    publishProgram, unpublishProgram, notifyUpdate, programLearners, setModuleThumb,
+    publishProgram, unpublishProgram, notifyUpdate, retryEmails, programLearners, setModuleThumb,
     createModule, updateModule, reorderModules, deleteModule, uploadModuleMedia, deleteMedia,
     getQuestions, saveQuestions, lookups, report, reportCertificate, updateReportProgress, deleteReportProgress, seed,
 };

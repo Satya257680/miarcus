@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const db = require("../config/db");
+const { authenticateLoginToken } = require("../utils/accessToken");
 
 // ======================================================
 // MIARCUS REAL-TIME NOTIFICATION SERVICE
@@ -217,22 +218,15 @@ function authenticateStreamToken(token) {
 async function openStream(req, res) {
     // EventSource cannot send Authorization headers, so the SSE
     // endpoint accepts the same JWT in a short-lived query string.
-    const decoded = authenticateStreamToken(req.query.token);
+    // Login token only, active + activated user, current token version
+    // (a revoked session can no longer keep receiving notifications).
+    const session = await authenticateLoginToken(req.query.token);
 
-    if (!decoded?.id) {
+    if (!session) {
         return res.status(401).end();
     }
 
-    const rows = await db.query(
-        "SELECT id, status FROM users WHERE id = ? LIMIT 1",
-        [decoded.id]
-    );
-
-    if (!rows.length || rows[0].status !== "Active") {
-        return res.status(401).end();
-    }
-
-    const userId = Number(decoded.id);
+    const userId = Number(session.decoded.id);
 
     res.status(200);
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");

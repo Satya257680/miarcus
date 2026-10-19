@@ -49,6 +49,32 @@ const authMiddleware = (req, res, next) => {
         );
 
         // ======================================================
+        // TOKEN SUBJECT VALIDATION
+        // ======================================================
+        // Only a LOGIN access token may authenticate API calls. It always
+        // carries a positive integer `id` and no `type` / `purpose` claim
+        // (authController.login). Password-reset tokens share the same
+        // secret, issuer and audience but carry `type: "password-reset"`
+        // and no `id` — they used to be rejected only by accident (the
+        // user lookup with an undefined id found nobody). Reject any
+        // other token kind explicitly, before touching the database.
+        // Valid login tokens behave exactly as before.
+        const subjectId = Number(decoded?.id);
+        if (
+            !decoded ||
+            typeof decoded !== "object" ||
+            !Number.isSafeInteger(subjectId) ||
+            subjectId <= 0 ||
+            decoded.type !== undefined ||
+            decoded.purpose !== undefined
+        ) {
+            return res.status(401).json({
+                success: false,
+                message: "Token Expired or Invalid"
+            });
+        }
+
+        // ======================================================
         // CHECK CURRENT USER STATUS
         // ======================================================
 
@@ -56,7 +82,7 @@ const authMiddleware = (req, res, next) => {
 
             "SELECT name, status, is_activated, is_admin, COALESCE(token_version, 0) AS token_version FROM users WHERE id = ? LIMIT 1",
 
-            [decoded.id],
+            [subjectId],
 
             (err, result) => {
 

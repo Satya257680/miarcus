@@ -39,6 +39,7 @@ router.get("/admin/programs/:id", need("Edit"), c.adminProgram);
 router.post("/admin/programs/:id/publish", need("Edit"), c.publishProgram);
 router.post("/admin/programs/:id/unpublish", need("Edit"), c.unpublishProgram);
 router.post("/admin/programs/:id/notify", need("Edit"), c.notifyUpdate);
+router.post("/admin/programs/:id/retry-emails", need("Edit"), c.retryEmails);
 router.get("/admin/programs/:id/learners", need("Edit"), c.programLearners);
 
 router.post("/admin/modules", need("Add"), c.createModule);

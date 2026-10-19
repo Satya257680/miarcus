@@ -3,6 +3,7 @@ const path = require("path");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET, JWT_ALGORITHM, FILE_TOKEN_TTL } = require("../config/security");
 const db = require("../config/db");
+const { authenticateLoginToken } = require("../utils/accessToken");
 const { safeFilename, safeRelativePath } = require("../utils/pathSecurity");
 const { UPLOAD_DIR } = require("../config/storage");
 
@@ -25,14 +26,10 @@ const sendPrivateFile = async (req, res) => {
 
     try {
         if (bearer.startsWith("Bearer ")) {
-            const claims = jwt.verify(bearer.slice(7), JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
-            if (claims?.id) {
-                const rows = await db.query(
-                    "SELECT id, status, is_activated FROM users WHERE id = ? LIMIT 1",
-                    [claims.id]
-                );
-                authorized = Boolean(rows?.[0] && rows[0].status === "Active" && rows[0].is_activated);
-            }
+            // Same rules as authMiddleware, including token-version
+            // revocation (previously a revoked session could still
+            // download private files until the token expired).
+            authorized = Boolean(await authenticateLoginToken(bearer.slice(7).trim()));
         }
         if (!authorized && queryToken) {
             verifyFileToken(queryToken, filename);

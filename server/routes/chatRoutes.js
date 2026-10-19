@@ -7,12 +7,17 @@ const path = require("path");
 const auth = require("../middleware/authMiddleware");
 const permission = require("../middleware/permissionMiddleware");
 const C = require("../controllers/chatController");
+const { authenticateLoginToken } = require("../utils/accessToken");
+const { UPLOAD_DIR } = require("../config/storage");
 
 const router = express.Router();
 
 const upload = multer({
     storage: multer.diskStorage({
-        destination: path.resolve(__dirname, "../uploads"),
+        // Same folder the /uploads and /api/files routes serve from
+        // (config/storage UPLOAD_DIR). A hard-coded server/uploads path
+        // broke attachments wherever UPLOAD_DIR / a persistent disk is used.
+        destination: UPLOAD_DIR,
         filename: (req, file, cb) => {
             const extension = path.extname(file.originalname || "").toLowerCase();
             cb(
@@ -55,26 +60,22 @@ const streamAuth = async (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
-        if (!decoded?.id) {
-            return res.status(401).json({ success: false, message: "Invalid chat event token." });
+        // Same checks as authMiddleware (login token only, active +
+        // activated user, current token version → revoked sessions can no
+        // longer keep a live chat stream open).
+        const session = await authenticateLoginToken(token);
+        if (!session) {
+            return res.status(401).json({ success: false, message: "Token expired or invalid." });
         }
-
-        const rows = await db.query(
-            "SELECT id, name, email, status, is_admin FROM users WHERE id = ? LIMIT 1",
-            [decoded.id]
-        );
-
-        if (!rows.length || rows[0].status !== "Active") {
-            return res.status(401).json({ success: false, message: "User is not active." });
-        }
+        const { decoded, user } = session;
 
         req.user = {
             ...decoded,
-            id: rows[0].id,
-            name: rows[0].name,
-            email: rows[0].email,
-            is_admin: rows[0].is_admin
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            is_admin: Number(user.is_admin) === 1,
+            tokenVersion: Number(user.token_version || 0)
         };
         next();
     } catch (error) {

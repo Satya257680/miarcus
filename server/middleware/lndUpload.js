@@ -2,7 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
 const { uploadPath } = require("../config/storage");
-const { validateUploadedFiles } = require("./fileSecurity");
+const { validateUploadedFiles, MAX_UPLOAD_SIZE } = require("./fileSecurity");
 
 // Allowed types → media "kind". The kind is derived from the file
 // extension on the server (never trusted from the browser), and
@@ -19,7 +19,13 @@ const MIME_BY_EXT = {
     ".webp": "image/webp", ".gif": "image/gif", ".pdf": "application/pdf",
 };
 
-const MAX_VIDEO = Number(process.env.LND_MAX_VIDEO_BYTES) > 0 ? Number(process.env.LND_MAX_VIDEO_BYTES) : 2 * 1024 * 1024 * 1024;
+// validateUploadedFiles() rejects anything above MAX_UPLOAD_SIZE (1 GiB by
+// default, MAX_UPLOAD_SIZE_BYTES). The L&D limit used to be 2 GiB, so a
+// 1–2 GiB video was uploaded completely and only THEN refused. Never
+// accept more than the security validator will keep.
+const CONFIGURED_LND_MAX = Number(process.env.LND_MAX_VIDEO_BYTES) > 0 ? Number(process.env.LND_MAX_VIDEO_BYTES) : 2 * 1024 * 1024 * 1024;
+const MAX_VIDEO = Math.min(CONFIGURED_LND_MAX, MAX_UPLOAD_SIZE);
+const MAX_MB = Math.floor(MAX_VIDEO / (1024 * 1024));
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadPath("lnd")),
@@ -48,11 +54,12 @@ const wrap = (handler) => (req, res, next) =>
         if (!error) return next();
         return res.status(400).json({
             success: false,
-            message: error.code === "LIMIT_FILE_SIZE" ? "File is too large." : error.message || "Upload failed",
+            message: error.code === "LIMIT_FILE_SIZE" ? `File is too large. The maximum size is ${MAX_MB} MB per file.` : error.message || "Upload failed",
         });
     });
 
 module.exports = {
+    MAX_VIDEO,
     KIND_BY_EXT,
     MIME_BY_EXT,
     uploadMedia: [wrap(mediaUpload.array("files", 20)), validateUploadedFiles],

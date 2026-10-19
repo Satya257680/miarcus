@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const Model = require("../models/chatModel");
+const { authenticateLoginToken } = require("../utils/accessToken");
 const ChatEvents = require("../services/chatEventService");
 const Notification = require("../services/notificationService");
 
@@ -628,20 +629,10 @@ exports.stream = async (req, res) => {
     const token = String(req.query.token || "");
     if (!token) return res.status(401).end();
 
-    let decoded;
-    try {
-        decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
-    } catch {
-        return res.status(401).end();
-    }
-
-    if (!decoded?.id) return res.status(401).end();
-
-    const rows = await require("../config/db").query(
-        "SELECT id, status FROM users WHERE id = ? LIMIT 1",
-        [decoded.id]
-    );
-    if (!rows.length || rows[0].status !== "Active") return res.status(401).end();
+    // Login token only, active + activated user, current token version.
+    const session = await authenticateLoginToken(token);
+    if (!session) return res.status(401).end();
+    const { decoded } = session;
 
     res.status(200);
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");

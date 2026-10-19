@@ -11,6 +11,7 @@ const fs = require("fs");
 const securityHeaders = require("./middleware/securityHeaders");
 const { requestId, originGuard, contentTypeGuard, isAllowedBrowserOrigin } = require("./middleware/requestSecurity");
 const securityAudit = require("./middleware/securityAudit");
+const errorResponseGuard = require("./middleware/errorResponseGuard");
 const { apiLimiter, writeLimiter } = require("./middleware/apiRateLimit");
 const adminOnly = require("./middleware/adminOnly");
 const authMiddleware = require("./middleware/authMiddleware");
@@ -41,6 +42,8 @@ const app = express();
 app.disable("x-powered-by");
 app.use(requestId);
 app.use(securityHeaders);
+// Production: strip SQL / stack / internal details from 5xx JSON bodies.
+app.use(errorResponseGuard);
 
 // Some browser calls (e.g. the "offline" ping sent by an older cached
 // frontend build when a tab closes / on logout) arrive as

@@ -58,6 +58,43 @@ const useObjectUrl = (file) => {
   return url;
 };
 
+// ---- video length (duration) ----
+// Duration is stored in MINUTES (lnd_modules.duration_min, 1–600) and the
+// API field is `durationMin`. The real length is read from the video file
+// itself (browser "loadedmetadata"), never guessed from the file size.
+// A video whose metadata cannot be read returns null and NEVER overwrites
+// the current duration (so it can't become 0).
+const isVideoName = (name) => /\.(mp4|mov|webm)$/i.test(String(name || ""));
+const probeVideoSeconds = (src) => new Promise((resolve) => {
+  if (!src || typeof document === "undefined") { resolve(null); return; }
+  const isFile = typeof File !== "undefined" && src instanceof File;
+  const url = isFile ? URL.createObjectURL(src) : String(src);
+  const video = document.createElement("video");
+  let done = false;
+  const finish = (value) => {
+    if (done) return;
+    done = true;
+    clearTimeout(timer);
+    video.removeAttribute("src");
+    try { video.load(); } catch { /* ignore */ }
+    if (isFile) URL.revokeObjectURL(url);
+    resolve(Number.isFinite(value) && value > 0 ? value : null);
+  };
+  const timer = setTimeout(() => finish(null), 20000);
+  video.preload = "metadata";
+  video.muted = true;
+  video.onloadedmetadata = () => finish(video.duration);
+  video.onerror = () => finish(null);
+  video.src = url;
+});
+const secondsToMinutes = (sec) => Math.min(600, Math.max(1, Math.round(Number(sec) / 60)));
+const fmtLength = (sec) => {
+  const total = Math.round(Number(sec) || 0);
+  const m = Math.floor(total / 60);
+  const r = total % 60;
+  return m ? `${m} min${r ? ` ${r} s` : ""}` : `${r} s`;
+};
+
 const Modal = ({ title, sub, onClose, wide, children, footer }) => {
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -648,6 +685,41 @@ function ModuleWizard({ initial, programId, flash, onClose, onSaved }) {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const editing = Boolean(form.id);
 
+  // ---- real video length → duration (minutes) ----
+  // Seconds per video: saved media keyed "m<id>", staged files keyed by File.
+  const [videoSecs, setVideoSecs] = useState(() => new Map());
+  const autoDuration = useRef(false); // true only after the admin adds / removes a video
+  const probed = useRef(new Set());
+  useEffect(() => {
+    const pending = [
+      ...media.filter((m) => m.kind === "video" && m.url).map((m) => [`m${m.id}`, fullUrl(m.url)]),
+      ...files.filter((f) => isVideoName(f.name)).map((f) => [f, f]),
+    ].filter(([key]) => !probed.current.has(key));
+    if (!pending.length) return undefined;
+    let alive = true;
+    pending.forEach(([key, src]) => {
+      probed.current.add(key);
+      probeVideoSeconds(src).then((sec) => {
+        if (!alive || sec === null) return;
+        setVideoSecs((cur) => new Map(cur).set(key, sec));
+      });
+    });
+    return () => { alive = false; };
+  }, [media, files]);
+  const detectedSec = useMemo(() => {
+    const keys = [
+      ...media.filter((m) => m.kind === "video").map((m) => `m${m.id}`),
+      ...files.filter((f) => isVideoName(f.name)),
+    ];
+    return keys.reduce((sum, key) => sum + (videoSecs.get(key) || 0), 0);
+  }, [media, files, videoSecs]);
+  const detectedMin = detectedSec > 0 ? secondsToMinutes(detectedSec) : null;
+  useEffect(() => {
+    if (!autoDuration.current || !detectedMin) return;
+    setForm((f) => (Number(f.durationMin) === detectedMin ? f : { ...f, durationMin: detectedMin }));
+  }, [detectedMin]);
+  const durationValid = Number.isFinite(Number(form.durationMin)) && Number(form.durationMin) >= 1 && Number(form.durationMin) <= 600 && String(form.durationMin).trim() !== "";
+
   // Existing assessment → load its questions.
   useEffect(() => {
     if (!initial.id || !initial.questionCount) return;
@@ -686,6 +758,7 @@ function ModuleWizard({ initial, programId, flash, onClose, onSaved }) {
   const contentCount = media.length + files.length + (form.videoUrl.trim() ? 1 : 0);
   const problems = [
     !form.title.trim() && "Module title is required (Details).",
+    !durationValid && "Duration must be between 1 and 600 minutes (Details).",
     form.videoUrl.trim() && !/^https:\/\//i.test(form.videoUrl.trim()) && "Video link must start with https:// (Content).",
     examOn && questions && cleaned.problem && `${cleaned.problem} (Assessment)`,
     examOn && !questions && "Questions are still loading (Assessment).",
@@ -700,14 +773,14 @@ function ModuleWizard({ initial, programId, flash, onClose, onSaved }) {
 
   const removeExisting = async (m) => {
     if (!await confirmWithGlass({ title: "Delete file", message: `Delete "${m.name}" from this module?`, recordName: m.name, confirmText: "Delete File" })) return;
-    try { await lndApi.deleteMedia(m.id); setMedia((list) => list.filter((x) => x.id !== m.id)); flash("success", "File deleted"); }
+    try { await lndApi.deleteMedia(m.id); if (m.kind === "video") autoDuration.current = true; setMedia((list) => list.filter((x) => x.id !== m.id)); flash("success", "File deleted"); }
     catch (e) { flash("error", errorMessage(e)); }
   };
 
   // ONE save for everything, in a safe order. If a later step fails the
   // earlier ones are kept (form.id is set), so "Save" again only retries.
   const save = async () => {
-    if (problems.length) { flash("error", problems[0]); if (!form.title.trim()) setStep("details"); else if (problems[0].includes("(Assessment)")) setStep("exam"); else if (problems[0].includes("(Content)")) setStep("content"); return; }
+    if (problems.length) { flash("error", problems[0]); if (!form.title.trim() || problems[0].includes("(Details)")) setStep("details"); else if (problems[0].includes("(Assessment)")) setStep("exam"); else if (problems[0].includes("(Content)")) setStep("content"); return; }
     if (editing && hadQuestions && !examOn) {
       if (!await confirmWithGlass({ title: "Remove assessment?", message: "This module's questions will be deleted. Learners will complete it by finishing the lesson.", confirmText: "Remove Assessment" })) return;
     }
@@ -715,7 +788,7 @@ function ModuleWizard({ initial, programId, flash, onClose, onSaved }) {
     let id = form.id;
     let stage = "Module details";
     try {
-      const body = { ...form, programId, videoUrl: form.videoUrl.trim() };
+      const body = { ...form, programId, videoUrl: form.videoUrl.trim(), durationMin: Math.round(Number(form.durationMin)) };
       if (id) await lndApi.updateModule(id, body);
       else { id = (await lndApi.createModule(body)).id; setForm((f) => ({ ...f, id })); }
 
@@ -765,7 +838,14 @@ function ModuleWizard({ initial, programId, flash, onClose, onSaved }) {
             <label className="lm-f"><span>Module title <em>*</em></span><input value={form.title} onChange={(e) => set("title", e.target.value)} maxLength={200} placeholder="e.g. Customer Engagement & Upselling" autoFocus /></label>
             <label className="lm-f">Description / notes<textarea rows={4} value={form.description} onChange={(e) => set("description", e.target.value)} maxLength={4000} placeholder="What the learner will learn. Shown in the Notes tab." /></label>
             <div className="lm-two">
-              <label className="lm-f">Duration (minutes)<input type="number" min={1} max={600} value={form.durationMin} onChange={(e) => set("durationMin", e.target.value)} /></label>
+              <label className="lm-f">Duration (minutes)<input type="number" min={1} max={600} value={form.durationMin} onChange={(e) => { autoDuration.current = false; set("durationMin", e.target.value); }} />
+                {detectedMin && (
+                  <small className="lnd-small">
+                    Video length: {fmtLength(detectedSec)}
+                    {Number(form.durationMin) !== detectedMin && <> · <button type="button" className="lm-link" onClick={() => set("durationMin", detectedMin)}>Use {detectedMin} min</button></>}
+                  </small>
+                )}
+              </label>
               <label className="lm-f"><span>Key highlights <small>(separate with |)</small></span><input value={form.highlights} onChange={(e) => set("highlights", e.target.value)} maxLength={500} placeholder="Open questions | Cross-selling" /></label>
             </div>
             <div className="lm-toggles">
@@ -791,7 +871,7 @@ function ModuleWizard({ initial, programId, flash, onClose, onSaved }) {
             <input value={form.videoUrl} onChange={(e) => set("videoUrl", e.target.value)} placeholder="https://youtu.be/…" />
           </label>
           <DropZone accept={MEDIA_ACCEPT} multiple test={MEDIA_EXT}
-            onFiles={(list) => setFiles((cur) => [...cur, ...list].slice(0, 20))}
+            onFiles={(list) => { if (list.some((f) => isVideoName(f.name))) autoDuration.current = true; setFiles((cur) => [...cur, ...list].slice(0, 20)); }}
             title="Upload video, PDF or images" hint="Drag & drop or click · MP4 / MOV / WEBM · PDF · JPG / PNG / WEBP / GIF · up to 20 files" />
           {(files.length > 0 || media.length > 0) && (
             <div className="lm-files">
@@ -807,11 +887,12 @@ function ModuleWizard({ initial, programId, flash, onClose, onSaved }) {
                 <div key={`f${i}-${f.name}`} className="lm-file is-new">
                   <span className={`lm-file__kind lm-file__kind--${fileKind(f.name)}`}>{KIND_ICON[fileKind(f.name)]}</span>
                   <div><strong>{f.name}</strong><small>{fileKind(f.name)} · {fmtSize(f.size)} · uploads on save</small></div>
-                  <button className="lm-icon lm-icon--danger" onClick={() => setFiles((cur) => cur.filter((_, x) => x !== i))} aria-label={`Remove ${f.name}`}>×</button>
+                  <button className="lm-icon lm-icon--danger" onClick={() => { if (isVideoName(f.name)) autoDuration.current = true; setFiles((cur) => cur.filter((_, x) => x !== i)); }} aria-label={`Remove ${f.name}`}>×</button>
                 </div>
               ))}
             </div>
           )}
+          {detectedMin && <p className="lm-hint">Video length detected: {fmtLength(detectedSec)} → module duration {Number(form.durationMin) === detectedMin ? "set to" : "suggested"} {detectedMin} min (change it in Details).</p>}
           {contentCount === 0 && <p className="lm-hint">No video or files? That is fine — learners will read the notes and press “Mark module as complete” (or go straight to the assessment).</p>}
         </div>
       )}
@@ -1009,10 +1090,17 @@ function LearnersPanel({ program, flash }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [cert, setCert] = useState(null);
+  const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => {
-    lndApi.programLearners(program.id).then(setData).catch((e) => { flash("error", errorMessage(e)); setData({ learners: [], summary: {} }); });
-  }, [program.id, flash]);
+  const load = useCallback(() => lndApi.programLearners(program.id).then(setData).catch((e) => { flash("error", errorMessage(e)); setData({ learners: [], summary: {} }); }), [program.id, flash]);
+  useEffect(() => { load(); }, [load]);
+
+  const retryEmails = async () => {
+    setRetrying(true);
+    try { const r = await lndApi.retryEmails(program.id); flash("success", r.message); await load(); }
+    catch (e) { flash("error", errorMessage(e, "Could not retry the emails")); }
+    finally { setRetrying(false); }
+  };
 
   const openCert = async (row) => {
     try { setCert((await lndApi.reportCertificate(row.userId, program.id)).certificate); }
@@ -1023,11 +1111,14 @@ function LearnersPanel({ program, flash }) {
   const q = query.trim().toLowerCase();
   const rows = data.learners.filter((r) => (!status || r.status === status) && (!q || `${r.name} ${r.email} ${r.designation}`.toLowerCase().includes(q)));
   const s = data.summary || {};
+  const failedEmails = data.learners.filter((r) => r.emailStatus === "failed").length;
 
   return (
     <>
     <section className="lm-panel lnd-glass">
-      <div className="lm-panel__head"><div><h2>Learners &amp; Certificates</h2><p className="lnd-small">Everyone the program is assigned to, plus anyone with earlier progress. Certificates are stored here automatically.</p></div></div>
+      <div className="lm-panel__head"><div><h2>Learners &amp; Certificates</h2><p className="lnd-small">Everyone the program is assigned to, plus anyone with earlier progress. Certificates are stored here automatically. “Invite email” is the “New training assigned” email sent when the program is published.</p></div>
+        {failedEmails > 0 && program.status === "Active" && <button className="lnd-btn lnd-btn--ghost lnd-btn--sm" disabled={retrying} onClick={retryEmails}>{retrying ? "Retrying…" : `↻ Retry ${failedEmails} failed email(s)`}</button>}
+      </div>
       <div className="lm-mini-stats">
         <button className={!status ? "on" : ""} onClick={() => setStatus("")}><strong>{s.assigned ?? 0}</strong>Assigned</button>
         <button className={status === "Not Started" ? "on" : ""} onClick={() => setStatus("Not Started")}><strong>{s.notStarted ?? 0}</strong>Not started</button>
@@ -1038,7 +1129,7 @@ function LearnersPanel({ program, flash }) {
       <label className="lm-search"><span aria-hidden="true">⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search learner…" /></label>
       <div className="lm-scroll">
         <table className="lm-table">
-          <thead><tr><th>Learner</th><th>Progress</th><th>Avg score</th><th>Status</th><th>Certificate</th><th>Email</th></tr></thead>
+          <thead><tr><th>Learner</th><th>Progress</th><th>Avg score</th><th>Status</th><th>Certificate</th><th>Invite email</th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.userId} className={r.assigned ? "" : "is-former"}>
@@ -1047,7 +1138,12 @@ function LearnersPanel({ program, flash }) {
                 <td>{r.avgScore === null ? "—" : `${r.avgScore}%`}</td>
                 <td><span className={`lm-state lm-state--${r.status.replace(/\s/g, "").toLowerCase()}`}>{r.status}</span></td>
                 <td>{r.certificate ? <button className="lm-link" onClick={() => openCert(r)}>★ {fmtDate(r.certificate.issuedAt)}</button> : <span className="lnd-small">Not yet</span>}</td>
-                <td>{r.emailStatus ? <span className={`lm-mail lm-mail--${r.emailStatus}`}>{r.emailStatus === "sent" ? "✓ Sent" : r.emailStatus === "failed" ? "✕ Failed" : "… Queued"}</span> : <span className="lnd-small">—</span>}</td>
+                <td>{r.emailStatus ? (
+                  <>
+                    <span className={`lm-mail lm-mail--${r.emailStatus}`} title={r.emailError || (r.emailSentAt ? `Accepted by the mail provider ${fmtDate(r.emailSentAt)}` : undefined)}>{r.emailStatus === "sent" ? "✓ Sent" : r.emailStatus === "failed" ? "✕ Failed" : "… Queued"}</span>
+                    {r.emailError && <div className="lnd-small">{r.emailError}</div>}
+                  </>
+                ) : <span className="lnd-small">—</span>}</td>
               </tr>
             ))}
           </tbody>

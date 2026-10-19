@@ -1,9 +1,28 @@
 import axios, { API_BASE_URL } from "../axiosConfig";
 
 // Thin wrapper for the Learning & Development API.
-const base = `${API_BASE_URL}/api/lnd`;
+//
+// API_BASE_URL is "/api" on the IIS deployment (VITE_API_URL=/api) and a
+// full origin such as "https://host" elsewhere. The server returns media
+// links that already start with "/api/…", so blindly prefixing produced
+// "/api/api/lnd/…" (seen in DevTools on the module cover / video requests).
+// joinApi() adds the base only once, whatever VITE_API_URL is.
+const API_ROOT = String(API_BASE_URL || "").replace(/\/+$/, "");
 
-export const fullUrl = (path) => (path ? `${API_BASE_URL}${path}` : "");
+const joinApi = (path) => {
+  const p = String(path || "");
+  if (!p) return "";
+  if (/^(https?:)?\/\//i.test(p) || /^(blob|data):/i.test(p)) return p; // already absolute
+  const rel = p.startsWith("/") ? p : `/${p}`;
+  if (/(^|\/)api$/i.test(API_ROOT) && /^\/api(\/|$)/i.test(rel)) {
+    return `${API_ROOT.slice(0, -4)}${rel}`;
+  }
+  return `${API_ROOT}${rel}`;
+};
+
+const base = joinApi("/api/lnd");
+
+export const fullUrl = (path) => joinApi(path);
 
 export const errorMessage = (error, fallback = "Something went wrong") =>
   error?.response?.data?.message || error?.message || fallback;
@@ -36,6 +55,7 @@ export const lndApi = {
   publishProgram: (id) => post(`/admin/programs/${id}/publish`, {}),
   unpublishProgram: (id) => post(`/admin/programs/${id}/unpublish`, {}),
   notifyLearners: (id, message) => post(`/admin/programs/${id}/notify`, { message }),
+  retryEmails: (id) => post(`/admin/programs/${id}/retry-emails`, {}),
   programLearners: (id) => get(`/admin/programs/${id}/learners`),
   uploadModuleThumb: (id, file) => {
     const form = new FormData();

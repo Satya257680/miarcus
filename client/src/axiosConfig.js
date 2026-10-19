@@ -63,32 +63,38 @@ const cleanQuizApiUrl =
 // DEBUG INFORMATION
 // ======================================================
 
-console.log(
-    "=============================================="
-);
+// Development builds only: production must not print the deployment
+// topology (API hosts) into every user's browser console.
+if (import.meta.env.DEV) {
 
-console.log(
-    "MIARCUS FRONTEND API CONFIGURATION"
-);
+    console.log(
+        "=============================================="
+    );
 
-console.log(
-    "MAIN API URL  :",
-    cleanApiUrl
-);
+    console.log(
+        "MIARCUS FRONTEND API CONFIGURATION"
+    );
 
-console.log(
-    "QUIZ API URL  :",
-    cleanQuizApiUrl
-);
+    console.log(
+        "MAIN API URL  :",
+        cleanApiUrl
+    );
 
-console.log(
-    "MODE          :",
-    import.meta.env.MODE
-);
+    console.log(
+        "QUIZ API URL  :",
+        cleanQuizApiUrl
+    );
 
-console.log(
-    "=============================================="
-);
+    console.log(
+        "MODE          :",
+        import.meta.env.MODE
+    );
+
+    console.log(
+        "=============================================="
+    );
+
+}
 
 
 // ======================================================
@@ -315,6 +321,13 @@ axios.interceptors.request.use(
 // ======================================================
 // RESPONSE INTERCEPTOR
 // ======================================================
+//
+// Several requests usually fail with 401 at the same moment when a
+// session expires (dashboard widgets, notifications, chat polling …).
+// Handle the expiry ONCE per page load: one message, one cleanup, one
+// redirect — instead of a stack of alert() boxes and racing redirects.
+
+let sessionExpiryHandled = false;
 
 axios.interceptors.response.use(
 
@@ -335,7 +348,7 @@ axios.interceptors.response.use(
         // 401 UNAUTHORIZED
         // ==================================================
 
-        if (status === 401) {
+        if (status === 401 && !sessionExpiryHandled) {
 
             const message =
                 error.response?.data?.message ||
@@ -348,6 +361,13 @@ axios.interceptors.response.use(
 
             const alreadyOnLoginPage =
                 window.location.pathname === "/login";
+
+            // Only lock the handler when we are actually leaving the page;
+            // on the login page itself a 401 (wrong password) must keep
+            // working normally for the next attempt.
+            if (!alreadyOnLoginPage) {
+                sessionExpiryHandled = true;
+            }
 
 
             // ==================================================

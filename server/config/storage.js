@@ -31,4 +31,37 @@ function uploadPath(...parts) {
   return target;
 }
 
-module.exports = { UPLOAD_DIR, uploadPath };
+// Resolve the location of an EXISTING stored file (read / stream / delete)
+// without touching the filesystem.
+//
+// uploadPath() above is for DIRECTORIES: it always runs mkdirSync on the
+// target. Passing it a file path is wrong — for a file that exists,
+// mkdirSync throws EEXIST, and for a file that does not exist it silently
+// creates an empty DIRECTORY with the file's name. That is what made every
+// L&D media request fail with HTTP 500 "Unable to load file" and kept
+// deleted L&D files on disk.
+//
+// Returns the absolute path, or null when the path would escape the
+// directory or the file name is unsafe.
+function resolveUploadFile(directory, fileName) {
+  const name = String(fileName || "").trim();
+  if (
+    !name ||
+    name.length > 255 ||
+    name.includes("\0") ||
+    name.includes("/") ||
+    name.includes("\\") ||
+    name === "." ||
+    name === ".." ||
+    name.startsWith(".")
+  ) {
+    return null;
+  }
+  const dir = path.resolve(UPLOAD_DIR, String(directory || ""));
+  if (dir !== UPLOAD_DIR && !dir.startsWith(`${UPLOAD_DIR}${path.sep}`)) return null;
+  const target = path.resolve(dir, name);
+  if (path.dirname(target) !== dir) return null;
+  return target;
+}
+
+module.exports = { UPLOAD_DIR, uploadPath, resolveUploadFile };
