@@ -39,6 +39,17 @@ const getDeviceIdentifier = () => {
   }
 };
 
+// Unique id per location reading (used by the server to ignore a retry
+// of a reading it already saved).
+const newRequestId = () => {
+  try {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  } catch {
+    // fall through
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+};
+
 const authConfig = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
   timeout: REQUEST_TIMEOUT_MS,
@@ -139,8 +150,16 @@ const LocationTrackingGate = () => {
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
           deviceIdentifier: getDeviceIdentifier(),
+          // Same id on a retry -> the server stores this point only once.
+          clientRequestId: newRequestId(),
         },
-        authConfig()
+        {
+          ...authConfig(),
+          // If the connection drops before the answer arrives
+          // (ERR_HTTP2_PROTOCOL_ERROR / ERR_CONNECTION_RESET), axiosConfig
+          // re-sends it; the clientRequestId makes that safe.
+          retryOnNetworkError: true,
+        }
       );
     } catch {
       // A single failed reading (permission, timeout) must not disrupt the app.

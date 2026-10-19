@@ -40,6 +40,7 @@ import PremiumHero from "../components/premium/PremiumHero";
 import InsightStrip from "../components/premium/InsightStrip";
 import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const API = API_BASE_URL;
 
@@ -439,7 +440,7 @@ export default function AssetManagement({ type = "marketing" }) {
 
     const remove = async (row) => {
         if (!permissions.canDelete) return;
-        if (!window.confirm(`Delete this ${isMarketing ? "marketing" : "legal"} asset?`)) return;
+        if (!(await confirmWithGlass({ title: "Delete Asset", message: `Delete this ${isMarketing ? "marketing" : "legal"} asset?`, confirmText: "Delete", danger: true }))) return;
         try { await deleteAsset(type, row.id); await load(); }
         catch (err) { setError(err?.response?.data?.message || "Unable to delete the asset."); }
     };

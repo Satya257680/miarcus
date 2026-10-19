@@ -33,6 +33,7 @@ import {
 } from "react-icons/fa";
 
 import "../styles/FilterAccess.css";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 // ======================================================
 // FILTER ACCESS (admin only)
@@ -744,7 +745,7 @@ function EditAccessModal({ user, catalog, storeName, onClose, onSaved }) {
     };
 
     const resetAll = async () => {
-        if (!window.confirm(`Remove every filter access override for ${user.name}? Existing role-based rules will apply.`)) return;
+        if (!(await confirmWithGlass({ title: "Reset Filter Access", message: `Remove every filter access override for ${user.name}? Existing role-based rules will apply.`, confirmText: "Reset", danger: false }))) return;
         setSaving(true);
         setError("");
         try {

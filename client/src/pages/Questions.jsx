@@ -44,6 +44,7 @@ import InsightStrip from "../components/premium/InsightStrip";
 import { FaQuestionCircle, FaClipboardList, FaAsterisk, FaStopwatch } from "react-icons/fa";
 import { formatCount } from "../utils/premiumFormat";
 import { exportTableData } from "../utils/exportUtils.js";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 // ======================================================
 // API
@@ -329,7 +330,7 @@ const handleDeleteAll = async () => {
         return;
     }
 
-    if (!window.confirm(deleteAllMessage(filtered, ids.length, "questions"))) return;
+    if (!(await confirmWithGlass({ title: "Delete Questions", message: deleteAllMessage(filtered, ids.length, "questions"), confirmText: "Delete", danger: true }))) return;
 
     try {
 

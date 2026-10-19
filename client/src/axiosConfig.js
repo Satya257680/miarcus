@@ -329,6 +329,60 @@ axios.interceptors.request.use(
 
 let sessionExpiryHandled = false;
 
+
+// ======================================================
+// TRANSIENT NETWORK / GATEWAY RETRY
+// ======================================================
+//
+// Store connections drop for a moment now and then (DevTools:
+// ERR_CONNECTION_RESET, ERR_HTTP2_PROTOCOL_ERROR, or a 502/503/504
+// from the IIS reverse proxy while the API restarts). A READ request
+// that failed that way is simply sent again — up to 2 more times,
+// after ~0.6 s and ~1.5 s (with jitter).
+//
+// Never retried automatically:
+//   • POST / PUT / PATCH / DELETE (could create duplicates) — unless
+//     the caller opts in with `retryOnNetworkError: true` and makes the
+//     request idempotent itself (see LocationTrackingGate.jsx)
+//   • requests the app cancelled, or that hit their own timeout
+//   • real answers such as 400 / 401 / 403 / 404 / 500
+//   • anything with `noRetry: true` in its config
+// ======================================================
+
+const RETRY_STATUSES = new Set([502, 503, 504]);
+const SAFE_METHODS = new Set(["get", "head", "options"]);
+const MAX_RETRIES = 2;
+
+const isTransientFailure = (error) => {
+    if (axios.isCancel?.(error) || error?.code === "ERR_CANCELED") return false;
+    // Our own `timeout` fired: the request may still be running on the server.
+    if (error?.code === "ECONNABORTED" || error?.code === "ETIMEDOUT") return false;
+
+    const status = error?.response?.status;
+    if (status) return RETRY_STATUSES.has(status);
+
+    // No response at all = the connection dropped (reset / protocol error).
+    return error?.code === "ERR_NETWORK" || error?.message === "Network Error";
+};
+
+const shouldRetry = (error) => {
+    const config = error?.config;
+    if (!config || config.noRetry) return false;
+    if ((config.__miarcusRetryCount || 0) >= MAX_RETRIES) return false;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+    if (config.signal?.aborted) return false;
+
+    const method = String(config.method || "get").toLowerCase();
+    const allowed =
+        SAFE_METHODS.has(method) ||
+        (config.retryOnNetworkError === true && !error?.response);
+
+    return allowed && isTransientFailure(error);
+};
+
+const retryDelay = (attempt) =>
+    Math.round((attempt === 1 ? 600 : 1500) * (0.75 + Math.random() * 0.5));
+
 axios.interceptors.response.use(
 
     (response) => {
@@ -339,6 +393,19 @@ axios.interceptors.response.use(
 
 
     (error) => {
+
+        if (shouldRetry(error)) {
+
+            const config = error.config;
+
+            config.__miarcusRetryCount =
+                (config.__miarcusRetryCount || 0) + 1;
+
+            return new Promise((resolve) =>
+                setTimeout(resolve, retryDelay(config.__miarcusRetryCount))
+            ).then(() => axios(config));
+
+        }
 
         const status =
             error.response?.status;

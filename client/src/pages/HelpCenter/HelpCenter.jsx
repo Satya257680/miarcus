@@ -14,6 +14,7 @@ import {
     getZarvisHistory, clearZarvisHistory
 } from "../../services/helpCenterService";
 import "../../styles/pages/HelpCenter.css";
+import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const emptyForm = { title: "", question: "", answer: "", category: "General", keywords: "", audience: "both", status: "published", sort_order: 0 };
 const userFromStorage = () => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } };
@@ -231,7 +232,7 @@ function HelpCenter({ publicMode = false }) {
     };
     const clearHistory = async () => {
         if (historyClearing || !zarvisHistory.length) return;
-        if (!window.confirm("Clear your private Zarvis question history? This will not affect anyone else.")) return;
+        if (!(await confirmWithGlass({ title: "Clear Zarvis History", message: "Clear your private Zarvis question history? This will not affect anyone else.", confirmText: "Clear History", danger: true }))) return;
         setHistoryClearing(true);
         try {
             await clearZarvisHistory();
@@ -286,7 +287,7 @@ function HelpCenter({ publicMode = false }) {
             setArticleForm(emptyForm); setEditingArticle(null); setToast(editingArticle ? "Help answer updated." : "Help answer published."); await load();
         } catch (e) { setToast(e?.response?.data?.message || "Could not save help answer."); }
     };
-    const removeArticle = async (id) => { if (!window.confirm("Delete this Help Center answer?")) return; try { await deleteAdminHelpArticle(id); await load(); setToast("Help answer deleted."); } catch { setToast("Could not delete answer."); } };
+    const removeArticle = async (id) => { if (!(await confirmWithGlass({ title: "Delete Help Answer", message: "Delete this Help Center answer?", confirmText: "Delete", danger: true }))) return; try { await deleteAdminHelpArticle(id); await load(); setToast("Help answer deleted."); } catch { setToast("Could not delete answer."); } };
     const startEdit = (a) => { setEditingArticle(a); setArticleForm({ title:a.title, question:a.question, answer:a.answer, category:a.category, keywords:a.keywords || "", audience:a.audience, status:a.status, sort_order:a.sort_order }); document.querySelector(".hc-admin-form-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
     const renderAdmin = () => (

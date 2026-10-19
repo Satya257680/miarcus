@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios, { API_BASE_URL } from '../axiosConfig.js';
 import '../styles/UserAccessManagement.css';
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 const API = `${API_BASE_URL}/api`;
 const modules = ['Dashboard', 'Action Points', 'Checklist Reports', 'Checklist Submission', 'Checklist Types', 'Questions', 'Departments', 'Designations', 'Store Management', 'Users', 'NSO Rules', 'New Store Openings', 'Attendance', 'Daily Collection', 'Billing', 'Collection Tracking', 'Announcements', 'Gallery', 'Asset Master', 'Visit Planner', 'Travel Plan', 'Expenses', 'Petty Cash', 'Inventory Planning'];
@@ -81,7 +82,7 @@ export default function UserAccessManagement() {
     finally { setSaving(false); }
   };
   const reset = async () => {
-    if (!selected || !window.confirm(`Remove all custom access overrides for ${selected.name}? Existing role-based rules will apply.`)) return;
+    if (!selected || !(await confirmWithGlass({ title: "Reset Access Overrides", message: `Remove all custom access overrides for ${selected.name}? Existing role-based rules will apply.`, confirmText: "Reset", danger: false }))) return;
     setSaving(true);
     try { await axios.delete(`${API}/users/${selected.id}/access-config`, config); setSelected(null); await load(); setNotice('Custom overrides removed. Existing/default rules apply.'); }
     catch (e) { setNotice(e?.response?.data?.message || 'Could not reset access.'); }

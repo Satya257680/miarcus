@@ -173,13 +173,67 @@ const registerMobileNumber = async (req, res) => {
     }
 };
 
+// ------------------------------------------------------
+// RETRY DE-DUPLICATION for website location updates
+// ------------------------------------------------------
+// The browser re-sends an update once when the connection drops before
+// the answer arrives (ERR_HTTP2_PROTOCOL_ERROR / ERR_CONNECTION_RESET).
+// The first attempt may already have been saved, so each reading carries
+// a clientRequestId; a repeat of the same id from the same user within
+// 10 minutes is acknowledged without inserting a second row.
+// Bounded in-memory map (single Node process behind IIS).
+const RECENT_LOCATION_TTL_MS = 10 * 60 * 1000;
+const RECENT_LOCATION_MAX = 20000;
+const recentLocationRequests = new Map(); // `${userId}:${id}` -> expiresAt
+
+const locationRequestKey = (userId, rawId) => {
+    const id = String(rawId || "").trim();
+    if (!id || id.length > 64 || !/^[A-Za-z0-9_-]+$/.test(id)) return null;
+    return `${Number(userId)}:${id}`;
+};
+
+const seenLocationRequest = (key) => {
+    if (!key) return false;
+    const now = Date.now();
+    const expiresAt = recentLocationRequests.get(key);
+    if (expiresAt && expiresAt > now) return true;
+    if (expiresAt) recentLocationRequests.delete(key);
+    return false;
+};
+
+const rememberLocationRequest = (key) => {
+    if (!key) return;
+    const now = Date.now();
+    recentLocationRequests.set(key, now + RECENT_LOCATION_TTL_MS);
+    if (recentLocationRequests.size > RECENT_LOCATION_MAX) {
+        for (const [k, exp] of recentLocationRequests) {
+            if (exp <= now || recentLocationRequests.size > RECENT_LOCATION_MAX) {
+                recentLocationRequests.delete(k);
+            } else {
+                break;
+            }
+        }
+    }
+};
+
 const submitLocation = async (req, res) => {
+    let reservedKey = null;
     try {
+        const requestKey = locationRequestKey(req.user?.id, req.body?.clientRequestId);
+        if (seenLocationRequest(requestKey)) {
+            return res.json({ success: true, duplicate: true });
+        }
+
         const latitude = Number(req.body?.latitude);
         const longitude = Number(req.body?.longitude);
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
             return res.status(400).json({ success: false, message: "Valid latitude and longitude are required." });
         }
+
+        // Reserve the id before saving, so a retry that arrives while the
+        // first attempt is still writing is not saved twice.
+        rememberLocationRequest(requestKey);
+        reservedKey = requestKey;
 
         const accuracy = Number.isFinite(Number(req.body?.accuracy)) ? Number(req.body.accuracy) : null;
         const deviceIdentifier = String(req.body?.deviceIdentifier || "").trim();
@@ -202,6 +256,8 @@ const submitLocation = async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
+        // Not saved -> release the id so the next attempt can save it.
+        if (reservedKey) recentLocationRequests.delete(reservedKey);
         console.error("Website location update error:", error);
         res.status(500).json({ success: false, message: "Unable to record location." });
     }

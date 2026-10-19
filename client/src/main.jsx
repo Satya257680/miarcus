@@ -12,6 +12,10 @@ import ReactDOM from "react-dom/client";
 // hooks/useInstallPrompt.js and utils/installPromptStore.js.
 import "./utils/installPromptStore";
 
+// Replaces the browser's alert() with the branded Mi Arcus popup for
+// every module and page (success / error / warning / info).
+import "./utils/installGlassAlert";
+
 import "./axiosConfig";
 import App from "./App";
 import "./index.css";

@@ -43,6 +43,7 @@ import InsightStrip from "../components/premium/InsightStrip";
 import { FaClipboardList, FaClipboardCheck, FaHistory, FaClock } from "react-icons/fa";
 import { formatCount } from "../utils/premiumFormat";
 import { exportFromXLSXBinary } from "../utils/exportUtils.js";
+import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 
 // ======================================================
 // API
@@ -304,7 +305,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
             return;
         }
 
-        if (!window.confirm(deleteAllMessage(filtered, ids.length, "Checklist Types"))) return;
+        if (!(await confirmWithGlass({ title: "Delete Checklist Types", message: deleteAllMessage(filtered, ids.length, "Checklist Types"), confirmText: "Delete", danger: true }))) return;
 
         try {
 
