@@ -69,18 +69,35 @@ router.get("/unread-count", authMiddleware, async (req, res) => {
 // REAL-TIME SSE STREAM
 // ======================================================
 //
-// EventSource cannot send an Authorization header.
-// The frontend therefore sends the JWT as:
-// /api/notifications/stream?token=...
+// EventSource cannot send an Authorization header. The frontend
+// therefore first asks for a 60-second, single-use stream ticket
+// with its normal Bearer token:
 //
-// Notification.openStream() validates that token, checks the
-// current user, registers the response and sends new events.
+//   POST /api/notifications/stream-token   -> { ticket }
+//   GET  /api/notifications/stream?ticket=...
+//
+// The long-lived login JWT is no longer placed in the URL
+// (it used to appear in proxy/IIS logs and DevTools screenshots).
 // ======================================================
+router.post("/stream-token", authMiddleware, (req, res) => {
+    try {
+        const { ticket, expiresIn } = Notification.issueTicket(req.user);
+        res.setHeader("Cache-Control", "no-store");
+        return res.json({ success: true, ticket, expiresIn });
+    } catch (error) {
+        console.error("Notification stream ticket:", error.message);
+        return res.status(500).json({
+            success: false,
+            message: "Unable to start live notifications"
+        });
+    }
+});
+
 router.get("/stream", (req, res) => {
     Promise.resolve(
         Notification.openStream(req, res)
     ).catch((error) => {
-        console.error("Notification stream error:", error);
+        console.error("Notification stream error:", error?.message || error);
 
         if (!res.headersSent) {
             return res.status(500).json({

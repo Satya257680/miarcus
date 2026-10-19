@@ -3,6 +3,7 @@ const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const Model = require("../models/chatModel");
 const { authenticateLoginToken } = require("../utils/accessToken");
 const ChatEvents = require("../services/chatEventService");
+const { openSseStream } = require("../utils/sseStream");
 const Notification = require("../services/notificationService");
 
 const isAdmin = (req) => Model.isAdmin(req.user);
@@ -626,37 +627,22 @@ exports.presence = async (req, res) => {
 };
 
 exports.stream = async (req, res) => {
-    const token = String(req.query.token || "");
-    if (!token) return res.status(401).end();
+    // Authentication (stream ticket, or the legacy rollback token) and
+    // Chat RBAC are already enforced by streamAuth + permission() in
+    // routes/chatRoutes.js — they set req.user from the database.
+    const userId = Number(req.user?.id);
+    if (!Number.isSafeInteger(userId) || userId <= 0) return res.status(401).end();
 
-    // Login token only, active + activated user, current token version.
-    const session = await authenticateLoginToken(token);
-    if (!session) return res.status(401).end();
-    const { decoded } = session;
-
-    res.status(200);
-    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no");
-    res.flushHeaders?.();
-
-    const remove = ChatEvents.addClient(decoded.id, res);
-    res.write(`event: connected\ndata: ${JSON.stringify({ connected: true })}\n\n`);
-
-    const heartbeat = setInterval(() => {
-        try {
-            res.write(`event: heartbeat\ndata: ${JSON.stringify({ time: Date.now() })}\n\n`);
-        } catch {
-            clearInterval(heartbeat);
-            remove();
-        }
-    }, 20000);
-
-    req.on("close", () => {
-        clearInterval(heartbeat);
-        remove();
+    let remove = () => {};
+    const stream = openSseStream(req, res, {
+        channel: "chat",
+        userId,
+        onClose: () => remove()
     });
+    // chatEventService writes raw SSE frames to the registered response.
+    remove = ChatEvents.addClient(userId, res);
+
+    stream.send("connected", { connected: true });
 };
 
 exports.startCall = async (req, res) => {

@@ -2432,13 +2432,15 @@ app.use(
 
     (req, res) => {
 
+        // Path only — never log the query string (it can carry stream
+        // tickets, legacy ?token= values, reset links or search terms).
         console.warn(
 
             "⚠️ API Route Not Found:",
 
             req.method,
 
-            req.originalUrl
+            String(req.originalUrl || "").split("?")[0]
 
         );
 
@@ -2610,6 +2612,77 @@ const httpServer = app.listen(
 
 const { UPLOAD_TIMEOUT_MS } = require("./middleware/extendUploadTimeout");
 
-httpServer.keepAliveTimeout = 5000;
-httpServer.headersTimeout = 120000;
+// ------------------------------------------------------
+// KEEP-ALIVE vs REVERSE PROXY (IIS / ARR)
+// ------------------------------------------------------
+// Node used to close an idle keep-alive socket after 5 s. IIS/ARR keeps a
+// pool of persistent connections to 127.0.0.1:5000 and reuses them; when
+// ARR picks a socket at the same moment Node closes it, the proxied
+// request fails with a reset / 502. The upstream (Node) idle timeout must
+// be LONGER than the proxy's, so Node never closes a socket the proxy is
+// about to reuse. headersTimeout must stay above keepAliveTimeout.
+// Override with HTTP_KEEP_ALIVE_TIMEOUT_MS if your proxy differs.
+const KEEP_ALIVE_TIMEOUT_MS = Math.min(
+    Math.max(Number(process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS) || 65000, 5000),
+    600000
+);
+
+httpServer.keepAliveTimeout = KEEP_ALIVE_TIMEOUT_MS;
+httpServer.headersTimeout = Math.max(120000, KEEP_ALIVE_TIMEOUT_MS + 1000);
 httpServer.requestTimeout = UPLOAD_TIMEOUT_MS;
+
+// ======================================================
+// GRACEFUL SHUTDOWN
+// ------------------------------------------------------
+// On restart / redeploy (SIGTERM from the service manager, SIGINT/Ctrl+C,
+// or SIGBREAK on Windows) stop accepting new connections, end open SSE
+// streams cleanly (browsers then reconnect to the new process instead of
+// seeing ERR_CONNECTION_RESET), let in-flight requests finish, close the
+// MySQL pool, then exit. A hard timeout guarantees the process exits.
+// ======================================================
+
+let shuttingDown = false;
+
+const gracefulShutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    console.log(`🛑 ${signal} received — shutting down gracefully...`);
+
+    const forceExitMs = Math.min(
+        Math.max(Number(process.env.SHUTDOWN_TIMEOUT_MS) || 15000, 1000),
+        120000
+    );
+    const forceTimer = setTimeout(() => {
+        console.error("⏱️ Graceful shutdown timed out — forcing exit.");
+        process.exit(1);
+    }, forceExitMs);
+    forceTimer.unref?.();
+
+    try {
+        require("./utils/sseStream").closeAllStreams();
+    } catch (error) {
+        console.error("SSE shutdown error:", error.message);
+    }
+
+    httpServer.close(async () => {
+        try {
+            await db.closePool?.();
+        } finally {
+            clearTimeout(forceTimer);
+            console.log("✅ MIARCUS backend stopped cleanly.");
+            process.exit(0);
+        }
+    });
+
+    // Idle keep-alive sockets would otherwise hold close() open.
+    httpServer.closeIdleConnections?.();
+};
+
+["SIGTERM", "SIGINT", "SIGBREAK"].forEach((signal) => {
+    try {
+        process.on(signal, () => gracefulShutdown(signal));
+    } catch {
+        // SIGBREAK only exists on Windows — ignore elsewhere.
+    }
+});

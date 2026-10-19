@@ -378,6 +378,19 @@ const Gallery = {
         return rows[0] || null;
     },
 
+    // Same record as getFile() but WITHOUT the file_data BLOB. Used for the
+    // authorization check and the thumbnail cache, so a cached thumbnail
+    // never has to pull the full original out of MySQL.
+    async getFileMeta(id) {
+        const rows = await db.query(`
+            SELECT id, file_name, file_path, mime_type, file_size, location_type, store_id
+            FROM gallery_photos
+            WHERE id = ? AND status = 'active'
+            LIMIT 1
+        `, [id]);
+        return rows[0] || null;
+    },
+
     async saveFileData(id, buffer) {
         if (!Buffer.isBuffer(buffer) || buffer.length === 0) return;
         await db.query(`

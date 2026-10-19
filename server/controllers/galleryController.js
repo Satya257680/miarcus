@@ -6,6 +6,7 @@ const Gallery = require("../models/galleryModel");
 const db = require("../config/db");
 const notificationService = require("../services/notificationService");
 const { getStoreScope } = require("../services/notificationAudience");
+const Thumbs = require("../utils/galleryThumbnail");
 
 const publicFilePath = (filePath) => {
     const normalized = String(filePath || "").replace(/\\/g, "/");
@@ -365,6 +366,44 @@ const deleteAllPhotos = async (req, res) => {
     }
 };
 
+// ------------------------------------------------------
+// FILE ACCESS HELPERS
+// ------------------------------------------------------
+
+// Store-scoped users may only open files of their assigned stores
+// (admin / all-store users are global). Returns true when allowed.
+const canAccessGalleryRecord = async (req, record) => {
+    const scope = await getStoreScope(req.user?.id);
+    if (scope.allStores) return true;
+    const assigned = new Set(scope.storeIds.map(Number));
+    return record.location_type === "store" && assigned.has(Number(record.store_id));
+};
+
+// Original bytes from MySQL, or (legacy rows) from disk — migrated into
+// MySQL on first access, exactly as before.
+const loadOriginalBuffer = async (id, record) => {
+    let buffer = record.file_data;
+
+    if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
+        const diskPath = path.resolve(process.cwd(), String(record.file_path || ""));
+        if (!fs.existsSync(diskPath)) return null;
+
+        buffer = fs.readFileSync(diskPath);
+        await Gallery.saveFileData(id, buffer);
+    }
+
+    return buffer;
+};
+
+const sendBuffer = (res, buffer, { mime, fileName, disposition }) => {
+    res.setHeader("Content-Type", mime || "application/octet-stream");
+    res.setHeader("Content-Length", String(buffer.length));
+    res.setHeader("Content-Disposition", `${disposition}; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.end(buffer);
+};
+
 const servePhoto = async (req, res) => {
     try {
         const id = Number(req.params.id);
@@ -372,40 +411,53 @@ const servePhoto = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid photo id" });
         }
 
+        // Authorize from metadata only (no BLOB read yet).
+        const meta = await Gallery.getFileMeta(id);
+        if (!meta) {
+            return res.status(404).json({ success: false, message: "Photo not found" });
+        }
+
+        if (!(await canAccessGalleryRecord(req, meta))) {
+            return res.status(404).json({ success: false, message: "Photo not found" });
+        }
+
+        const fileName = meta.file_name || `gallery-${id}`;
+
+        // ?variant=thumb -> small WebP preview for the Gallery grid.
+        // Falls back to the original file when a thumbnail cannot be made.
+        const wantsThumb = String(req.query.variant || "").toLowerCase() === "thumb";
+        if (wantsThumb && Thumbs.isThumbnailable(meta.mime_type)) {
+            const cached = Thumbs.getCachedThumbnail(id, meta.file_size);
+            if (cached) {
+                return sendBuffer(res, cached, { mime: Thumbs.THUMBNAIL_MIME, fileName, disposition: "inline" });
+            }
+        }
+
         const photo = await Gallery.getFile(id);
         if (!photo) {
             return res.status(404).json({ success: false, message: "Photo not found" });
         }
 
-        const scope = await getStoreScope(req.user?.id);
-        if (!scope.allStores) {
-            const assigned = new Set(scope.storeIds.map(Number));
-            if (photo.location_type !== "store" || !assigned.has(Number(photo.store_id))) {
-                return res.status(404).json({ success: false, message: "Photo not found" });
+        const buffer = await loadOriginalBuffer(id, photo);
+        if (!buffer) {
+            return res.status(404).json({ success: false, message: "Photo file not found" });
+        }
+
+        if (wantsThumb && Thumbs.isThumbnailable(photo.mime_type)) {
+            const thumb = await Thumbs.buildThumbnail(id, photo.file_size, buffer, photo.mime_type);
+            if (thumb && thumb.length < buffer.length) {
+                return sendBuffer(res, thumb, { mime: Thumbs.THUMBNAIL_MIME, fileName, disposition: "inline" });
             }
         }
 
-        let buffer = photo.file_data;
-
-        // Older Gallery records may pre-date database-backed files. Read the
-        // existing disk file once and migrate it into MySQL on first access.
-        if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
-            const diskPath = path.resolve(process.cwd(), String(photo.file_path || ""));
-            if (!fs.existsSync(diskPath)) {
-                return res.status(404).json({ success: false, message: "Photo file not found" });
-            }
-
-            buffer = fs.readFileSync(diskPath);
-            await Gallery.saveFileData(id, buffer);
-        }
-
-        res.setHeader("Content-Type", photo.mime_type || "application/octet-stream");
-        res.setHeader("Content-Length", String(buffer.length));
-        res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(photo.file_name || `gallery-${id}`)}`);
-        res.setHeader("Cache-Control", "private, no-store, max-age=0");
-        return res.end(buffer);
+        return sendBuffer(res, buffer, {
+            mime: photo.mime_type,
+            fileName: photo.file_name || `gallery-${id}`,
+            disposition: "inline"
+        });
     } catch (error) {
         console.error("Gallery file serve error:", error);
+        if (res.headersSent) return res.end();
         return res.status(500).json({ success: false, message: "Unable to load gallery file" });
     }
 };
@@ -417,33 +469,33 @@ const downloadPhoto = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid gallery item id" });
         }
 
+        // SECURITY FIX: download used to skip the store-scope check that
+        // the preview endpoint enforces, so a store-scoped user could
+        // download another store's / head-office file by changing the id.
+        const meta = await Gallery.getFileMeta(id);
+        if (!meta || !(await canAccessGalleryRecord(req, meta))) {
+            return res.status(404).json({ success: false, message: "Gallery file not found" });
+        }
+
         const file = await Gallery.getFile(id);
         if (!file) {
             return res.status(404).json({ success: false, message: "Gallery file not found" });
         }
 
-        let buffer = file.file_data;
-
         // Keep legacy files working and migrate them to MySQL on first access.
-        if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
-            const diskPath = path.resolve(process.cwd(), String(file.file_path || ""));
-            if (!fs.existsSync(diskPath)) {
-                return res.status(404).json({ success: false, message: "Gallery file not found" });
-            }
-            buffer = fs.readFileSync(diskPath);
-            await Gallery.saveFileData(id, buffer);
+        const buffer = await loadOriginalBuffer(id, file);
+        if (!buffer) {
+            return res.status(404).json({ success: false, message: "Gallery file not found" });
         }
 
-        res.setHeader("Content-Type", file.mime_type || "application/octet-stream");
-        res.setHeader("Content-Length", String(buffer.length));
-        res.setHeader(
-            "Content-Disposition",
-            `attachment; filename*=UTF-8''${encodeURIComponent(file.file_name || `gallery-${id}`)}`
-        );
-        res.setHeader("Cache-Control", "private, no-store, max-age=0");
-        return res.end(buffer);
+        return sendBuffer(res, buffer, {
+            mime: file.mime_type,
+            fileName: file.file_name || `gallery-${id}`,
+            disposition: "attachment"
+        });
     } catch (error) {
         console.error("Gallery download error:", error);
+        if (res.headersSent) return res.end();
         return res.status(500).json({ success: false, message: "Unable to download gallery file" });
     }
 };
@@ -465,6 +517,7 @@ const deletePhoto = async (req, res) => {
         }
 
         await Gallery.softDelete(id);
+        Thumbs.forgetThumbnail(id);
         if (!photo.source_module || photo.source_module === "Gallery") {
             const diskPath = path.resolve(process.cwd(), String(photo.file_path).replace(/^.*?uploads[\\/]/, "uploads/"));
             if (fs.existsSync(diskPath)) {

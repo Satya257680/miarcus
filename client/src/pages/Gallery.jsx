@@ -97,23 +97,121 @@ const FileTypeIcon = ({ mime, large = false }) => {
     );
 };
 
+// -------------------------------------------------------------
+// PREVIEW LOADING (root-cause fix for the Gallery network errors)
+// -------------------------------------------------------------
+// The grid used to download the FULL original of all 24 cards at
+// once (including videos/PDFs that were only shown as an icon). On
+// store connections that saturated the HTTP/2 connection, Chrome's
+// HTTP/2 PING timed out (ERR_HTTP2_PING_FAILED) and Chrome reset the
+// connection — failing heartbeat, location, notification-center and
+// the live stream at the same moment (ERR_CONNECTION_RESET).
+//
+// Now:
+//   • grid cards request a small WebP thumbnail (?variant=thumb)
+//   • only images are fetched for grid cards; other file types show
+//     their icon (the full file still opens in the viewer)
+//   • a card loads only when it is near the screen
+//   • at most 4 previews download at the same time
+const PREVIEW_CONCURRENCY = 4;
+let previewActive = 0;
+const previewQueue = [];
+
+const runPreviewQueue = () => {
+    while (previewActive < PREVIEW_CONCURRENCY && previewQueue.length) {
+        const job = previewQueue.shift();
+        if (job.cancelled) continue;
+        previewActive += 1;
+        Promise.resolve()
+            .then(job.run)
+            .then(job.resolve, job.reject)
+            .finally(() => {
+                previewActive -= 1;
+                runPreviewQueue();
+            });
+    }
+};
+
+const queuePreview = (run) => {
+    const job = { run, cancelled: false };
+    const promise = new Promise((resolve, reject) => {
+        job.resolve = resolve;
+        job.reject = reject;
+    });
+    previewQueue.push(job);
+    runPreviewQueue();
+    return {
+        promise,
+        cancel: () => {
+            job.cancelled = true;
+        }
+    };
+};
+
+// true once the element is within ~300px of the viewport.
+const supportsIntersectionObserver = () =>
+    typeof window !== "undefined" && typeof window.IntersectionObserver === "function";
+
+const useNearViewport = (enabled) => {
+    const [node, setNode] = useState(null);
+    const [seen, setSeen] = useState(false);
+    const observe = enabled && supportsIntersectionObserver();
+
+    useEffect(() => {
+        if (!observe || !node || seen) return undefined;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    setSeen(true);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: "300px 0px" }
+        );
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [observe, node, seen]);
+
+    // Not lazy (viewer) or no IntersectionObserver support -> load now.
+    return [setNode, !observe || seen];
+};
+
 function ProtectedGalleryFile({ file, alt, className = "", compact = false }) {
     const [src, setSrc] = useState("");
     const [failed, setFailed] = useState(false);
+    const [attempt, setAttempt] = useState(0);
+    const [setPreviewNode, nearViewport] = useNearViewport(compact);
+
+    // Grid cards only need a picture for images; every other type is
+    // shown as its file-type icon, so it is not downloaded at all.
+    const needsDownload = !compact || fileKind(file?.mime_type) === "image";
 
     useEffect(() => {
         let active = true;
         let objectUrl = "";
+        let job = null;
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
 
         setSrc("");
         setFailed(false);
 
-        if (!file?.id) return undefined;
+        if (!file?.id || !needsDownload || !nearViewport) return undefined;
 
-        axios.get(`/api/gallery/${file.id}/file`, {
-            responseType: "blob"
-        }).then(response => {
-            if (!active) return;
+        job = queuePreview(() =>
+            active
+                ? axios.get(`/api/gallery/${file.id}/file`, {
+                    responseType: "blob",
+                    params: compact ? { variant: "thumb" } : undefined,
+                    signal: controller?.signal,
+                    // Grid thumbnails are small; the viewer may load a large original.
+                    timeout: compact ? 45000 : 0
+                })
+                : null
+        );
+
+        job.promise.then(response => {
+            if (!active || !response) return;
             objectUrl = URL.createObjectURL(response.data);
             setSrc(objectUrl);
         }).catch(() => {
@@ -122,9 +220,11 @@ function ProtectedGalleryFile({ file, alt, className = "", compact = false }) {
 
         return () => {
             active = false;
+            job?.cancel();
+            controller?.abort();
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
-    }, [file?.id]);
+    }, [file?.id, compact, needsDownload, nearViewport, attempt]);
 
     const kind = fileKind(file?.mime_type);
 
@@ -133,13 +233,35 @@ function ProtectedGalleryFile({ file, alt, className = "", compact = false }) {
             <div className={`gallery-file-preview failed ${className}`}>
                 <FileTypeIcon mime={file?.mime_type} large={!compact} />
                 <span>Unable to load file</span>
+                {!compact && (
+                    <button
+                        type="button"
+                        className="gallery-preview-retry"
+                        onClick={() => setAttempt((value) => value + 1)}
+                    >
+                        Try again
+                    </button>
+                )}
+            </div>
+        );
+    }
+
+    // Grid card for a non-image file: show its icon, no download.
+    if (!needsDownload) {
+        return (
+            <div className={`gallery-file-preview ${className}`}>
+                <FileTypeIcon mime={file?.mime_type} />
+                <strong>{file?.file_name || "Attachment"}</strong>
             </div>
         );
     }
 
     if (!src) {
         return (
-            <div className={`gallery-file-preview loading ${className}`}>
+            <div
+                ref={setPreviewNode}
+                className={`gallery-file-preview loading ${className}`}
+            >
                 <FaCloudUploadAlt />
                 <span>Loading file…</span>
             </div>

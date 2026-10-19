@@ -14,18 +14,49 @@ for (const file of routeFiles) {
     }
 
     if (file !== "authRoutes.js" && /router\.(post|put|patch|delete)\s*\(/.test(source)) {
+        // Self-service routes: every mutation is scoped to req.user.id in
+        // the handler (manually reviewed 2026-10-19).
+        //   notificationCenterRoutes — WHERE user_id = req.user.id
+        //   storePresenceRoutes      — the caller's own presence only
+        //   uploadRoutes             — chunk sessions bound to the uploader
+        //   helpCenterRoutes         — own tickets; admin actions use adminOnly
+        //   bulkUploadRoutes         — /inspect only parses + deletes the file,
+        //                              writes nothing (real imports live in the
+        //                              module routes with permissionMiddleware)
         const isSelfService = new Set([
             "dashboardRoutes.js",
             "locationRoutes.js",
             "notificationRoutes.js",
             "profileRoutes.js",
             "themePreferenceRoutes.js",
+            "notificationCenterRoutes.js",
+            "storePresenceRoutes.js",
+            "uploadRoutes.js",
+            "helpCenterRoutes.js",
+            "bulkUploadRoutes.js",
         ]).has(file);
 
-        const hasCustomPermission = source.includes("pettyPermission") || source.includes("scopeExpense") || source.includes("requireExpensePermission");
+        // Admin / owner guards are stricter than permissionMiddleware.
+        const hasAdminOrOwnerGuard =
+            /\badminOnly\b/.test(source) || /\blndOwnerOnly\b/.test(source);
+
+        const hasCustomPermission =
+            hasAdminOrOwnerGuard ||
+            source.includes("pettyPermission") ||
+            source.includes("scopeExpense") ||
+            source.includes("requireExpensePermission");
         if (!source.includes("permissionMiddleware") && !hasCustomPermission && !isSelfService) {
             findings.push(`REVIEW: ${file} contains mutating routes without the common permission middleware.`);
         }
+    }
+}
+
+// Live streams must not accept the long-lived login JWT from the URL
+// unless the explicit rollback switch is consulted.
+for (const file of ["services/notificationService.js", "routes/chatRoutes.js"]) {
+    const source = fs.readFileSync(path.resolve(__dirname, "..", file), "utf8");
+    if (source.includes("authenticateLoginToken(") && !source.includes("legacyQueryTokenAllowed()")) {
+        findings.push(`CRITICAL: ${file} accepts a login JWT in the stream URL without the SSE_ALLOW_LOGIN_TOKEN switch.`);
     }
 }
 

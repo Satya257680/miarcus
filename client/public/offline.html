@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#7048D7" />
+    <meta name="robots" content="noindex" />
+    <title>Mi Arcus Portal — Connection problem</title>
+    <style>
+      :root {
+        --bg: #f6f3ff;
+        --card: #ffffff;
+        --ink: #1f1640;
+        --muted: #5f5a76;
+        --brand: #7048d7;
+        --brand-ink: #ffffff;
+        --border: #e4dcfb;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      main {
+        width: min(440px, 100%);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 28px 24px;
+        text-align: center;
+        box-shadow: 0 18px 50px rgba(64, 36, 140, 0.12);
+      }
+      img { width: 64px; height: 64px; border-radius: 16px; }
+      h1 { font-size: 20px; margin: 16px 0 8px; }
+      p { color: var(--muted); line-height: 1.6; margin: 0 0 20px; font-size: 14px; }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 22px;
+        background: var(--brand);
+        color: var(--brand-ink);
+        font: inherit;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+        min-height: 44px;
+      }
+      button:focus-visible { outline: 3px solid #b9a5f2; outline-offset: 3px; }
+      small { display: block; margin-top: 14px; color: var(--muted); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <main role="alert" aria-live="polite">
+      <img src="/miarcus-icon-192.png" alt="Mi Arcus" width="64" height="64" />
+      <h1>We can't reach Mi Arcus right now</h1>
+      <p>Your internet connection dropped or is very slow. Your work is safe — the page will reload automatically when the connection is back.</p>
+      <button type="button" id="retry">Try again</button>
+      <small id="status">Waiting for connection…</small>
+    </main>
+    <script>
+      (function () {
+        var reload = function () { window.location.reload(); };
+        document.getElementById("retry").addEventListener("click", reload);
+        window.addEventListener("online", function () {
+          document.getElementById("status").textContent = "Connection is back — reloading…";
+          setTimeout(reload, 400);
+        });
+      })();
+    </script>
+  </body>
+</html>

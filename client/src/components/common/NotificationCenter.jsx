@@ -2,6 +2,7 @@ import PremiumLoader from "../premium/PremiumLoader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import axios from "../../axiosConfig";
+import { openResilientEventSource } from "../../utils/resilientEventSource";
 import {
     FaBell,
     FaCheckDouble,
@@ -172,15 +173,26 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
 
     const unread = useMemo(() => items.filter((row) => !isRead(row)).length, [items]);
 
+    const loadingRef = useRef(false);
+
     const load = async (silent = false) => {
+        // Never stack background refreshes on a slow connection.
+        if (silent && loadingRef.current) return;
+        loadingRef.current = true;
         try {
             if (!silent) setLoading(true);
-            const response = await axios.get("/api/notification-center");
+            const response = await axios.get("/api/notification-center", { timeout: 20000 });
             const rows = Array.isArray(response?.data?.data) ? response.data.data : [];
             setItems(rows.filter((row) => !isHiddenNotification(row)));
         } catch (error) {
-            console.error("Notification center load failed:", error);
+            // A dropped/slow network on a background refresh is expected on
+            // store connections; keep the current list and retry next cycle.
+            const isNetworkBlip = !error?.response;
+            if (!(silent && isNetworkBlip)) {
+                console.error("Notification center load failed:", error?.message || error);
+            }
         } finally {
+            loadingRef.current = false;
             if (!silent) setLoading(false);
         }
     };
@@ -208,57 +220,45 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
     useEffect(() => {
         load(true);
 
-        const token = localStorage.getItem("token");
-        // axios baseURL may be "/api" (IIS) — keep exactly one "/api".
-        const rawBase = String(axios.defaults.baseURL || "").replace(/\/+$/, "");
-        const apiOrigin = rawBase.replace(/\/api$/, "");
+        // Live updates: short-lived single-use stream ticket, automatic
+        // reconnect with back-off (see utils/resilientEventSource.js).
+        const stopStream = openResilientEventSource({
+            ticketPath: "/api/notifications/stream-token",
+            streamPath: "/api/notifications/stream",
+            events: {
+                notification: (incoming) => {
+                    if (!incoming?.id || isHiddenNotification(incoming)) return;
+                    setItems((current) => [incoming, ...current.filter((item) => idOf(item) !== idOf(incoming))].slice(0, 100));
+                    setToast(incoming);
+                    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+                    toastTimer.current = window.setTimeout(
+                        () => setToast(null),
+                        styleOf(incoming).call ? 15000 : 5000
+                    );
+                },
+            },
+            // Catch up on anything missed while the stream was down.
+            onOpen: () => load(true),
+        });
 
-        let stream = null;
-        let reconnectTimer = null;
+        // Polling safety net. Skipped while the tab is hidden; a refresh
+        // runs as soon as the user comes back to the tab.
+        const timer = window.setInterval(() => {
+            if (document.visibilityState === "visible") load(true);
+        }, Math.max(10000, refreshMs));
 
-        const connect = () => {
-            if (!token || typeof window.EventSource === "undefined") return;
-            try {
-                stream = new EventSource(`${apiOrigin}/api/notifications/stream?token=${encodeURIComponent(token)}`);
-                stream.addEventListener("notification", (event) => {
-                    try {
-                        const incoming = JSON.parse(event.data || "{}");
-                        if (!incoming?.id || isHiddenNotification(incoming)) return;
-                        setItems((current) => [incoming, ...current.filter((item) => idOf(item) !== idOf(incoming))].slice(0, 100));
-                        setToast(incoming);
-                        if (toastTimer.current) window.clearTimeout(toastTimer.current);
-                        toastTimer.current = window.setTimeout(
-                            () => setToast(null),
-                            styleOf(incoming).call ? 15000 : 5000
-                        );
-                    } catch (error) {
-                        console.error("Notification stream payload failed:", error);
-                    }
-                });
-                stream.onerror = () => {
-                    stream?.close();
-                    stream = null;
-                    if (!reconnectTimer) {
-                        reconnectTimer = window.setTimeout(() => {
-                            reconnectTimer = null;
-                            connect();
-                        }, 5000);
-                    }
-                };
-            } catch (error) {
-                console.error("Notification stream connection failed:", error);
-            }
+        const onVisible = () => {
+            if (document.visibilityState === "visible") load(true);
         };
-
-        connect();
-        const timer = window.setInterval(() => load(true), Math.max(10000, refreshMs));
+        document.addEventListener("visibilitychange", onVisible);
 
         return () => {
             window.clearInterval(timer);
-            if (reconnectTimer) window.clearTimeout(reconnectTimer);
+            document.removeEventListener("visibilitychange", onVisible);
             if (toastTimer.current) window.clearTimeout(toastTimer.current);
-            stream?.close();
+            stopStream();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [refreshMs]);
 
     // outside click / Escape

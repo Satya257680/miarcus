@@ -1,5 +1,6 @@
 import "../axiosConfig";
-import axios, { API_BASE_URL } from "../axiosConfig.js";
+import axios from "../axiosConfig.js";
+import { openResilientEventSource } from "../utils/resilientEventSource";
 
 const API = "/api/chat";
 
@@ -171,24 +172,6 @@ export const openChatEventStream = (handlers = {}) => {
     const token = localStorage.getItem("token");
     if (!token) return () => {};
 
-    // The chat routes live at <origin>/api/chat. Some deployments set the
-    // API base URL with a trailing "/api", which produced the broken
-    // "/api/api/chat/events" URL (404). Strip any trailing "/api" so the
-    // stream always resolves to "/api/chat/events".
-    const base = String(
-        axios.defaults.baseURL ||
-        import.meta.env.VITE_API_URL ||
-        API_BASE_URL ||
-        window.location.origin
-    )
-        .trim()
-        .replace(/\/+$/, "")
-        .replace(/\/api$/i, "");
-
-    const source = new EventSource(
-        `${base}${API}/events?token=${encodeURIComponent(token)}`
-    );
-
     const eventNames = [
         "message",
         "message_updated",
@@ -204,29 +187,23 @@ export const openChatEventStream = (handlers = {}) => {
         "read"
     ];
 
+    const events = {
+        connected: () => handlers.connected?.()
+    };
+
     eventNames.forEach((eventName) => {
-        source.addEventListener(eventName, (event) => {
-            try {
-                handlers[eventName]?.(JSON.parse(event.data));
-            } catch (error) {
-                console.error(`Chat event parse failed: ${eventName}`, error);
-            }
-        });
+        events[eventName] = (data) => handlers[eventName]?.(data);
     });
 
-    source.addEventListener("connected", () => {
-        handlers.connected?.();
+    // Short-lived single-use stream ticket instead of the login token in
+    // the URL; reconnects with back-off. Same handler contract as before:
+    // connected() on open, error() while disconnected (Chat.jsx keeps its
+    // polling fallback running until the stream is back).
+    return openResilientEventSource({
+        ticketPath: `${API}/events/token`,
+        streamPath: `${API}/events`,
+        events,
+        onOpen: () => handlers.connected?.(),
+        onError: () => handlers.error?.()
     });
-
-    source.onopen = () => {
-        handlers.connected?.();
-    };
-
-    source.onerror = () => {
-        handlers.error?.();
-    };
-
-    return () => {
-        source.close();
-    };
 };

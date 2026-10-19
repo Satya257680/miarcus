@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { FaMapMarkerAlt, FaCheckCircle, FaShieldAlt } from "react-icons/fa";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+// Relative API paths: the shared axios configuration (axiosConfig.js)
+// supplies the correct origin for every environment. The old fallback
+// "http://localhost:5000" sent location updates to the user's own PC
+// whenever VITE_API_URL was missing from a build.
+const API = "";
 const SEND_INTERVAL_MS = 60 * 1000;
+const REQUEST_TIMEOUT_MS = 20 * 1000;
 
 const getUserId = () => {
   try {
@@ -36,6 +41,7 @@ const getDeviceIdentifier = () => {
 
 const authConfig = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
 const getBrowserName = () => {
@@ -114,8 +120,16 @@ const LocationTrackingGate = () => {
 
   const trackingRef = useRef(false);
   const timerRef = useRef(null);
+  const sendingRef = useRef(false);
 
   const sendPosition = useCallback(async () => {
+    // One update at a time: a slow GPS fix (up to 20 s) plus a slow network
+    // must not stack overlapping requests every minute.
+    if (sendingRef.current) return;
+    if (!localStorage.getItem("token")) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+
+    sendingRef.current = true;
     try {
       const position = await readPosition();
       await axios.post(
@@ -130,6 +144,8 @@ const LocationTrackingGate = () => {
       );
     } catch {
       // A single failed reading (permission, timeout) must not disrupt the app.
+    } finally {
+      sendingRef.current = false;
     }
   }, []);
 
@@ -222,7 +238,12 @@ const LocationTrackingGate = () => {
     loadStatus();
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
+      timerRef.current = null;
       if (startTracking._cleanup) startTracking._cleanup();
+      startTracking._cleanup = null;
+      // Allow tracking to restart if this component mounts again (e.g. after
+      // logging out and back in without a full page reload).
+      trackingRef.current = false;
     };
   }, [loadStatus, startTracking]);
 

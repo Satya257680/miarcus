@@ -6,9 +6,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node test/security.test.js",
+    "test": "node test/security.test.js && node --test test/realtime.test.js",
     "security:audit": "node test/security-audit.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js",
+    "test:realtime": "node --test test/realtime.test.js"
   },
   "keywords": [],
   "author": "",

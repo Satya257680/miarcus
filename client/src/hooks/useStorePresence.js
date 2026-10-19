@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "../axiosConfig";
 
@@ -25,8 +25,32 @@ const apiBase = () =>
         .replace(/\/+$/, "")
         .replace(/\/api$/i, "");
 
+// One heartbeat at a time: on a slow/unstable store connection a hung
+// request must not pile up a backlog behind it (see DevTools screenshots:
+// heartbeat requests hanging ~20 s, then ERR_CONNECTION_RESET).
+const HEARTBEAT_TIMEOUT_MS = 15 * 1000;
+let heartbeatInFlight = false;
+
+const sendHeartbeat = (path) => {
+    if (heartbeatInFlight || !localStorage.getItem("token")) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+
+    heartbeatInFlight = true;
+    axios
+        .post(
+            "/api/store-presence/heartbeat",
+            { path },
+            { timeout: HEARTBEAT_TIMEOUT_MS }
+        )
+        .catch(() => {})
+        .finally(() => {
+            heartbeatInFlight = false;
+        });
+};
+
 export default function useStorePresence() {
     const location = useLocation();
+    const firstPathRef = useRef(true);
 
     useEffect(() => {
         let timer = null;
@@ -36,12 +60,7 @@ export default function useStorePresence() {
 
         const beat = () => {
             if (stopped || !token()) return;
-
-            axios
-                .post("/api/store-presence/heartbeat", {
-                    path: window.location.pathname,
-                })
-                .catch(() => {});
+            sendHeartbeat(window.location.pathname);
         };
 
         const offline = () => {
@@ -84,11 +103,14 @@ export default function useStorePresence() {
         };
     }, []);
 
-    // Refresh the "current page" as the user navigates.
+    // Refresh the "current page" as the user navigates. The first render is
+    // skipped — the effect above already sent that heartbeat (it used to be
+    // sent twice on every page load).
     useEffect(() => {
-        if (!localStorage.getItem("token")) return;
-        axios
-            .post("/api/store-presence/heartbeat", { path: location.pathname })
-            .catch(() => {});
+        if (firstPathRef.current) {
+            firstPathRef.current = false;
+            return;
+        }
+        sendHeartbeat(location.pathname);
     }, [location.pathname]);
 }

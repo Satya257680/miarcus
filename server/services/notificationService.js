@@ -1,7 +1,11 @@
-const jwt = require("jsonwebtoken");
-const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const db = require("../config/db");
 const { authenticateLoginToken } = require("../utils/accessToken");
+const {
+    issueStreamTicket,
+    authenticateStreamTicket,
+    legacyQueryTokenAllowed,
+} = require("../utils/streamTicket");
+const { openSseStream } = require("../utils/sseStream");
 
 // ======================================================
 // MIARCUS REAL-TIME NOTIFICATION SERVICE
@@ -64,35 +68,33 @@ function broadcast(userId, notification) {
     const userClients = clients.get(id);
     if (!userClients || userClients.size === 0) return;
 
-    const payload = `event: notification\ndata: ${JSON.stringify(notification)}\n\n`;
-
-    for (const response of [...userClients]) {
-        try {
-            response.write(payload);
-        } catch (error) {
-            userClients.delete(response);
+    for (const stream of [...userClients]) {
+        // stream.send() returns false (and closes itself) when the
+        // connection is gone; the onClose hook removes it from the map.
+        if (!stream.send("notification", notification)) {
+            userClients.delete(stream);
         }
     }
 }
 
-function addClient(userId, response) {
+function addClient(userId, stream) {
     const id = normalizeId(userId);
     if (!id) return () => {};
 
     if (!clients.has(id)) clients.set(id, new Set());
-    clients.get(id).add(response);
+    clients.get(id).add(stream);
 
-    return () => removeClient(id, response);
+    return () => removeClient(id, stream);
 }
 
-function removeClient(userId, response) {
+function removeClient(userId, stream) {
     const id = normalizeId(userId);
     if (!id) return;
 
     const userClients = clients.get(id);
     if (!userClients) return;
 
-    userClients.delete(response);
+    userClients.delete(stream);
     if (userClients.size === 0) clients.delete(id);
 }
 
@@ -201,57 +203,45 @@ async function markAllRead(userId) {
     return { success: true };
 }
 
-function authenticateStreamToken(token) {
-    if (!token) return null;
-
-    try {
-        return jwt.verify(
-            token,
-            JWT_SECRET,
-            { algorithms: [JWT_ALGORITHM] }
-        );
-    } catch {
-        return null;
-    }
-}
-
 async function openStream(req, res) {
-    // EventSource cannot send Authorization headers, so the SSE
-    // endpoint accepts the same JWT in a short-lived query string.
-    // Login token only, active + activated user, current token version
-    // (a revoked session can no longer keep receiving notifications).
-    const session = await authenticateLoginToken(req.query.token);
+    // Preferred: a 60-second, single-use, notifications-only ticket
+    // (POST /api/notifications/stream-token). The long-lived login JWT is
+    // accepted in the query string ONLY when SSE_ALLOW_LOGIN_TOKEN=true
+    // (temporary rollback switch for old cached frontends).
+    let userId = null;
 
-    if (!session) {
+    const ticket = String(req.query.ticket || "").trim();
+    if (ticket) {
+        const session = await authenticateStreamTicket(ticket, "notifications");
+        if (session) userId = Number(session.user.id);
+    } else if (req.query.token && legacyQueryTokenAllowed()) {
+        // Login token only, active + activated user, current token version.
+        const session = await authenticateLoginToken(req.query.token);
+        if (session) userId = Number(session.decoded.id);
+    }
+
+    if (!userId) {
+        res.setHeader("Cache-Control", "no-store");
         return res.status(401).end();
     }
 
-    const userId = Number(session.decoded.id);
+    let remove = () => {};
+    const stream = openSseStream(req, res, {
+        channel: "notifications",
+        userId,
+        onClose: () => remove(),
+    });
+    remove = addClient(userId, stream);
 
-    res.status(200);
-    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no");
-    res.flushHeaders?.();
+    stream.send("connected", { connected: true });
+}
 
-    const remove = addClient(userId, res);
-
-    res.write(`event: connected\ndata: ${JSON.stringify({ connected: true })}\n\n`);
-
-    // Keep Render/proxies from closing an otherwise idle SSE stream.
-    const heartbeat = setInterval(() => {
-        try {
-            res.write(`event: heartbeat\ndata: ${JSON.stringify({ time: Date.now() })}\n\n`);
-        } catch {
-            clearInterval(heartbeat);
-            remove();
-        }
-    }, 25000);
-
-    req.on("close", () => {
-        clearInterval(heartbeat);
-        remove();
+/** Issue a notifications stream ticket for an authenticated request. */
+function issueTicket(user) {
+    return issueStreamTicket({
+        userId: user.id,
+        tokenVersion: user.tokenVersion,
+        purpose: "notifications",
     });
 }
 
@@ -263,5 +253,6 @@ module.exports = {
     getUnreadCount,
     markRead,
     markAllRead,
-    openStream
+    openStream,
+    issueTicket
 };

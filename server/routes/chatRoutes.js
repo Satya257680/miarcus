@@ -8,6 +8,11 @@ const auth = require("../middleware/authMiddleware");
 const permission = require("../middleware/permissionMiddleware");
 const C = require("../controllers/chatController");
 const { authenticateLoginToken } = require("../utils/accessToken");
+const {
+    issueStreamTicket,
+    authenticateStreamTicket,
+    legacyQueryTokenAllowed
+} = require("../utils/streamTicket");
 const { UPLOAD_DIR } = require("../config/storage");
 
 const router = express.Router();
@@ -54,24 +59,36 @@ const upload = multer({
 });
 
 const streamAuth = async (req, res, next) => {
-    const token = String(req.query.token || "").trim();
-    if (!token) {
-        return res.status(401).json({ success: false, message: "Chat event token is missing." });
-    }
-
     try {
-        // Same checks as authMiddleware (login token only, active +
-        // activated user, current token version → revoked sessions can no
-        // longer keep a live chat stream open).
-        const session = await authenticateLoginToken(token);
-        if (!session) {
-            return res.status(401).json({ success: false, message: "Token expired or invalid." });
+        let user = null;
+        let decoded = {};
+
+        // Preferred: 60-second, single-use, chat-only ticket issued by
+        // POST /api/chat/events/token (the login JWT stays out of URLs).
+        const ticket = String(req.query.ticket || "").trim();
+        const token = String(req.query.token || "").trim();
+
+        if (ticket) {
+            const session = await authenticateStreamTicket(ticket, "chat");
+            if (session) user = session.user;
+        } else if (token && legacyQueryTokenAllowed()) {
+            // Rollback switch only (SSE_ALLOW_LOGIN_TOKEN=true): same
+            // checks as authMiddleware — login token only, active +
+            // activated user, current token version.
+            const session = await authenticateLoginToken(token);
+            if (session) {
+                user = session.user;
+                decoded = session.decoded;
+            }
         }
-        const { decoded, user } = session;
+
+        if (!user) {
+            return res.status(401).json({ success: false, message: "Chat event token is missing, expired or invalid." });
+        }
 
         req.user = {
             ...decoded,
-            id: user.id,
+            id: Number(user.id),
             name: user.name,
             email: user.email,
             is_admin: Number(user.is_admin) === 1,
@@ -84,8 +101,24 @@ const streamAuth = async (req, res, next) => {
 };
 
 // EventSource cannot send an Authorization header. Authenticate this one
-// endpoint from its short-lived JWT query parameter, then apply Chat RBAC.
+// endpoint from its short-lived stream ticket, then apply Chat RBAC.
 router.get("/events", streamAuth, permission("Chat", "View"), C.stream);
+
+// Ticket for the stream above — requires the normal Bearer token + Chat View.
+router.post("/events/token", auth, permission("Chat", "View"), (req, res) => {
+    try {
+        const { ticket, expiresIn } = issueStreamTicket({
+            userId: req.user.id,
+            tokenVersion: req.user.tokenVersion,
+            purpose: "chat"
+        });
+        res.setHeader("Cache-Control", "no-store");
+        return res.json({ success: true, ticket, expiresIn });
+    } catch (error) {
+        console.error("Chat stream ticket:", error.message);
+        return res.status(500).json({ success: false, message: "Unable to start live chat updates." });
+    }
+});
 
 router.use(auth);
 
