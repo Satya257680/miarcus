@@ -2,6 +2,9 @@ import {
   FaBars,
   FaUserCircle,
   FaSignOutAlt,
+  FaSun,
+  FaMoon,
+  FaLock,
 } from "react-icons/fa";
 
 import { useNavigate } from "react-router-dom";
@@ -9,6 +12,7 @@ import { useState, useEffect, useCallback } from "react";
 import axios, { API_BASE_URL } from "../../axiosConfig.js";
 
 import NotificationCenter from "../common/NotificationCenter";
+import { useTheme } from "../../context/ThemeProvider";
 
 import "../../styles/layout/Topbar.css";
 
@@ -45,6 +49,26 @@ const getPhotoUrl = (photo) => {
 
 function Topbar({ toggleSidebar }) {
   const navigate = useNavigate();
+
+  // Day / night quick switch (same saved preference as Settings → Appearance).
+  const { mode, locked, toggleDayNight } = useTheme();
+  const [themeBusy, setThemeBusy] = useState(false);
+  const isNight = mode === "dark";
+  const themeToggleLabel = locked
+    ? "Appearance is managed by your administrator"
+    : isNight
+      ? "Switch to day (light) theme"
+      : "Switch to night (dark) theme";
+
+  const handleThemeToggle = async () => {
+    if (locked || themeBusy) return;
+    setThemeBusy(true);
+    try {
+      await toggleDayNight();
+    } finally {
+      setThemeBusy(false);
+    }
+  };
 
   const userId = localStorage.getItem("userId");
 
@@ -285,6 +309,22 @@ function Topbar({ toggleSidebar }) {
             - notification navigation
         ==================================================== */}
 
+        {/* ====================================================
+            DAY / NIGHT THEME SWITCH
+        ==================================================== */}
+
+        <button
+          className="icon-btn theme-toggle-btn"
+          type="button"
+          onClick={handleThemeToggle}
+          disabled={locked || themeBusy}
+          aria-label={themeToggleLabel}
+          title={themeToggleLabel}
+          aria-pressed={isNight}
+        >
+          {locked ? <FaLock /> : isNight ? <FaSun /> : <FaMoon />}
+        </button>
+
         <NotificationCenter />
 
         {/* ====================================================
@@ -328,6 +368,19 @@ function Topbar({ toggleSidebar }) {
                 }}
               >
                 My Profile
+              </p>
+
+              {/* ==================================================
+                  APPEARANCE
+              ================================================== */}
+
+              <p
+                onClick={() => {
+                  setShowProfile(false);
+                  navigate("/settings/appearance");
+                }}
+              >
+                Appearance
               </p>
 
               {/* ==================================================

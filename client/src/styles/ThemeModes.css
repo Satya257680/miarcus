@@ -1,0 +1,331 @@
+/* =====================================================================
+   MIARCUS — DAY / NIGHT READABILITY LAYER
+   Loaded LAST by Layout.jsx (after theme.css and NeonGlassGlobal.css).
+
+   ThemeProvider writes these attributes on <html>:
+     data-miarcus-mode="light" | "dark"   (resolved, "Auto" included)
+     data-miarcus-theme="<theme id>"
+     data-miarcus-font="<font id>"
+   and the CSS variable --mi-on-accent (readable text on the accent).
+
+   Purpose: whichever theme a user picks, text stays readable — in the
+   top bar, menus, cards, tables, forms and dialogs. MIARCUS Original and
+   MIARCUS Neon Glass keep their own curated look (Neon Glass already
+   ships a complete skin in NeonGlassGlobal.css), so most rules below
+   exclude them.
+===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. TOP BAR TEXT — follows the theme's navbar colour
+--------------------------------------------------------------------- */
+:root {
+    --mi-navbar-text: #ffffff;
+    --mi-on-accent: #ffffff;
+}
+
+/* Light themes whose top bar is a light colour need dark icons/text. */
+:root[data-miarcus-mode="light"]:not([data-miarcus-theme="miarcus-original"]) {
+    --mi-navbar-text: var(--mi-text-strong);
+}
+
+.topbar .menu-btn,
+.topbar .page-title {
+    color: var(--mi-navbar-text) !important;
+}
+
+.topbar .menu-btn:hover {
+    background: var(--mi-accent-soft) !important;
+}
+
+/* Light, non-original themes: give top bar buttons a visible edge on a
+   white / pale top bar. */
+:root[data-miarcus-mode="light"]:not([data-miarcus-theme="miarcus-original"]) .topbar :is(.icon-btn, .profile-btn),
+:root[data-miarcus-mode="light"]:not([data-miarcus-theme="miarcus-original"]) .topbar .notification-center-trigger {
+    border: 1px solid var(--mi-border) !important;
+}
+
+/* Day / night switch in the top bar */
+.topbar .theme-toggle-btn {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    padding: 0 !important;
+    justify-content: center;
+    font-size: 17px;
+}
+
+.topbar .theme-toggle-btn:disabled {
+    cursor: not-allowed;
+    opacity: .6;
+}
+
+.topbar .theme-toggle-btn svg {
+    transition: transform .35s ease;
+}
+
+.topbar .theme-toggle-btn:hover:not(:disabled) svg {
+    transform: rotate(-18deg) scale(1.08);
+}
+
+.topbar .theme-toggle-btn:focus-visible,
+.topbar .profile-btn:focus-visible,
+.topbar .menu-btn:focus-visible {
+    outline: 3px solid var(--mi-accent);
+    outline-offset: 2px;
+}
+
+/* Visible keyboard focus uses the accent colour everywhere. */
+.layout :focus-visible {
+    outline-color: var(--mi-accent);
+}
+
+/* ---------------------------------------------------------------------
+   2. FONT CHOICE reaches the premium pages too
+   (.pp-premium pages pin their own font; only a NON-default choice
+   overrides it, so the default look is unchanged.)
+--------------------------------------------------------------------- */
+:root[data-miarcus-font]:not([data-miarcus-font="default"]) .pp-premium {
+    --pp-font: var(--mi-font-family);
+}
+
+/* ---------------------------------------------------------------------
+   3. NIGHT MODE — top bar, menus and phone shell
+   (every dark theme except Neon Glass, which has its own skin)
+--------------------------------------------------------------------- */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .topbar :is(.icon-btn, .profile-btn),
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .topbar .notification-center-trigger {
+    background: var(--mi-surface-2) !important;
+    color: var(--mi-text) !important;
+    border: 1px solid var(--mi-border) !important;
+    box-shadow: none !important;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .topbar :is(.icon-btn, .profile-btn):hover,
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .topbar .notification-center-trigger:hover {
+    background: var(--mi-accent-soft) !important;
+    color: var(--mi-text-strong) !important;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .topbar .notification-center-trigger {
+    color: var(--mi-accent) !important;
+}
+
+:root[data-miarcus-mode="dark"] .topbar .profile-icon {
+    color: var(--mi-text) !important;
+}
+
+:root[data-miarcus-mode="dark"] .topbar .dropdown-menu {
+    background: var(--mi-surface) !important;
+    color: var(--mi-text) !important;
+    border: 1px solid var(--mi-border);
+}
+
+:root[data-miarcus-mode="dark"] .topbar .dropdown-menu p {
+    color: var(--mi-text) !important;
+}
+
+:root[data-miarcus-mode="dark"] .topbar .dropdown-menu p:hover {
+    background: var(--mi-accent-soft) !important;
+}
+
+@media (max-width: 768px) {
+    /* The phone header keeps its violet brand bar, so its icons stay white. */
+    .layout--mobile .topbar .menu-btn {
+        color: #ffffff !important;
+    }
+
+    /* Page background follows the chosen theme on phones too. */
+    :root[data-miarcus-theme]:not([data-miarcus-theme="miarcus-original"]) .layout--mobile {
+        --m-bg: var(--mi-bg);
+    }
+
+    :root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .layout--mobile .mobile-bottom-nav {
+        background: var(--mi-surface) !important;
+        border-top-color: var(--mi-border) !important;
+    }
+
+    :root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .layout--mobile .mbn-item {
+        color: var(--mi-muted);
+    }
+
+    :root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .layout--mobile .mbn-item.active {
+        color: var(--mi-text-strong);
+        background: var(--mi-accent-soft);
+    }
+}
+
+/* ---------------------------------------------------------------------
+   4. NIGHT MODE — premium pages use the theme's tokens
+   ("Dark" keeps its curated values from PagePremium.css.)
+--------------------------------------------------------------------- */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]):not([data-miarcus-theme="dark"]) .pp-premium {
+    --pp-ink: var(--mi-text-strong);
+    --pp-ink-2: var(--mi-text);
+    --pp-muted: var(--mi-muted);
+    --pp-faint: var(--mi-muted);
+    --pp-bg: var(--mi-bg);
+    --pp-card: var(--mi-surface);
+    --pp-card-2: var(--mi-surface-2);
+    --pp-line: var(--mi-border);
+    --pp-line-2: var(--mi-border);
+    --pp-violet-soft: var(--mi-accent-soft);
+    --pp-green-soft: rgba(5, 150, 105, 0.18);
+    --pp-amber-soft: rgba(217, 119, 6, 0.18);
+    --pp-red-soft: rgba(220, 38, 38, 0.18);
+    --pp-blue-soft: rgba(37, 99, 235, 0.18);
+    --pp-th: var(--mi-bg);
+    --pp-shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.3);
+    --pp-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .pp-premium .data-table tbody tr:hover td {
+    background: var(--mi-accent-soft) !important;
+}
+
+/* ---------------------------------------------------------------------
+   5. NIGHT MODE — module surfaces, text, tables and controls
+   Many modules were built for a light palette with hard-coded white
+   panels. In night mode those panels take the theme surface and their
+   text takes the theme text colour, so nothing is light-on-light.
+--------------------------------------------------------------------- */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    .card, .card-body, .content-card, .content-panel, .panel, .panel-body,
+    .form-card, .form-section, .form-container, .table-container, .table-wrapper,
+    .table-responsive, .data-table-wrapper, .filters-card, .filter-card,
+    .toolbar-card, .page-header-card, .section-card, .stats-card, .stat-card,
+    .summary-card, .overview-card, .activity-card, .report-card, .store-card,
+    .store-overview, .announcement-card, .announcement-featured,
+    .announcement-content, .announcement-item, .profile-card, .profile-section,
+    .settings-card, .settings-section, .appearance-section, .premium-card,
+    .modal-content, .modal-box, .welcome-card,
+    [class$="-card"], [class$="-panel"], [class$="-section"], [class$="-wrapper"],
+    [class$="-modal"], [class$="-dialog"]
+) {
+    background: var(--mi-surface) !important;
+    color: var(--mi-text) !important;
+    border-color: var(--mi-border) !important;
+}
+
+/* Common inline white backgrounds. */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    [style*="background: white"], [style*="background:white"],
+    [style*="background-color: white"], [style*="background: #fff"],
+    [style*="background:#fff"], [style*="background-color: #fff"],
+    [style*="background: rgb(255, 255, 255)"], [style*="background-color: rgb(255, 255, 255)"]
+) {
+    background: var(--mi-surface) !important;
+    color: var(--mi-text) !important;
+    border-color: var(--mi-border) !important;
+}
+
+/* Headings and copy. */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    h1, h2, h3, h4, h5, h6, .page-title, .section-title, .card-title,
+    .modal-title, .table-title
+) {
+    color: var(--mi-text-strong) !important;
+    -webkit-text-fill-color: currentColor;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    p, label, legend, li, dt, dd, .form-label, .field-label, .empty-state
+) {
+    color: var(--mi-text) !important;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    small, .muted, .text-muted, .text-secondary, .form-text, .help-text,
+    .helper-text, .description, .subtitle, .page-subtitle, .field-hint
+) {
+    color: var(--mi-muted) !important;
+}
+
+/* Tables */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content table {
+    color: var(--mi-text) !important;
+    border-color: var(--mi-border) !important;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(thead, th) {
+    background: var(--mi-surface-2) !important;
+    color: var(--mi-text-strong) !important;
+    border-color: var(--mi-border) !important;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content td {
+    background: var(--mi-surface) !important;
+    color: var(--mi-text) !important;
+    border-color: var(--mi-border) !important;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content tbody tr:hover td {
+    background: var(--mi-accent-soft) !important;
+}
+
+/* Form controls (theme.css already themes plain inputs). */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    select, textarea
+) {
+    background-color: var(--mi-surface-2) !important;
+    color: var(--mi-text) !important;
+    border-color: var(--mi-border) !important;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content option {
+    background: var(--mi-surface);
+    color: var(--mi-text);
+}
+
+/* Neutral / secondary buttons */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    .btn-secondary, .btn-outline, .secondary-btn, .cancel-btn, .reset-btn,
+    .pagination button
+) {
+    background: var(--mi-surface-2) !important;
+    color: var(--mi-text) !important;
+    border-color: var(--mi-border) !important;
+}
+
+/* Primary buttons keep the accent with readable text. */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    .btn-primary, .primary-btn, .save-btn
+) {
+    color: var(--mi-on-accent) !important;
+}
+
+/* Semantic colours stay recognisable on dark surfaces. */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    .text-success, .status-success, .badge-success, .is-success
+) { color: #86efac !important; }
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    .text-danger, .status-danger, .badge-danger, .is-danger, .error-text, .field-error
+) { color: #fca5a5 !important; }
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) body .layout main.page-content :is(
+    .text-warning, .status-warning, .badge-warning, .is-warning
+) { color: #fcd34d !important; }
+
+/* Searchable select: the field follows the theme. Its dropdown list is a
+   self-contained light panel (dark text on white), so it stays readable. */
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .ss-control {
+    background: var(--mi-surface-2) !important;
+    border-color: var(--mi-border) !important;
+}
+
+:root[data-miarcus-mode="dark"]:not([data-miarcus-theme="neon-glass"]) .ss-control input {
+    color: var(--mi-text) !important;
+}
+
+/* High contrast: primary actions use black text on the yellow accent. */
+:root[data-miarcus-theme="high-contrast"] body .layout main.page-content :is(.btn-primary, .primary-btn, .save-btn) {
+    color: #000000 !important;
+}
+
+/* ---------------------------------------------------------------------
+   6. Appearance page internals are previews — never restyle them.
+--------------------------------------------------------------------- */
+:root[data-miarcus-mode="dark"] body .layout main.page-content :is(.ap-preview, .ap-mini, .ap-preset-tile) {
+    color: inherit !important;
+}

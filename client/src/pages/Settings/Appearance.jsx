@@ -1,601 +1,697 @@
-import { useEffect, useState } from "react";
-import axios from "../../axiosConfig";
+import { useEffect, useId, useState } from "react";
 import {
+    FaAdjust,
     FaCheck,
-    FaFont,
-    FaPalette,
-    FaTextHeight,
-    FaSwatchbook,
-    FaMagic,
-    FaUndo,
-    FaSlidersH,
     FaColumns,
+    FaCrown,
+    FaFont,
+    FaInfoCircle,
+    FaLock,
+    FaMagic,
     FaMoon,
-    FaSun
+    FaPalette,
+    FaSave,
+    FaSlidersH,
+    FaSun,
+    FaSwatchbook,
+    FaTextHeight,
+    FaUndo,
+    FaUsers
 } from "react-icons/fa";
 
 import { useTheme } from "../../context/ThemeProvider";
-import { readUiExtras, applyUiExtras, DEFAULT_UI_EXTRAS } from "../../utils/uiExtras";
-
-import "../../styles/pages/Appearance.css";
-import "../../styles/premium/PagePremium.css";
-import "../../styles/premium/AdminPagesPremium.css";
+import {
+    THEMES,
+    THEME_GROUPS,
+    ACCENT_COLORS,
+    FONT_FAMILIES,
+    TEXT_SIZES,
+    SIDEBAR_DENSITIES,
+    TABLE_DENSITIES,
+    CORNER_STYLES,
+    MOTION_OPTIONS,
+    PRESETS,
+    THEME_ACCENT_ID,
+    AUTO_LIGHT_THEME,
+    AUTO_DARK_THEME,
+    findTheme,
+    findFont,
+    findPreset,
+    accentName
+} from "../../theme/appearanceConfig";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import PremiumHero from "../../components/premium/PremiumHero";
 
-const DARK_THEMES = ["dark", "midnight", "aurora", "high-contrast"];
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/pages/Appearance.css";
 
-// One-click looks that set theme + accent + font together.
-const PRESETS = [
-    { id: "p-neon-glass", name: "MIARCUS Neon Glass", theme: "neon-glass", accentColor: "violet", fontFamily: "modern" },
-    { id: "p-original", name: "MIARCUS Classic", theme: "miarcus-original", accentColor: "purple", fontFamily: "default" },
-    { id: "p-premium", name: "Premium Violet", theme: "lavender", accentColor: "violet", fontFamily: "modern" },
-    { id: "p-exec", name: "Executive", theme: "royal", accentColor: "gold", fontFamily: "serif" },
-    { id: "p-calm", name: "Calm Focus", theme: "nord", accentColor: "blue", fontFamily: "system" },
-    { id: "p-night", name: "Night Shift", theme: "aurora", accentColor: "teal", fontFamily: "modern" },
-    { id: "p-fresh", name: "Fresh Retail", theme: "emerald", accentColor: "green", fontFamily: "rounded" }
-];
+// ---------------------------------------------------------------------
+// Small building blocks
+// ---------------------------------------------------------------------
 
-function Segmented({ value, options, onChange }) {
+function Section({ icon: Icon, title, description, aside, children, id }) {
+    const headingId = `${id}-title`;
     return (
-    <div className="ap-segmented" role="radiogroup">
-        {options.map((option) => (
-            <button
-                key={option.id}
-                type="button"
-                role="radio"
-                aria-checked={value === option.id}
-                className={value === option.id ? "is-on" : ""}
-                onClick={() => onChange(option.id)}
-            >
-                {option.label}
-            </button>
-        ))}
-    </div>
+        <section className="appearance-section" aria-labelledby={headingId}>
+            <div className="appearance-section-header">
+                <div className="ap-head">
+                    <span className="ap-head-icon" aria-hidden="true"><Icon /></span>
+                    <div>
+                        <h2 id={headingId}>{title}</h2>
+                        {description && <p>{description}</p>}
+                    </div>
+                </div>
+                {aside}
+            </div>
+            {children}
+        </section>
     );
 }
+
+// Single-choice control with radio-group semantics.
+function Segmented({ label, options, value, onChange, disabled }) {
+    return (
+        <div className="ap-segmented" role="radiogroup" aria-label={label}>
+            {options.map((option) => {
+                const selected = value === option.id;
+                return (
+                    <button
+                        key={option.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        className={`ap-seg${selected ? " is-on" : ""}`}
+                        onClick={() => onChange(option.id)}
+                        disabled={disabled}
+                    >
+                        {option.name}
+                        {selected && <FaCheck aria-hidden="true" />}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// Preview colours are passed as CSS custom properties (not inline
+// "background") so no theme skin can repaint the miniature previews.
+function MiniUi({ palette, accent }) {
+    return (
+        <span
+            className="ap-mini"
+            style={{
+                "--ap-bg": palette.bg,
+                "--ap-side": palette.side,
+                "--ap-top": palette.top,
+                "--ap-tile": palette.card,
+                "--ap-line": palette.line,
+                "--ap-dot": accent
+            }}
+        >
+            <span className="ap-mini-side">
+                <i />
+                <i />
+                <i />
+            </span>
+            <span className="ap-mini-body">
+                <span className="ap-mini-top" />
+                <span className="ap-mini-tiles">
+                    <span />
+                    <span />
+                    <span />
+                </span>
+                <span className="ap-mini-chart" />
+            </span>
+        </span>
+    );
+}
+
+function ThemePreview({ theme, accent }) {
+    if (theme.mode === "auto") {
+        const light = findTheme(AUTO_LIGHT_THEME);
+        const dark = findTheme(AUTO_DARK_THEME);
+        return (
+            <span className="ap-preview ap-preview--split" aria-hidden="true">
+                <MiniUi palette={light.preview} accent={accent || light.accent} />
+                <MiniUi palette={dark.preview} accent={accent || dark.accent} />
+            </span>
+        );
+    }
+    return (
+        <span className="ap-preview" aria-hidden="true">
+            <MiniUi palette={theme.preview} accent={accent || theme.accent} />
+        </span>
+    );
+}
+
+const GROUP_ICONS = { sun: FaSun, moon: FaMoon, auto: FaAdjust };
+
+const SOURCE_LABEL = {
+    personal: "Your saved default",
+    organisation: "Organisation default",
+    "built-in": "MIARCUS default",
+    enforced: "Set by administrator"
+};
+
+// ---------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------
 
 function Appearance() {
     const {
         preferences,
-        themes,
-        accentColors,
-        fontFamilies,
-        updatePreferences,
+        source,
+        personal,
         globalTheme,
-        refreshGlobalTheme
+        isAdmin,
+        locked,
+        isDirty,
+        mode,
+        prefersDark,
+        previewPreferences,
+        discardPreview,
+        savePersonal,
+        resetPersonal,
+        saveGlobalTheme,
+        disableGlobalTheme
     } = useTheme();
 
-    const currentTheme =
-        preferences.theme;
+    const uid = useId();
+    const [busy, setBusy] = useState("");
+    const [notice, setNotice] = useState(null); // { tone, text }
+    const [confirmReset, setConfirmReset] = useState(false);
+    const [orgDialog, setOrgDialog] = useState(false);
+    const [orgMode, setOrgMode] = useState("default");
+    const [alsoForMe, setAlsoForMe] = useState(true);
+    const [confirmDisable, setConfirmDisable] = useState(false);
 
-    const currentAccent =
-        preferences.accentColor;
-
-    const [extras, setExtras] = useState(() => readUiExtras());
-    const [globalSaving, setGlobalSaving] = useState(false);
-    const [globalMessage, setGlobalMessage] = useState("");
-    const [globalError, setGlobalError] = useState("");
-    const storedUser = (() => {
-        try { return JSON.parse(localStorage.getItem("user") || "{}"); }
-        catch { return {}; }
-    })();
-    const isAdmin = Number(storedUser?.is_admin ?? storedUser?.isAdmin ?? 0) === 1;
+    // Unsaved preview only lives on this page: leaving it restores the
+    // saved appearance, and closing the tab asks first.
+    useEffect(() => () => discardPreview(), [discardPreview]);
 
     useEffect(() => {
-        if (isAdmin) refreshGlobalTheme();
-    }, [isAdmin, refreshGlobalTheme]);
+        if (!isDirty) return undefined;
+        const onBeforeUnload = (event) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+        window.addEventListener("beforeunload", onBeforeUnload);
+        return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    }, [isDirty]);
 
-    const applyThemeToEveryone = async () => {
-        setGlobalSaving(true);
-        setGlobalMessage("");
-        setGlobalError("");
-        try {
-            const response = await axios.put("/api/theme-preferences/global", {
-                enabled: true,
-                preferences: {
-                    theme: currentTheme,
-                    accentColor: currentAccent,
-                    fontSize: preferences.fontSize,
-                    fontFamily: preferences.fontFamily,
-                    sidebarStyle: preferences.sidebarStyle
-                }
-            });
-            if (!response.data?.success) throw new Error(response.data?.message || "Could not apply global theme.");
-            await refreshGlobalTheme();
-            setGlobalMessage(` ${themeName} is now the portal theme for all users.`);
-        } catch (error) {
-            setGlobalError(error?.response?.data?.message || error?.message || "Could not apply global theme.");
-        } finally {
-            setGlobalSaving(false);
+    const set = (changes) => {
+        setNotice(null);
+        previewPreferences(changes);
+    };
+
+    const theme = findTheme(preferences.theme);
+    const activePreset = findPreset(preferences);
+    const fontName = findFont(preferences.fontFamily).name;
+    const themeLabel = preferences.theme === "auto"
+        ? `Auto · ${prefersDark ? "dark" : "light"} now`
+        : theme.name;
+
+    // Previews show the chosen accent; "Theme default" shows each theme's own.
+    const accentHexFor = () => {
+        if (preferences.accentColor === THEME_ACCENT_ID) return null;
+        return ACCENT_COLORS.find((accent) => accent.id === preferences.accentColor)?.value || null;
+    };
+
+    const canSavePersonal = !locked && (isDirty || !personal.isCustom);
+
+    // -------------------------------------------------------------
+    // Actions
+    // -------------------------------------------------------------
+    const handleSaveMine = async () => {
+        setBusy("mine");
+        const result = await savePersonal(preferences);
+        setBusy("");
+        setNotice(result.ok
+            ? { tone: "ok", text: "Saved as your default. It will follow you on every device you sign in to." }
+            : { tone: "error", text: result.error });
+    };
+
+    const handleDiscard = () => {
+        discardPreview();
+        setNotice({ tone: "info", text: "Unsaved changes discarded — your saved appearance is back." });
+    };
+
+    const handleReset = async () => {
+        setBusy("reset");
+        const result = await resetPersonal();
+        setBusy("");
+        setConfirmReset(false);
+        const fallback = globalTheme.mode === "default" || globalTheme.mode === "enforced"
+            ? "the organisation default"
+            : "the MIARCUS default";
+        setNotice(result.ok
+            ? { tone: "ok", text: `Your appearance was reset. You now follow ${fallback}.` }
+            : { tone: "error", text: result.error });
+    };
+
+    const handleSaveForAll = async () => {
+        setBusy("global");
+        const result = await saveGlobalTheme({ mode: orgMode, preferences, alsoSaveForMe: alsoForMe });
+        setBusy("");
+        setOrgDialog(false);
+        if (!result.ok) {
+            setNotice({ tone: "error", text: result.error });
+            return;
         }
-    };
-
-    const disableGlobalTheme = async () => {
-        setGlobalSaving(true);
-        setGlobalMessage("");
-        setGlobalError("");
-        try {
-            const response = await axios.put("/api/theme-preferences/global", {
-                enabled: false,
-                preferences: globalTheme?.preferences || preferences
-            });
-            if (!response.data?.success) throw new Error(response.data?.message || "Could not disable global theme.");
-            await refreshGlobalTheme();
-            setGlobalMessage("Global theme is off. Each user can use their own saved appearance again.");
-        } catch (error) {
-            setGlobalError(error?.response?.data?.message || error?.message || "Could not disable global theme.");
-        } finally {
-            setGlobalSaving(false);
-        }
-    };
-
-    const updateExtras = (patch) => {
-        setExtras(applyUiExtras({ ...extras, ...patch }));
-    };
-
-    const themeName = themes.find((item) => item.id === currentTheme)?.name || "Miarcus Original";
-    const accentName = accentColors.find((item) => item.id === currentAccent)?.name || "Purple";
-    const fontName = fontFamilies.find((item) => item.id === preferences.fontFamily)?.name || "Default";
-
-    const resetAll = () => {
-        updatePreferences({
-            theme: "miarcus-original",
-            accentColor: "purple",
-            fontSize: "medium",
-            fontFamily: "default",
-            sidebarStyle: "comfortable"
+        const scope = orgMode === "enforced"
+            ? "is now applied to every user and locked (administrators can still personalise)."
+            : "is now the default for everyone who has not saved their own appearance.";
+        setNotice({
+            tone: result.warning ? "warn" : "ok",
+            text: result.warning || `${themeLabel} ${scope}`
         });
-        setExtras(applyUiExtras(DEFAULT_UI_EXTRAS));
     };
 
-    const lightThemes = themes.filter((t) => !DARK_THEMES.includes(t.id));
-    const darkThemes = themes.filter((t) => DARK_THEMES.includes(t.id));
-
-    const renderThemeCard = (theme) => {
-        const selected = theme.id === currentTheme;
-        return (
-            <button
-                key={theme.id}
-                type="button"
-                className={`theme-card ${selected ? "selected" : ""}`}
-                onClick={() => updatePreferences({ theme: theme.id })}
-                aria-pressed={selected}
-            >
-                <div className={`theme-preview theme-preview-${theme.preview}`}>
-                    <div className="preview-sidebar" />
-                    <div className="preview-main">
-                        <div className="preview-topbar" />
-                        <div className="preview-cards">
-                            <span />
-                            <span />
-                            <span />
-                        </div>
-                        <div className="preview-chart" />
-                    </div>
-                </div>
-
-                <div className="theme-card-body">
-                    <div className="theme-card-title">
-                        <span className="theme-icon">{theme.icon}</span>
-                        <span>{theme.name}</span>
-                        {selected && (
-                            <span className="theme-selected">
-                                <FaCheck />
-                            </span>
-                        )}
-                    </div>
-                    <p>{theme.description}</p>
-                </div>
-            </button>
-        );
+    const handleDisableGlobal = async () => {
+        setBusy("disable");
+        const result = await disableGlobalTheme();
+        setBusy("");
+        setConfirmDisable(false);
+        setNotice(result.ok
+            ? { tone: "ok", text: "Organisation appearance turned off. Everyone uses their own saved appearance again." }
+            : { tone: "error", text: result.error });
     };
 
+    const orgStatus = {
+        off: { label: "Off", text: "Each user chooses their own appearance." },
+        default: { label: "Default for everyone", text: "Applies to users who have not saved their own appearance." },
+        enforced: { label: "Enforced", text: "Applied to every non-admin user; their own choices are locked." }
+    }[globalTheme.mode] || { label: "Off", text: "" };
 
+    // -------------------------------------------------------------
+    // Render
+    // -------------------------------------------------------------
     return (
-        <div className="appearance-page pp-premium">
-
+        <div className="appearance-page pp-premium" data-rbac="ignore">
             <PremiumHero
                 icon={FaPalette}
                 eyebrow="Settings · Personalisation"
                 title="Appearance"
-                badge="Personal"
+                badge={isAdmin ? "Personal · Admin" : "Personal"}
                 badgeTone="mint"
-                subtitle="Personalise how MIARCUS looks and feels — theme, accent, typography, density and motion."
+                subtitle="Personalise how MIARCUS looks and feels. Changes preview instantly — press “Save as my default” to keep them."
                 meta={[
-                    { label: "Theme", value: themeName },
-                    { label: "Accent", value: accentName },
-                    { label: "Font", value: fontName }
+                    { label: "Theme", value: themeLabel },
+                    { label: "Accent", value: accentName(preferences) },
+                    { label: "Font", value: fontName },
+                    { label: "Saved", value: SOURCE_LABEL[source] }
                 ]}
                 actions={
-                    <button type="button" className="pp-hero-btn" onClick={resetAll}>
-                        <FaUndo /> Reset to default
+                    <button
+                        type="button"
+                        className="pp-hero-btn"
+                        onClick={() => setConfirmReset(true)}
+                        disabled={locked || (!personal.isCustom && !isDirty)}
+                        title={locked ? "Appearance is managed by your administrator" : "Reset to default"}
+                    >
+                        <FaUndo aria-hidden="true" /> Reset to default
                     </button>
                 }
             />
 
-            {isAdmin && (
-                <section className="appearance-section neon-admin-theme-control">
-                    <div className="appearance-section-header">
-                        <div>
-                            <h2><span aria-hidden="true">👑</span> Admin Control · Global appearance</h2>
-                            <p>Choose a theme below, then apply it to every MIARCUS user. This does not alter or remove the original theme.</p>
-                        </div>
-                        <span className={`neon-global-status ${globalTheme?.enabled ? "is-active" : ""}`}>
-                            {globalTheme?.enabled ? "Global theme active" : "Personal themes active"}
+            {locked && (
+                <div className="ap-banner ap-banner--lock" role="status">
+                    <FaLock aria-hidden="true" />
+                    <div>
+                        <strong>Appearance managed by your administrator</strong>
+                        <span>
+                            {findTheme(globalTheme.preferences.theme).name} is applied to the whole portal.
+                            You can view the options below but cannot change them right now.
                         </span>
                     </div>
-                    <div className="neon-global-actions">
-                        <div className="neon-global-selection">
-                            <span className="neon-global-gem" aria-hidden="true">💎</span>
-                            <div><small>Theme to publish</small><strong>{themeName}</strong><span>{accentName} accent · {fontName} font</span></div>
+                </div>
+            )}
+
+            {isAdmin && (
+                <section className="appearance-section ap-org" aria-labelledby={`${uid}-org`}>
+                    <div className="appearance-section-header">
+                        <div className="ap-head">
+                            <span className="ap-head-icon" aria-hidden="true"><FaCrown /></span>
+                            <div>
+                                <h2 id={`${uid}-org`}>Organisation appearance</h2>
+                                <p>Administrators can publish the look below for all users — as a default people can change, or enforced.</p>
+                            </div>
                         </div>
-                        <div className="neon-global-buttons">
-                            <button type="button" className="neon-global-apply" onClick={applyThemeToEveryone} disabled={globalSaving}>
-                                {globalSaving ? "Applying…" : "Apply to All Users"}
+                        <span className={`ap-pill ap-pill--${globalTheme.mode}`}>{orgStatus.label}</span>
+                    </div>
+                    <div className="ap-org-row">
+                        <div className="ap-org-current">
+                            {globalTheme.mode === "off" ? (
+                                <span>{orgStatus.text}</span>
+                            ) : (
+                                <>
+                                    <ThemePreview theme={findTheme(globalTheme.preferences.theme)} accent={null} />
+                                    <span>
+                                        <strong>{findTheme(globalTheme.preferences.theme).name}</strong>
+                                        <small>{accentName(globalTheme.preferences)} accent · {findFont(globalTheme.preferences.fontFamily).name} font</small>
+                                        <small>{orgStatus.text}</small>
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                        <div className="ap-org-actions">
+                            <button type="button" className="ap-btn ap-btn--primary" onClick={() => { setOrgMode(globalTheme.mode === "enforced" ? "enforced" : "default"); setOrgDialog(true); }}>
+                                <FaUsers aria-hidden="true" /> Save current look for all users
                             </button>
-                            {globalTheme?.enabled && (
-                                <button type="button" className="neon-global-disable" onClick={disableGlobalTheme} disabled={globalSaving}>
-                                    Disable Global Theme
+                            {globalTheme.mode !== "off" && (
+                                <button type="button" className="ap-btn" onClick={() => setConfirmDisable(true)} disabled={busy === "disable"}>
+                                    Turn off for all users
                                 </button>
                             )}
                         </div>
                     </div>
-                    {globalMessage && <p className="neon-global-message" role="status">✓ {globalMessage}</p>}
-                    {globalError && <p className="neon-global-error" role="alert">{globalError}</p>}
                 </section>
             )}
 
-            {!isAdmin && globalTheme?.enabled && (
-                <div className="neon-global-enforced" role="status">
-                    <strong>🔒 Administrator-managed appearance</strong>
-                    <span>Your administrator has applied <b>{themes.find((item) => item.id === globalTheme.preferences?.theme)?.name || "a global theme"}</b> to the whole portal.</span>
+            <fieldset className="ap-fieldset" disabled={locked}>
+                <legend className="ap-sr-only">Appearance options</legend>
+
+                <Section
+                    id={`${uid}-presets`}
+                    icon={FaMagic}
+                    title="Quick presets"
+                    description="Apply a complete look — theme, accent and font — in one click."
+                    aside={<span className="ap-pill">{activePreset ? activePreset.name : "Custom combination"}</span>}
+                >
+                    <div className="ap-presets" role="radiogroup" aria-label="Quick presets">
+                        {PRESETS.map((preset) => {
+                            const selected = activePreset?.id === preset.id;
+                            const presetTheme = findTheme(preset.theme);
+                            const accent = ACCENT_COLORS.find((item) => item.id === preset.accentColor);
+                            return (
+                                <button
+                                    key={preset.id}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={selected}
+                                    className={`ap-preset${selected ? " is-on" : ""}`}
+                                    onClick={() => set({ theme: preset.theme, accentColor: preset.accentColor, fontFamily: preset.fontFamily })}
+                                >
+                                    <span
+                                        className="ap-preset-tile"
+                                        style={{ "--ap-bg": presetTheme.preview.bg, "--ap-side": presetTheme.preview.side, "--ap-dot": accent?.value }}
+                                        aria-hidden="true"
+                                    >
+                                        <span className="ap-preset-bar" />
+                                        <i />
+                                    </span>
+                                    <span className="ap-preset-copy">
+                                        <strong>{preset.name}</strong>
+                                        <small>{presetTheme.name} · {accent?.name} · {findFont(preset.fontFamily).name}</small>
+                                    </span>
+                                    {selected && <FaCheck className="ap-check" aria-hidden="true" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </Section>
+
+                <Section
+                    id={`${uid}-themes`}
+                    icon={FaSwatchbook}
+                    title="Choose your theme"
+                    description="Applies across MIARCUS — sidebar, top bar, tables, forms and dialogs."
+                    aside={<span className="ap-pill ap-pill--accent">{themeLabel}</span>}
+                >
+                    {THEME_GROUPS.map((group) => {
+                        const list = THEMES.filter((item) => item.group === group.id);
+                        const GroupIcon = GROUP_ICONS[group.icon];
+                        return (
+                            <div className="ap-group" key={group.id}>
+                                <h3 className="ap-group-title" id={`${uid}-${group.id}`}>
+                                    <GroupIcon aria-hidden="true" /> {group.title}
+                                    <span className="ap-count">{list.length}</span>
+                                </h3>
+                                <div className="ap-theme-grid" role="radiogroup" aria-labelledby={`${uid}-${group.id}`}>
+                                    {list.map((item) => {
+                                        const selected = preferences.theme === item.id;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                type="button"
+                                                role="radio"
+                                                aria-checked={selected}
+                                                className={`ap-theme${selected ? " is-on" : ""}`}
+                                                onClick={() => set({ theme: item.id })}
+                                            >
+                                                <ThemePreview theme={item} accent={accentHexFor()} />
+                                                <span className="ap-theme-copy">
+                                                    <span className="ap-theme-name">
+                                                        <span aria-hidden="true">{item.icon}</span> {item.name}
+                                                    </span>
+                                                    <span className="ap-theme-desc">{item.description}</span>
+                                                </span>
+                                                {selected && (
+                                                    <span className="ap-check-badge" aria-hidden="true"><FaCheck /></span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </Section>
+
+                <Section
+                    id={`${uid}-accent`}
+                    icon={FaPalette}
+                    title="Accent colour"
+                    description="Changes buttons, focus rings and highlights without changing your theme."
+                    aside={<span className="ap-pill">Selected: {accentName(preferences)}</span>}
+                >
+                    <div className="ap-accents" role="radiogroup" aria-label="Accent colour">
+                        <button
+                            type="button"
+                            role="radio"
+                            aria-checked={preferences.accentColor === THEME_ACCENT_ID}
+                            className={`ap-accent-default${preferences.accentColor === THEME_ACCENT_ID ? " is-on" : ""}`}
+                            onClick={() => set({ accentColor: THEME_ACCENT_ID })}
+                            title="Use the theme's own accent colour"
+                        >
+                            <span className="ap-swatch" style={{ "--swatch": theme.accent }} aria-hidden="true" />
+                            Theme default
+                            {preferences.accentColor === THEME_ACCENT_ID && <FaCheck aria-hidden="true" />}
+                        </button>
+                        {ACCENT_COLORS.map((accent) => {
+                            const selected = preferences.accentColor === accent.id;
+                            return (
+                                <button
+                                    key={accent.id}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={selected}
+                                    aria-label={accent.name}
+                                    title={accent.name}
+                                    className={`ap-accent${selected ? " is-on" : ""}`}
+                                    style={{ "--swatch": accent.value }}
+                                    onClick={() => set({ accentColor: accent.id })}
+                                >
+                                    {selected && <FaCheck aria-hidden="true" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="ap-accent-sample" aria-hidden="true">
+                        <span className="ap-sample-btn">Primary action</span>
+                        <span className="ap-sample-link">Link text</span>
+                        <span className="ap-sample-chip">Active filter</span>
+                    </div>
+                </Section>
+
+                <div className="ap-two-col">
+                    <Section
+                        id={`${uid}-size`}
+                        icon={FaTextHeight}
+                        title="Text size"
+                        description="A comfortable reading size for every page."
+                    >
+                        <Segmented
+                            label="Text size"
+                            options={TEXT_SIZES}
+                            value={preferences.fontSize}
+                            onChange={(fontSize) => set({ fontSize })}
+                        />
+                        <p className="ap-size-sample">
+                            Preview: <span>The store checklist was submitted on time.</span>
+                        </p>
+                    </Section>
+
+                    <Section
+                        id={`${uid}-layout`}
+                        icon={FaSlidersH}
+                        title="Layout & motion"
+                        description="Spacing, corners and animation."
+                    >
+                        <div className="ap-layout-rows">
+                            <div className="ap-row">
+                                <span className="ap-row-label"><FaColumns aria-hidden="true" /> Sidebar density</span>
+                                <Segmented label="Sidebar density" options={SIDEBAR_DENSITIES} value={preferences.sidebarStyle} onChange={(sidebarStyle) => set({ sidebarStyle })} />
+                            </div>
+                            <div className="ap-row">
+                                <span className="ap-row-label">Table row spacing</span>
+                                <Segmented label="Table row spacing" options={TABLE_DENSITIES} value={preferences.tableDensity} onChange={(tableDensity) => set({ tableDensity })} />
+                                <small>Compact rows show more records on one screen.</small>
+                            </div>
+                            <div className="ap-row">
+                                <span className="ap-row-label">Corner style</span>
+                                <Segmented label="Corner style" options={CORNER_STYLES} value={preferences.cornerStyle} onChange={(cornerStyle) => set({ cornerStyle })} />
+                            </div>
+                            <div className="ap-row">
+                                <span className="ap-row-label">Animations</span>
+                                <Segmented label="Animations" options={MOTION_OPTIONS} value={preferences.motion} onChange={(motion) => set({ motion })} />
+                                <small>“Match device” follows your operating system’s reduce-motion setting.</small>
+                            </div>
+                        </div>
+                    </Section>
+                </div>
+
+                <Section
+                    id={`${uid}-font`}
+                    icon={FaFont}
+                    title="Font family"
+                    description="Used for labels, forms, tables, dialogs and navigation."
+                >
+                    <div className="ap-fonts" role="radiogroup" aria-label="Font family">
+                        {FONT_FAMILIES.map((font) => {
+                            const selected = preferences.fontFamily === font.id;
+                            return (
+                                <button
+                                    key={font.id}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={selected}
+                                    className={`ap-font${selected ? " is-on" : ""}`}
+                                    onClick={() => set({ fontFamily: font.id })}
+                                    title={font.description}
+                                >
+                                    <span className="ap-font-sample" style={{ fontFamily: font.stack }} aria-hidden="true">Aa</span>
+                                    <span className="ap-font-name">{font.name}</span>
+                                    <span className="ap-font-meta" style={{ fontFamily: font.stack }}>{font.sample}</span>
+                                    {selected && <FaCheck className="ap-check" aria-hidden="true" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </Section>
+            </fieldset>
+
+            <div className="ap-note">
+                <FaInfoCircle aria-hidden="true" />
+                <p>
+                    <strong>How saving works:</strong> changes preview instantly on this page only.
+                    <b> Save as my default</b> stores every option above in your MIARCUS account, so it follows you to
+                    any device and is not changed for anyone else. Leaving this page without saving restores your saved look.
+                    The sun / moon button in the top bar switches between your light and dark theme and saves it straight away.
+                    {isAdmin && " As an administrator you can also save the current look for all users."}
+                </p>
+            </div>
+
+            {/* Sticky save bar */}
+            <div className={`ap-savebar${isDirty ? " is-dirty" : ""}`} role="region" aria-label="Save appearance">
+                <div className="ap-savebar-status" role="status" aria-live="polite">
+                    {notice ? (
+                        <span className={`ap-notice ap-notice--${notice.tone}`}>{notice.text}</span>
+                    ) : isDirty ? (
+                        <span className="ap-notice ap-notice--warn">Previewing unsaved changes</span>
+                    ) : (
+                        <span className="ap-notice">
+                            {locked ? "Managed by your administrator" : `Showing: ${SOURCE_LABEL[source]}`}
+                            {" · "}{mode === "dark" ? "Night" : "Day"} mode
+                        </span>
+                    )}
+                </div>
+                <div className="ap-savebar-actions">
+                    {isDirty && (
+                        <button type="button" className="ap-btn" onClick={handleDiscard} disabled={Boolean(busy)}>
+                            Discard changes
+                        </button>
+                    )}
+                    {isAdmin && (
+                        <button type="button" className="ap-btn" onClick={() => { setOrgMode(globalTheme.mode === "enforced" ? "enforced" : "default"); setOrgDialog(true); }} disabled={Boolean(busy)}>
+                            <FaUsers aria-hidden="true" /> Save for all users
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className="ap-btn ap-btn--primary"
+                        onClick={handleSaveMine}
+                        disabled={!canSavePersonal || Boolean(busy)}
+                    >
+                        <FaSave aria-hidden="true" /> {busy === "mine" ? "Saving…" : "Save as my default"}
+                    </button>
+                </div>
+            </div>
+
+            {/* Admin: save for all users */}
+            {orgDialog && (
+                <div className="ap-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && busy !== "global") setOrgDialog(false); }}>
+                    <div className="ap-dialog" role="dialog" aria-modal="true" aria-labelledby={`${uid}-dlg`} onKeyDown={(event) => { if (event.key === "Escape" && busy !== "global") setOrgDialog(false); }}>
+                        <h2 id={`${uid}-dlg`}><FaUsers aria-hidden="true" /> Save for all users</h2>
+                        <p className="ap-dialog-lead">
+                            Publish <strong>{themeLabel}</strong> with {accentName(preferences)} accent and {fontName} font.
+                        </p>
+                        <div className="ap-choice-list" role="radiogroup" aria-label="How to apply">
+                            <label className={`ap-choice${orgMode === "default" ? " is-on" : ""}`}>
+                                <input type="radio" name={`${uid}-orgmode`} value="default" checked={orgMode === "default"} onChange={() => setOrgMode("default")} autoFocus />
+                                <span>
+                                    <strong>Default for everyone</strong>
+                                    <small>Used by every user who has not saved their own appearance. Users can still personalise.</small>
+                                </span>
+                            </label>
+                            <label className={`ap-choice${orgMode === "enforced" ? " is-on" : ""}`}>
+                                <input type="radio" name={`${uid}-orgmode`} value="enforced" checked={orgMode === "enforced"} onChange={() => setOrgMode("enforced")} />
+                                <span>
+                                    <strong>Enforce for everyone</strong>
+                                    <small>Applied to all non-admin users and their appearance options are locked.</small>
+                                </span>
+                            </label>
+                        </div>
+                        <label className="ap-check-row">
+                            <input type="checkbox" checked={alsoForMe} onChange={(event) => setAlsoForMe(event.target.checked)} />
+                            Also save it as my own default
+                        </label>
+                        <div className="ap-dialog-actions">
+                            <button type="button" className="ap-btn" onClick={() => setOrgDialog(false)} disabled={busy === "global"}>Cancel</button>
+                            <button type="button" className="ap-btn ap-btn--primary" onClick={handleSaveForAll} disabled={busy === "global"}>
+                                {busy === "global" ? "Saving…" : "Save for all users"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            <section className="appearance-section">
-                <div className="appearance-section-header">
-                    <div>
-                        <h2><FaMagic /> Quick presets</h2>
-                        <p>Apply a complete look — theme, accent and font — in one click.</p>
-                    </div>
-                </div>
+            <ConfirmDialog
+                open={confirmReset}
+                title="Reset appearance?"
+                message={
+                    globalTheme.mode === "default"
+                        ? "Your saved appearance will be removed and you will follow the organisation default on every device."
+                        : "Your saved appearance will be removed and the MIARCUS default (Miarcus Original, purple accent, default font) will be used on every device."
+                }
+                confirmText="Reset to default"
+                confirmVariant="primary"
+                loading={busy === "reset"}
+                onConfirm={handleReset}
+                onCancel={() => setConfirmReset(false)}
+            />
 
-                <div className="ap-presets">
-                    {PRESETS.map((preset) => {
-                        const active = preset.theme === currentTheme && preset.accentColor === currentAccent && preset.fontFamily === preferences.fontFamily;
-                        const theme = themes.find((t) => t.id === preset.theme);
-                        const accent = accentColors.find((a) => a.id === preset.accentColor);
-                        return (
-                            <button
-                                key={preset.id}
-                                type="button"
-                                className={`ap-preset ${active ? "is-on" : ""}`}
-                                onClick={() => updatePreferences({ theme: preset.theme, accentColor: preset.accentColor, fontFamily: preset.fontFamily })}
-                            >
-                                <span className={`ap-preset-swatch theme-preview-${theme?.preview || "original"}`}>
-                                    <i style={{ background: accent?.value }} />
-                                </span>
-                                <span className="ap-preset-copy">
-                                    <strong>{preset.name}</strong>
-                                    <small>{theme?.name} · {accent?.name}</small>
-                                </span>
-                                {active && <FaCheck className="ap-preset-check" />}
-                            </button>
-                        );
-                    })}
-                </div>
-            </section>
-
-            <section className="appearance-section">
-                <div className="appearance-section-header">
-                    <div>
-                        <h2><FaSwatchbook /> Choose your theme</h2>
-                        <p>
-                            Your choice applies across the Miarcus application.
-                        </p>
-                    </div>
-
-                    <span className="appearance-current">
-                        {themes.find(
-                            (item) =>
-                                item.id === currentTheme
-                        )?.name || "Miarcus Original"}
-                    </span>
-                </div>
-
-                <div className="ap-theme-group-title"><FaSun /> Light themes <span>{lightThemes.length}</span></div>
-                <div className="theme-grid">
-                    {lightThemes.map(renderThemeCard)}
-                </div>
-
-                <div className="ap-theme-group-title"><FaMoon /> Dark &amp; high-contrast <span>{darkThemes.length}</span></div>
-                <div className="theme-grid">
-                    {darkThemes.map(renderThemeCard)}
-                </div>
-            </section>
-
-            <section className="appearance-section">
-                <div className="appearance-section-header">
-                    <div>
-                        <h2>
-                            <FaPalette />
-                            Accent color
-                        </h2>
-
-                        <p>
-                            Change buttons, active states and highlights without changing your theme.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="accent-options">
-                    {accentColors.map((accent) => {
-                        const selected =
-                            accent.id === currentAccent;
-
-                        return (
-                            <button
-                                key={accent.id}
-                                type="button"
-                                className={`accent-option ${
-                                    selected
-                                        ? "selected"
-                                        : ""
-                                }`}
-                                onClick={() =>
-                                    updatePreferences({
-                                        accentColor:
-                                            accent.id
-                                    })
-                                }
-                                title={accent.name}
-                                aria-label={`Use ${accent.name} accent`}
-                            >
-                                <span
-                                    style={{
-                                        backgroundColor:
-                                            accent.value
-                                    }}
-                                />
-
-                                {selected && (
-                                    <FaCheck />
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-            </section>
-
-            <section className="appearance-section">
-                <div className="appearance-section-header">
-                    <div>
-                        <h2>
-                            <FaTextHeight />
-                            Text size
-                        </h2>
-
-                        <p>
-                            Choose a comfortable reading size for Miarcus.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="size-options">
-                    {[
-                        {
-                            id: "small",
-                            label: "Small"
-                        },
-                        {
-                            id: "medium",
-                            label: "Medium"
-                        },
-                        {
-                            id: "large",
-                            label: "Large"
-                        }
-                    ].map((item) => (
-                        <button
-                            key={item.id}
-                            type="button"
-                            className={`size-option ${
-                                preferences.fontSize ===
-                                item.id
-                                    ? "selected"
-                                    : ""
-                            }`}
-                            onClick={() =>
-                                updatePreferences({
-                                    fontSize:
-                                        item.id
-                                })
-                            }
-                        >
-                            {item.label}
-
-                            {preferences.fontSize ===
-                                item.id && (
-                                <FaCheck />
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            <section className="appearance-section">
-                <div className="appearance-section-header">
-                    <div>
-                        <h2>
-                            <FaFont />
-                            Font family
-                        </h2>
-
-                        <p>
-                            Pick the typeface used throughout Miarcus.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="size-options font-options">
-                    {fontFamilies.map((font) => (
-                        <button
-                            key={font.id}
-                            type="button"
-                            className={`size-option font-option ${
-                                preferences.fontFamily ===
-                                font.id
-                                    ? "selected"
-                                    : ""
-                            }`}
-                            style={{
-                                fontFamily: font.stack
-                            }}
-                            onClick={() =>
-                                updatePreferences({
-                                    fontFamily:
-                                        font.id
-                                })
-                            }
-                            title={font.description}
-                        >
-                            <span className="font-option-sample">
-                                Aa
-                            </span>
-
-                            {font.name}
-
-                            {preferences.fontFamily ===
-                                font.id && (
-                                <FaCheck />
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            <section className="appearance-section">
-                <div className="appearance-section-header">
-                    <div>
-                        <h2><FaColumns /> Sidebar density</h2>
-                        <p>
-                            Choose a comfortable or compact navigation layout.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="size-options">
-                    <button
-                        type="button"
-                        className={`size-option ${
-                            preferences.sidebarStyle ===
-                            "comfortable"
-                                ? "selected"
-                                : ""
-                        }`}
-                        onClick={() =>
-                            updatePreferences({
-                                sidebarStyle:
-                                    "comfortable"
-                            })
-                        }
-                    >
-                        Comfortable
-
-                        {preferences.sidebarStyle ===
-                            "comfortable" && (
-                            <FaCheck />
-                        )}
-                    </button>
-
-                    <button
-                        type="button"
-                        className={`size-option ${
-                            preferences.sidebarStyle ===
-                            "compact"
-                                ? "selected"
-                                : ""
-                        }`}
-                        onClick={() =>
-                            updatePreferences({
-                                sidebarStyle:
-                                    "compact"
-                            })
-                        }
-                    >
-                        Compact
-
-                        {preferences.sidebarStyle ===
-                            "compact" && (
-                            <FaCheck />
-                        )}
-                    </button>
-                </div>
-            </section>
-
-            <section className="appearance-section">
-                <div className="appearance-section-header">
-                    <div>
-                        <h2><FaSlidersH /> Interface</h2>
-                        <p>Fine-tune corners, animation and table spacing on this device.</p>
-                    </div>
-                </div>
-
-                <div className="ap-interface-grid">
-                    <div className="ap-interface-row">
-                        <div>
-                            <strong>Corner style</strong>
-                            <span>How rounded cards, buttons and inputs look.</span>
-                        </div>
-                        <Segmented
-                            value={extras.radius}
-                            onChange={(radius) => updateExtras({ radius })}
-                            options={[
-                                { id: "rounded", label: "Rounded" },
-                                { id: "soft", label: "Soft" },
-                                { id: "sharp", label: "Sharp" }
-                            ]}
-                        />
-                    </div>
-
-                    <div className="ap-interface-row">
-                        <div>
-                            <strong>Animations</strong>
-                            <span>Reduce motion if hover and page effects feel distracting.</span>
-                        </div>
-                        <Segmented
-                            value={extras.motion}
-                            onChange={(motion) => updateExtras({ motion })}
-                            options={[
-                                { id: "full", label: "Full" },
-                                { id: "reduced", label: "Reduced" }
-                            ]}
-                        />
-                    </div>
-
-                    <div className="ap-interface-row">
-                        <div>
-                            <strong>Table density</strong>
-                            <span>Compact rows show more records on one screen.</span>
-                        </div>
-                        <Segmented
-                            value={extras.density}
-                            onChange={(density) => updateExtras({ density })}
-                            options={[
-                                { id: "comfortable", label: "Comfortable" },
-                                { id: "compact", label: "Compact" }
-                            ]}
-                        />
-                    </div>
-                </div>
-            </section>
-
-            <div className="appearance-note">
-                <strong>Personal setting:</strong>
-                {" "}
-                theme, accent, text size, font and sidebar are saved to your Miarcus account and follow you to other devices. Interface options are saved on this device.
-            </div>
-
+            <ConfirmDialog
+                open={confirmDisable}
+                title="Turn off organisation appearance?"
+                message="Every user will go back to their own saved appearance (or the MIARCUS default)."
+                confirmText="Turn off"
+                confirmVariant="primary"
+                loading={busy === "disable"}
+                onConfirm={handleDisableGlobal}
+                onCancel={() => setConfirmDisable(false)}
+            />
         </div>
     );
 }

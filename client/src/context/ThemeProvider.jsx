@@ -1,599 +1,471 @@
-import React, {
+import {
     createContext,
     useCallback,
     useContext,
     useEffect,
+    useLayoutEffect,
     useMemo,
+    useRef,
     useState
 } from "react";
 
 import axios from "../axiosConfig";
-import { applyUiExtras } from "../utils/uiExtras";
+import {
+    THEMES,
+    ACCENT_COLORS,
+    FONT_FAMILIES,
+    DEFAULT_PREFERENCES,
+    AUTO_LIGHT_THEME,
+    AUTO_DARK_THEME,
+    normalizePreferences,
+    samePreferences,
+    resolvePreferences,
+    applyPreferencesToDocument,
+    findTheme
+} from "../theme/appearanceConfig";
+import { readLegacyUiExtras, clearLegacyUiExtras } from "../utils/uiExtras";
+
+// ---------------------------------------------------------------------
+// MIARCUS appearance state
+//
+//   personal  - the signed-in user's own saved default (server, per user)
+//   global    - the organisation appearance an administrator published:
+//                 mode "off"      -> not used
+//                 mode "default"  -> used by anyone without a personal default
+//                 mode "enforced" -> used by every non-admin user (locked)
+//   draft     - unsaved changes being previewed on the Appearance page
+//
+// What is on screen = draft ?? effective(personal, global).
+// Nothing is written to the server until the user presses
+// "Save as my default" (or an admin presses "Save for all users").
+// The topbar day/night switch is a deliberate one-click choice and is
+// saved to the user's own default straight away.
+// ---------------------------------------------------------------------
 
 const ThemeContext = createContext(null);
 
-export const THEMES = [
-    {
-        id: "miarcus-original",
-        name: "Miarcus Original",
-        description: "The current Miarcus look.",
-        icon: "🧸",
-        preview: "original"
-    },
-    {
-        id: "neon-glass",
-        name: "MIARCUS Neon Glass",
-        description: "Deep navy glass with violet, cyan and neon-pink edges across the whole portal.",
-        icon: "💎",
-        preview: "neon-glass"
-    },
-    {
-        id: "professional",
-        name: "Professional",
-        description: "Clean corporate workspace.",
-        icon: "💼",
-        preview: "professional"
-    },
-    {
-        id: "dark",
-        name: "Dark",
-        description: "Comfortable dark workspace.",
-        icon: "🌙",
-        preview: "dark"
-    },
-    {
-        id: "minimal",
-        name: "Minimal",
-        description: "Simple, quiet and focused.",
-        icon: "🤍",
-        preview: "minimal"
-    },
-    {
-        id: "classic-blue",
-        name: "Classic Blue",
-        description: "Traditional business software.",
-        icon: "🔵",
-        preview: "classic-blue"
-    },
-    {
-        id: "high-contrast",
-        name: "High Contrast",
-        description: "Strong contrast for visibility.",
-        icon: "⚡",
-        preview: "high-contrast"
-    },
-    {
-        id: "auto",
-        name: "Auto (System)",
-        description: "Matches your device's light/dark setting.",
-        icon: "🌗",
-        preview: "auto"
-    },
-    {
-        id: "sunset",
-        name: "Sunset",
-        description: "Warm orange and coral tones.",
-        icon: "🌅",
-        preview: "sunset"
-    },
-    {
-        id: "ocean",
-        name: "Ocean",
-        description: "Cool teal and deep-blue workspace.",
-        icon: "🌊",
-        preview: "ocean"
-    },
-    {
-        id: "forest",
-        name: "Forest",
-        description: "Calming green, easy on the eyes.",
-        icon: "🌲",
-        preview: "forest"
-    },
-    {
-        id: "rose",
-        name: "Rose",
-        description: "Soft pink with a friendly feel.",
-        icon: "🌹",
-        preview: "rose"
-    },
-    {
-        id: "midnight",
-        name: "Midnight",
-        description: "Deeper, bluer take on dark mode.",
-        icon: "🌌",
-        preview: "midnight"
-    },
-    {
-        id: "sepia",
-        name: "Sepia",
-        description: "Warm, paper-like reading tone.",
-        icon: "📜",
-        preview: "sepia"
-    },
-    {
-        id: "lavender",
-        name: "Lavender",
-        description: "Soft violet, light and airy.",
-        icon: "💜",
-        preview: "lavender"
-    },
-    {
-        id: "emerald",
-        name: "Emerald",
-        description: "Fresh jewel green with crisp white.",
-        icon: "💚",
-        preview: "emerald"
-    },
-    {
-        id: "royal",
-        name: "Royal",
-        description: "Deep plum with a gold accent.",
-        icon: "👑",
-        preview: "royal"
-    },
-    {
-        id: "nord",
-        name: "Nord",
-        description: "Cool arctic blue-grey.",
-        icon: "❄️",
-        preview: "nord"
-    },
-    {
-        id: "coffee",
-        name: "Coffee",
-        description: "Rich espresso browns, cosy and warm.",
-        icon: "☕",
-        preview: "coffee"
-    },
-    {
-        id: "aurora",
-        name: "Aurora",
-        description: "Dark mode with teal and violet glow.",
-        icon: "🌠",
-        preview: "aurora"
-    },
-    {
-        id: "cherry",
-        name: "Cherry",
-        description: "Bold crimson with clean white panels.",
-        icon: "🍒",
-        preview: "cherry"
-    },
-    {
-        id: "slate",
-        name: "Slate",
-        description: "Neutral grey for long work sessions.",
-        icon: "🪨",
-        preview: "slate"
-    }
-];
+const LAST_LIGHT_KEY = "miarcus_last_light_theme";
+const LAST_DARK_KEY = "miarcus_last_dark_theme";
 
-export const ACCENT_COLORS = [
-    { id: "purple", name: "Purple", value: "#6d57c8" },
-    { id: "blue", name: "Blue", value: "#2563eb" },
-    { id: "teal", name: "Teal", value: "#0f766e" },
-    { id: "green", name: "Green", value: "#16a34a" },
-    { id: "orange", name: "Orange", value: "#ea580c" },
-    { id: "red", name: "Red", value: "#dc2626" },
-    { id: "pink", name: "Pink", value: "#db2777" },
-    { id: "indigo", name: "Indigo", value: "#4f46e5" },
-    { id: "amber", name: "Amber", value: "#d97706" },
-    { id: "cyan", name: "Cyan", value: "#0891b2" },
-    { id: "violet", name: "Violet", value: "#7c3aed" },
-    { id: "magenta", name: "Magenta", value: "#c026d3" },
-    { id: "lime", name: "Lime", value: "#65a30d" },
-    { id: "gold", name: "Gold", value: "#b8860b" },
-    { id: "slate", name: "Slate", value: "#475569" }
-];
-
-export const FONT_FAMILIES = [
-    {
-        id: "default",
-        name: "Default",
-        description: "The standard Miarcus typeface.",
-        stack: "Arial, 'Helvetica Neue', Helvetica, sans-serif"
-    },
-    {
-        id: "rounded",
-        name: "Rounded",
-        description: "Friendlier, softer letterforms.",
-        stack: "'Quicksand', 'Varela Round', Arial, sans-serif"
-    },
-    {
-        id: "serif",
-        name: "Serif",
-        description: "Classic, print-style lettering.",
-        stack: "Georgia, 'Times New Roman', Times, serif"
-    },
-    {
-        id: "mono",
-        name: "Monospace",
-        description: "Fixed-width, technical look.",
-        stack: "'JetBrains Mono', 'Courier New', Courier, monospace"
-    },
-    {
-        id: "modern",
-        name: "Modern",
-        description: "Geometric premium sans — Plus Jakarta Sans.",
-        stack: "'Plus Jakarta Sans', 'Inter', 'Segoe UI', Arial, sans-serif"
-    },
-    {
-        id: "system",
-        name: "System",
-        description: "Your device's native interface font.",
-        stack: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-    }
-];
-
-// The concrete theme applied to the page when the user picks "Auto" -
-// resolved from the device's own light/dark setting.
-const resolveSystemTheme = () => {
-    try {
-        return window.matchMedia &&
-            window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "miarcus-original";
-    } catch {
-        return "miarcus-original";
-    }
+const OFF_GLOBAL = {
+    enabled: false,
+    allowPersonal: true,
+    mode: "off",
+    preferences: DEFAULT_PREFERENCES
 };
 
-const DEFAULT_PREFERENCES = {
-    theme: "miarcus-original",
-    accentColor: "purple",
-    fontSize: "medium",
-    fontFamily: "default",
-    sidebarStyle: "comfortable"
+const safeGet = (key) => {
+    try { return localStorage.getItem(key); } catch { return null; }
+};
+const safeSet = (key, value) => {
+    try { localStorage.setItem(key, value); } catch { /* storage blocked */ }
 };
 
-const VALID_FONT_SIZES = ["small", "medium", "large"];
-const VALID_FONT_FAMILIES = FONT_FAMILIES.map((item) => item.id);
-const VALID_SIDEBAR_STYLES = ["comfortable", "compact"];
+const readStoredUser = () => {
+    try { return JSON.parse(safeGet("user") || "{}") || {}; } catch { return {}; }
+};
 
 const getUserKey = () => {
-    const userId = localStorage.getItem("userId");
-
-    if (userId) {
-        return `miarcus_theme_preferences_${userId}`;
-    }
-
-    const user = JSON.parse(
-        localStorage.getItem("user") || "{}"
-    );
-
+    const userId = safeGet("userId");
+    if (userId) return `miarcus_theme_preferences_${userId}`;
+    const user = readStoredUser();
     return user?.id
         ? `miarcus_theme_preferences_${user.id}`
         : "miarcus_theme_preferences_guest";
 };
 
-const readLocalPreferences = () => {
+// Last appearance shown to this user - only used for a flicker-free first
+// paint; the server copy always wins once it loads.
+const readCachedPreferences = () => {
     try {
-        const saved = JSON.parse(
-            localStorage.getItem(getUserKey()) || "null"
-        );
-
-        if (!saved || typeof saved !== "object") {
-            return DEFAULT_PREFERENCES;
-        }
-
-        return {
-            ...DEFAULT_PREFERENCES,
-            ...saved
-        };
+        const saved = JSON.parse(safeGet(getUserKey()) || "null");
+        return saved && typeof saved === "object" ? normalizePreferences(saved) : DEFAULT_PREFERENCES;
     } catch {
         return DEFAULT_PREFERENCES;
     }
 };
 
-const normalizePreferences = (value = {}) => {
-    const themeExists = THEMES.some(
-        (theme) => theme.id === value.theme
-    );
+const isAdminUser = () => {
+    const user = readStoredUser();
+    return Number(user?.is_admin ?? user?.isAdmin ?? 0) === 1 ||
+        user?.is_admin === true || user?.isAdmin === true;
+};
 
-    const accentExists = ACCENT_COLORS.some(
-        (accent) => accent.id === value.accentColor
-    );
-
+const normalizeGlobal = (value) => {
+    if (!value || typeof value !== "object" || !value.enabled) {
+        return { ...OFF_GLOBAL, preferences: normalizePreferences(value?.preferences) };
+    }
+    // Older servers did not send allowPersonal - their global theme was enforced.
+    const allowPersonal = value.allowPersonal === true;
     return {
-        theme: themeExists
-            ? value.theme
-            : DEFAULT_PREFERENCES.theme,
-
-        accentColor: accentExists
-            ? value.accentColor
-            : DEFAULT_PREFERENCES.accentColor,
-
-        fontSize: VALID_FONT_SIZES.includes(
-            value.fontSize
-        )
-            ? value.fontSize
-            : DEFAULT_PREFERENCES.fontSize,
-
-        fontFamily: VALID_FONT_FAMILIES.includes(
-            value.fontFamily
-        )
-            ? value.fontFamily
-            : DEFAULT_PREFERENCES.fontFamily,
-
-        sidebarStyle: VALID_SIDEBAR_STYLES.includes(
-            value.sidebarStyle
-        )
-            ? value.sidebarStyle
-            : DEFAULT_PREFERENCES.sidebarStyle
+        enabled: true,
+        allowPersonal,
+        mode: allowPersonal ? "default" : "enforced",
+        preferences: normalizePreferences(value.preferences)
     };
 };
 
-function ThemeProvider({ children }) {
-    const [preferences, setPreferences] = useState(
-        () => readLocalPreferences()
-    );
+// Which saved appearance applies to this user, and why.
+const resolveEffective = ({ personal, global, isAdmin }) => {
+    if (global.mode === "enforced" && !isAdmin) {
+        return { preferences: global.preferences, source: "enforced" };
+    }
+    if (personal.isCustom) {
+        return { preferences: personal.preferences, source: "personal" };
+    }
+    if (global.mode === "default" || global.mode === "enforced") {
+        return { preferences: global.preferences, source: "organisation" };
+    }
+    return { preferences: DEFAULT_PREFERENCES, source: "built-in" };
+};
 
-    const [loadedFromServer, setLoadedFromServer] =
-        useState(false);
+const errorMessage = (error, fallback) =>
+    error?.response?.data?.message || error?.message || fallback;
 
-    const [globalTheme, setGlobalTheme] = useState({
-        enabled: false,
-        preferences: DEFAULT_PREFERENCES
-    });
-
-    const applyPreferences = useCallback(
-        (value, options = {}) => {
-            const normalized =
-                normalizePreferences(value);
-
-            setPreferences(normalized);
-
-            const root =
-                document.documentElement;
-
-            // "Auto" isn't a real color palette - it just follows the
-            // device's light/dark setting, so resolve it to a concrete
-            // theme before writing the attribute the CSS keys off of.
-            root.dataset.miarcusTheme =
-                normalized.theme === "auto"
-                    ? resolveSystemTheme()
-                    : normalized.theme;
-
-            root.dataset.miarcusThemeChoice =
-                normalized.theme;
-
-            root.dataset.miarcusFontSize =
-                normalized.fontSize;
-
-            root.dataset.miarcusSidebarStyle =
-                normalized.sidebarStyle;
-
-            const accent =
-                ACCENT_COLORS.find(
-                    (item) =>
-                        item.id ===
-                        normalized.accentColor
-                );
-
-            root.style.setProperty(
-                "--mi-accent",
-                accent?.value ||
-                    "#6d57c8"
-            );
-
-            const font =
-                FONT_FAMILIES.find(
-                    (item) =>
-                        item.id ===
-                        normalized.fontFamily
-                );
-
-            root.style.setProperty(
-                "--mi-font-family",
-                font?.stack ||
-                    FONT_FAMILIES[0].stack
-            );
-
-            try {
-                if (options.persistLocal !== false) {
-                    localStorage.setItem(
-                        getUserKey(),
-                        JSON.stringify(normalized)
-                    );
-                }
-            } catch {
-                // Keep the UI working if storage is unavailable.
-            }
-
-            return normalized;
-        },
-        []
-    );
-
-    // --------------------------------------------------
-    // Apply immediately from local storage.
-    // --------------------------------------------------
+const useMediaQuery = (query) => {
+    const read = () => {
+        try { return Boolean(window.matchMedia && window.matchMedia(query).matches); }
+        catch { return false; }
+    };
+    const [matches, setMatches] = useState(read);
 
     useEffect(() => {
-        applyPreferences(
-            readLocalPreferences()
-        );
-        applyUiExtras();
-    }, [applyPreferences]);
-
-    // --------------------------------------------------
-    // Keep "Auto" in sync if the device's light/dark
-    // setting changes while the app is open.
-    // --------------------------------------------------
-
-    useEffect(() => {
-        if (
-            preferences.theme !== "auto" ||
-            !window.matchMedia
-        ) {
-            return undefined;
-        }
-
-        const media = window.matchMedia(
-            "(prefers-color-scheme: dark)"
-        );
-
-        const handleChange = () => {
-            document.documentElement.dataset.miarcusTheme =
-                resolveSystemTheme();
-        };
-
+        if (!window.matchMedia) return undefined;
+        const media = window.matchMedia(query);
+        const onChange = () => setMatches(media.matches);
         if (media.addEventListener) {
-            media.addEventListener(
-                "change",
-                handleChange
-            );
-
-            return () =>
-                media.removeEventListener(
-                    "change",
-                    handleChange
-                );
+            media.addEventListener("change", onChange);
+            return () => media.removeEventListener("change", onChange);
         }
+        media.addListener(onChange); // Safari < 14
+        return () => media.removeListener(onChange);
+    }, [query]);
 
-        // Safari < 14 fallback.
-        media.addListener(handleChange);
+    return matches;
+};
 
-        return () =>
-            media.removeListener(handleChange);
+function ThemeProvider({ children }) {
+    const [isAdmin, setIsAdmin] = useState(isAdminUser);
+    const [personal, setPersonal] = useState(() => ({
+        preferences: readCachedPreferences(),
+        // Until the server answers, treat the cached look as the user's own.
+        isCustom: true
+    }));
+    const [globalTheme, setGlobalTheme] = useState(OFF_GLOBAL);
+    const [draft, setDraft] = useState(null);
+    const [loadedFromServer, setLoadedFromServer] = useState(false);
+
+    const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
+    const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+
+    const effective = useMemo(
+        () => resolveEffective({ personal, global: globalTheme, isAdmin }),
+        [personal, globalTheme, isAdmin]
+    );
+    const locked = globalTheme.mode === "enforced" && !isAdmin;
+    // An enforced organisation appearance always wins over an unsaved preview.
+    const activeDraft = locked ? null : draft;
+    const preferences = activeDraft || effective.preferences;
+    const isDirty = Boolean(activeDraft) && !samePreferences(activeDraft, effective.preferences);
+
+    const resolved = useMemo(
+        () => resolvePreferences(preferences, { prefersDark, prefersReducedMotion }),
+        [preferences, prefersDark, prefersReducedMotion]
+    );
+
+    // Apply before paint so a theme change never flashes unreadable text.
+    useLayoutEffect(() => {
+        applyPreferencesToDocument(preferences, { prefersDark, prefersReducedMotion });
+    }, [preferences, prefersDark, prefersReducedMotion]);
+
+    // Cache the saved (not draft) appearance for the next first paint.
+    useEffect(() => {
+        safeSet(getUserKey(), JSON.stringify(effective.preferences));
+    }, [effective.preferences]);
+
+    // Remember the last light and dark theme so the topbar switch can
+    // return the user to the exact look they had before.
+    useEffect(() => {
+        if (preferences.theme === "auto") return;
+        const theme = findTheme(preferences.theme);
+        safeSet(theme.mode === "dark" ? LAST_DARK_KEY : LAST_LIGHT_KEY, theme.id);
     }, [preferences.theme]);
 
-    // --------------------------------------------------
-    // Global theme is opt-in and admin-controlled. When enabled,
-    // it overrides personal appearance on every authenticated session.
-    // --------------------------------------------------
+    // -----------------------------------------------------------------
+    // Load personal + organisation appearance from the server.
+    // -----------------------------------------------------------------
+    const migratedRef = useRef(false);
+
     const refreshGlobalTheme = useCallback(async () => {
-        const token = localStorage.getItem("token");
-        if (!token) {
+        const hasToken = Boolean(safeGet("token"));
+        const results = await (hasToken
+            ? Promise.allSettled([
+                axios.get("/api/theme-preferences/global"),
+                axios.get("/api/theme-preferences")
+            ])
+            : Promise.resolve(null));
+
+        // All state updates happen after the request settles.
+        setIsAdmin(isAdminUser());
+
+        if (!results) {
             setLoadedFromServer(true);
             return null;
         }
 
-        try {
-            const globalResponse = await axios.get("/api/theme-preferences/global");
-            const nextGlobal = globalResponse.data?.globalTheme || {
-                enabled: false,
-                preferences: DEFAULT_PREFERENCES
+        const [globalResult, personalResult] = results;
+
+        let nextGlobal = null;
+        if (globalResult.status === "fulfilled" && globalResult.value.data?.success !== false) {
+            nextGlobal = normalizeGlobal(globalResult.value.data?.globalTheme);
+            setGlobalTheme((current) =>
+                current.mode === nextGlobal.mode &&
+                samePreferences(current.preferences, nextGlobal.preferences)
+                    ? current
+                    : nextGlobal
+            );
+        } else if (globalResult.status === "rejected") {
+            // Keep the current appearance usable if the server is unavailable.
+            console.warn("Global theme load:", globalResult.reason?.message || globalResult.reason);
+        }
+
+        if (personalResult.status === "fulfilled" && personalResult.value.data?.success) {
+            const data = personalResult.value.data;
+            const nextPersonal = {
+                preferences: normalizePreferences(data.preferences),
+                // Older servers did not send isCustom; they always returned a row.
+                isCustom: data.isCustom !== false
             };
-            setGlobalTheme(nextGlobal);
 
-            if (nextGlobal.enabled && nextGlobal.preferences) {
-                applyPreferences(nextGlobal.preferences, { persistLocal: false });
-            } else {
-                const personalResponse = await axios.get("/api/theme-preferences");
-                if (personalResponse.data?.success && personalResponse.data.preferences) {
-                    applyPreferences(personalResponse.data.preferences);
+            // One-time move of the old device-only "Interface" options
+            // (corners, motion, table spacing) into the saved account default.
+            if (!migratedRef.current) {
+                migratedRef.current = true;
+                const legacy = readLegacyUiExtras();
+                const enforcedForMe = nextGlobal?.mode === "enforced" && !isAdminUser();
+                if (legacy && nextPersonal.isCustom && !enforcedForMe) {
+                    const merged = normalizePreferences({ ...nextPersonal.preferences, ...legacy });
+                    if (!samePreferences(merged, nextPersonal.preferences)) {
+                        try {
+                            const response = await axios.put("/api/theme-preferences", merged);
+                            if (response.data?.success) {
+                                nextPersonal.preferences = normalizePreferences(response.data.preferences || merged);
+                            }
+                        } catch {
+                            // Not critical - the user can save again from Appearance.
+                        }
+                    }
                 }
+                if (legacy) clearLegacyUiExtras();
             }
-            return nextGlobal;
-        } catch (error) {
-            // Keep the local appearance usable if the server is temporarily unavailable.
-            console.warn("Global theme load:", error?.message || error);
-            try {
-                const personalResponse = await axios.get("/api/theme-preferences");
-                if (personalResponse.data?.success && personalResponse.data.preferences) {
-                    applyPreferences(personalResponse.data.preferences);
-                }
-            } catch {
-                // Existing local preference remains active.
-            }
-            return null;
-        } finally {
-            setLoadedFromServer(true);
+
+            setPersonal((current) =>
+                current.isCustom === nextPersonal.isCustom &&
+                samePreferences(current.preferences, nextPersonal.preferences)
+                    ? current
+                    : nextPersonal
+            );
+        } else if (personalResult.status === "rejected") {
+            console.warn("Personal theme load:", personalResult.reason?.message || personalResult.reason);
         }
-    }, [applyPreferences]);
+
+        setLoadedFromServer(true);
+        return nextGlobal;
+    }, []);
 
     useEffect(() => {
-        let cancelled = false;
-        const load = async () => {
-            await refreshGlobalTheme();
-            if (cancelled) return;
-        };
-        load();
+        refreshGlobalTheme();
 
-        // Pick up an administrator's global theme when a user returns to the tab.
+        // Pick up an administrator's change when the user returns to the tab.
         const onFocus = () => refreshGlobalTheme();
         const poll = window.setInterval(() => {
             if (document.visibilityState === "visible") refreshGlobalTheme();
         }, 60000);
         window.addEventListener("focus", onFocus);
         return () => {
-            cancelled = true;
             window.clearInterval(poll);
             window.removeEventListener("focus", onFocus);
         };
     }, [refreshGlobalTheme]);
 
-    const updatePreferences = useCallback(
-        async (changes) => {
-            const storedUser = (() => {
-                try { return JSON.parse(localStorage.getItem("user") || "{}"); }
-                catch { return {}; }
-            })();
-            const isAdmin = Number(storedUser?.is_admin ?? storedUser?.isAdmin ?? 0) === 1;
-            if (globalTheme.enabled && !isAdmin) {
-                applyPreferences(globalTheme.preferences, { persistLocal: false });
-                return globalTheme.preferences;
+    // -----------------------------------------------------------------
+    // Preview (draft) - nothing is saved yet.
+    // -----------------------------------------------------------------
+    const previewPreferences = useCallback((changes) => {
+        if (locked) return false;
+        setDraft((current) =>
+            normalizePreferences({ ...(current || effective.preferences), ...changes })
+        );
+        return true;
+    }, [locked, effective.preferences]);
+
+    const discardPreview = useCallback(() => setDraft(null), []);
+
+    // -----------------------------------------------------------------
+    // Save as my default (personal, per user).
+    // -----------------------------------------------------------------
+    const savePersonal = useCallback(async (value) => {
+        const next = normalizePreferences(value || draft || effective.preferences);
+
+        if (!safeGet("token")) {
+            setPersonal({ preferences: next, isCustom: true });
+            setDraft(null);
+            return { ok: true, preferences: next, localOnly: true };
+        }
+
+        try {
+            const response = await axios.put("/api/theme-preferences", next);
+            if (!response.data?.success) {
+                throw new Error(response.data?.message || "Could not save your appearance.");
             }
+            const saved = normalizePreferences(response.data.preferences || next);
+            setPersonal({ preferences: saved, isCustom: true });
+            setDraft((current) => (current && samePreferences(current, next) ? null : current));
+            return { ok: true, preferences: saved };
+        } catch (error) {
+            return { ok: false, error: errorMessage(error, "Could not save your appearance. Please try again.") };
+        }
+    }, [draft, effective.preferences]);
 
-            const next =
-                applyPreferences({
-                    ...preferences,
-                    ...changes
-                });
-
-            const token =
-                localStorage.getItem("token");
-
-            if (!token) {
-                return next;
+    // -----------------------------------------------------------------
+    // Reset my appearance: forget my own default.
+    // -----------------------------------------------------------------
+    const resetPersonal = useCallback(async () => {
+        if (!safeGet("token")) {
+            setPersonal({ preferences: DEFAULT_PREFERENCES, isCustom: false });
+            setDraft(null);
+            return { ok: true };
+        }
+        try {
+            const response = await axios.delete("/api/theme-preferences");
+            if (!response.data?.success) {
+                throw new Error(response.data?.message || "Could not reset your appearance.");
             }
+            setPersonal({ preferences: DEFAULT_PREFERENCES, isCustom: false });
+            setDraft(null);
+            return { ok: true };
+        } catch (error) {
+            return { ok: false, error: errorMessage(error, "Could not reset your appearance. Please try again.") };
+        }
+    }, []);
 
-            try {
-                const response =
-                    await axios.put(
-                        "/api/theme-preferences",
-                        next
-                    );
+    // -----------------------------------------------------------------
+    // Administrators: organisation-wide appearance.
+    //   mode "default"  -> everyone without their own saved default
+    //   mode "enforced" -> every non-admin user, personal choices locked
+    // -----------------------------------------------------------------
+    const saveGlobalTheme = useCallback(async ({ mode = "default", preferences: value, alsoSaveForMe = false } = {}) => {
+        const next = normalizePreferences(value || draft || effective.preferences);
+        try {
+            const response = await axios.put("/api/theme-preferences/global", {
+                enabled: true,
+                allowPersonal: mode !== "enforced",
+                preferences: next
+            });
+            if (!response.data?.success) {
+                throw new Error(response.data?.message || "Could not apply the appearance to all users.");
+            }
+            setGlobalTheme(normalizeGlobal(response.data.globalTheme || {
+                enabled: true,
+                allowPersonal: mode !== "enforced",
+                preferences: next
+            }));
 
-                if (
-                    response.data?.success &&
-                    response.data.preferences
-                ) {
-                    applyPreferences(
-                        response.data.preferences
-                    );
+            if (alsoSaveForMe) {
+                const mine = await savePersonal(next);
+                if (!mine.ok) {
+                    return { ok: true, warning: `Saved for all users, but your own default was not updated: ${mine.error}` };
                 }
-            } catch (error) {
-                console.warn(
-                    "Theme preference save:",
-                    error?.message || error
-                );
             }
+            return { ok: true };
+        } catch (error) {
+            return { ok: false, error: errorMessage(error, "Could not apply the appearance to all users.") };
+        }
+    }, [draft, effective.preferences, savePersonal]);
 
-            return next;
-        },
-        [applyPreferences, preferences, globalTheme]
-    );
+    const disableGlobalTheme = useCallback(async () => {
+        try {
+            const response = await axios.put("/api/theme-preferences/global", {
+                enabled: false,
+                allowPersonal: true,
+                preferences: globalTheme.preferences
+            });
+            if (!response.data?.success) {
+                throw new Error(response.data?.message || "Could not turn off the organisation appearance.");
+            }
+            setGlobalTheme(OFF_GLOBAL);
+            return { ok: true };
+        } catch (error) {
+            return { ok: false, error: errorMessage(error, "Could not turn off the organisation appearance.") };
+        }
+    }, [globalTheme.preferences]);
+
+    // -----------------------------------------------------------------
+    // Topbar day / night switch.
+    // -----------------------------------------------------------------
+    const nextDayNightTheme = useCallback(() => {
+        if (resolved.mode === "dark") {
+            const last = safeGet(LAST_LIGHT_KEY);
+            return last && findTheme(last).id === last && findTheme(last).mode === "light" ? last : AUTO_LIGHT_THEME;
+        }
+        const last = safeGet(LAST_DARK_KEY);
+        return last && findTheme(last).id === last && findTheme(last).mode === "dark" ? last : AUTO_DARK_THEME;
+    }, [resolved.mode]);
+
+    const toggleDayNight = useCallback(async () => {
+        if (locked) return { ok: false, error: "Appearance is managed by your administrator." };
+        const theme = nextDayNightTheme();
+        // Keep any unsaved preview, but switch its theme too.
+        setDraft((current) => (current ? normalizePreferences({ ...current, theme }) : current));
+        return savePersonal({ ...effective.preferences, theme });
+    }, [locked, nextDayNightTheme, savePersonal, effective.preferences]);
+
+    // Backward-compatible API: apply a change and save it straight away.
+    const updatePreferences = useCallback(async (changes) => {
+        if (locked) return globalTheme.preferences;
+        const next = normalizePreferences({ ...preferences, ...changes });
+        setDraft(next);
+        const result = await savePersonal(next);
+        return result.ok ? result.preferences : next;
+    }, [locked, globalTheme.preferences, preferences, savePersonal]);
 
     const value = useMemo(
         () => ({
+            // what is on screen right now (draft or saved)
             preferences,
+            resolvedTheme: resolved.theme,
+            mode: resolved.mode,
+            accentHex: resolved.accentHex,
+            prefersDark,
+            // saved state
+            savedPreferences: effective.preferences,
+            source: effective.source,
+            personal,
+            globalTheme,
+            isAdmin,
+            locked,
+            isDirty,
+            loadedFromServer,
+            // catalogue (kept for existing callers)
             themes: THEMES,
             accentColors: ACCENT_COLORS,
             fontFamilies: FONT_FAMILIES,
+            // actions
+            previewPreferences,
+            discardPreview,
+            savePersonal,
+            resetPersonal,
+            saveGlobalTheme,
+            disableGlobalTheme,
+            toggleDayNight,
             updatePreferences,
-            loadedFromServer,
-            globalTheme,
             refreshGlobalTheme
         }),
         [
-            preferences,
-            updatePreferences,
-            loadedFromServer,
-            globalTheme,
-            refreshGlobalTheme
+            preferences, resolved, prefersDark, effective, personal, globalTheme,
+            isAdmin, locked, isDirty, loadedFromServer, previewPreferences,
+            discardPreview, savePersonal, resetPersonal, saveGlobalTheme,
+            disableGlobalTheme, toggleDayNight, updatePreferences, refreshGlobalTheme
         ]
     );
 
@@ -605,14 +477,10 @@ function ThemeProvider({ children }) {
 }
 
 export const useTheme = () => {
-    const context = useContext(
-        ThemeContext
-    );
+    const context = useContext(ThemeContext);
 
     if (!context) {
-        throw new Error(
-            "useTheme must be used inside ThemeProvider"
-        );
+        throw new Error("useTheme must be used inside ThemeProvider");
     }
 
     return context;

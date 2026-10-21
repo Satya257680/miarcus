@@ -23,6 +23,10 @@ import useMobileTableCards from "../../hooks/useMobileTableCards";
 // consistently override module-level light surfaces when selected.
 import "../../styles/NeonGlassGlobal.css";
 
+// Day / night readability layer for every theme. Imported last so it can
+// correct module-level light surfaces when a dark theme is selected.
+import "../../styles/ThemeModes.css";
+
 // Phones only (tablets / laptops / desktops keep the existing layout).
 const MOBILE_QUERY = "(max-width: 768px)";
 
