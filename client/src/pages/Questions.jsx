@@ -215,6 +215,69 @@ function Questions() {
     }), [canView]);
 
     // ======================================================
+    // FILTER QUESTIONS
+    //
+    // Declared before the handlers that read it (Delete All, Export)
+    // so React Compiler can keep this memoization
+    // (react-hooks/preserve-manual-memoization).
+    // ======================================================
+
+    const filteredQuestions = useMemo(() => {
+
+        return questions.filter((q) => {
+
+            const matchesSearch =
+
+                !search ||
+
+                q.question
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                q.checklist_name
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase());
+
+            const matchesType =
+
+                !typeFilter ||
+
+                q.checklist_name === typeFilter;
+
+            const matchesDepartment =
+
+                !departmentFilter ||
+
+                q.departments
+                    ?.split(",")
+                    .map(d => d.trim())
+                    .includes(departmentFilter);
+
+            return (
+
+                matchesSearch &&
+
+                matchesType &&
+
+                matchesDepartment
+
+            );
+
+        });
+
+    }, [
+
+        questions,
+
+        search,
+
+        typeFilter,
+
+        departmentFilter
+
+    ]);
+
+    // ======================================================
     // ADD
     // ======================================================
 
@@ -501,64 +564,6 @@ const uploadQuestions = async (file) => {
     }
 
 };
-        // ======================================================
-    // FILTER QUESTIONS
-    // ======================================================
-
-    const filteredQuestions = useMemo(() => {
-
-        return questions.filter((q) => {
-
-            const matchesSearch =
-
-                !search ||
-
-                q.question
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                q.checklist_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase());
-
-            const matchesType =
-
-                !typeFilter ||
-
-                q.checklist_name === typeFilter;
-
-            const matchesDepartment =
-
-                !departmentFilter ||
-
-                q.departments
-                    ?.split(",")
-                    .map(d => d.trim())
-                    .includes(departmentFilter);
-
-            return (
-
-                matchesSearch &&
-
-                matchesType &&
-
-                matchesDepartment
-
-            );
-
-        });
-
-    }, [
-
-        questions,
-
-        search,
-
-        typeFilter,
-
-        departmentFilter
-
-    ]);
 
     // ======================================================
     // FILTER DROPDOWNS

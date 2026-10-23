@@ -767,7 +767,6 @@ function Chat() {
         clearInterval(signalPollRef.current);
         stopRingtone();
         localStreamRef.current?.getTracks().forEach(track => track.stop());
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const startRingtone = () => {

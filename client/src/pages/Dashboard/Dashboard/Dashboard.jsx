@@ -154,8 +154,6 @@ function Dashboard() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);
     };
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   useEffect(() => {

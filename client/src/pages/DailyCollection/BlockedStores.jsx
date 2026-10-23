@@ -59,9 +59,16 @@ const splitList = (value) =>
         .map((item) => item.trim())
         .filter(Boolean);
 
+// "Restored (30 days)" KPI window.
+const RESTORED_WINDOW_MS = 30 * 86400000;
+
 export default function BlockedStores() {
     const [blocked, setBlocked] = useState([]);
     const [history, setHistory] = useState([]);
+    // Time of the last successful load. Render compares against this
+    // instead of calling Date.now() (render must stay pure); the list
+    // reloads every minute, so the 30-day window stays current.
+    const [loadedAt, setLoadedAt] = useState(0);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState("");
@@ -79,6 +86,7 @@ export default function BlockedStores() {
             const { data } = await axios.get("/api/daily-collection/blocked-stores");
             setBlocked(Array.isArray(data?.blocked) ? data.blocked : []);
             setHistory(Array.isArray(data?.history) ? data.history : []);
+            setLoadedAt(Date.now());
         } catch (err) {
             setError(err.response?.data?.message || "Unable to load blocked stores.");
         } finally {
@@ -107,7 +115,7 @@ export default function BlockedStores() {
     const blockedUsers = blocked.reduce((sum, row) => sum + Number(row.blocked_user_count || 0), 0);
     const restoredThisMonth = history.filter((row) => {
         const date = new Date(row.unblocked_at);
-        return !Number.isNaN(date.getTime()) && Date.now() - date.getTime() < 30 * 86400000;
+        return !Number.isNaN(date.getTime()) && loadedAt - date.getTime() < RESTORED_WINDOW_MS;
     }).length;
 
     const confirmUnblock = async () => {

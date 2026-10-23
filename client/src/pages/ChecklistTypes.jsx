@@ -215,6 +215,70 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
         loadChecklistTypesEvent();
 
     }), [canView]);
+
+    // ======================================================
+    // FILTER CHECKLIST TYPES
+    //
+    // Declared before the handlers that read it (Delete All) so React
+    // Compiler can keep this memoization
+    // (react-hooks/preserve-manual-memoization).
+    // ======================================================
+
+    const filteredChecklists = useMemo(() => {
+
+        return checklists.filter((item) => {
+
+            const matchesSearch =
+
+                !search ||
+
+                item.checklist_name
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                item.departments
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase());
+
+            const matchesStatus =
+
+                !statusFilter ||
+
+                item.status === statusFilter;
+
+            const matchesDepartment =
+
+                !departmentFilter ||
+
+                item.departments
+                    ?.split(",")
+                    .map((d) => d.trim())
+                    .includes(departmentFilter);
+
+            return (
+
+                matchesSearch &&
+
+                matchesStatus &&
+
+                matchesDepartment
+
+            );
+
+        });
+
+    }, [
+
+        checklists,
+
+        search,
+
+        statusFilter,
+
+        departmentFilter
+
+    ]);
+
         // ======================================================
     // ADD
     // ======================================================
@@ -507,65 +571,6 @@ const handleSave = async (data) => {
         setCurrentPage(1);
 
     };
-
-    // ======================================================
-    // FILTER CHECKLIST TYPES
-    // ======================================================
-
-    const filteredChecklists = useMemo(() => {
-
-        return checklists.filter((item) => {
-
-            const matchesSearch =
-
-                !search ||
-
-                item.checklist_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.departments
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase());
-
-            const matchesStatus =
-
-                !statusFilter ||
-
-                item.status === statusFilter;
-
-            const matchesDepartment =
-
-                !departmentFilter ||
-
-                item.departments
-                    ?.split(",")
-                    .map((d) => d.trim())
-                    .includes(departmentFilter);
-
-            return (
-
-                matchesSearch &&
-
-                matchesStatus &&
-
-                matchesDepartment
-
-            );
-
-        });
-
-    }, [
-
-        checklists,
-
-        search,
-
-        statusFilter,
-
-        departmentFilter
-
-    ]);
 
     // ======================================================
     // FILTER DROPDOWNS

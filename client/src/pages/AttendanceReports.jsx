@@ -848,6 +848,31 @@ function AttendanceReports() {
     };
 
     // ======================================================
+    // CLIENT-SIDE SEARCH (server already filters store/employee/status/
+    // date — search narrows further across name/id/store already
+    // loaded for the selected filters).
+    //
+    // Declared before every handler that reads it (Delete All, Export)
+    // so React Compiler can keep this memoization
+    // (react-hooks/preserve-manual-memoization).
+    // ======================================================
+
+    const filteredRecords = useMemo(() => {
+
+        if (!search) return records;
+
+        const q = search.toLowerCase();
+
+        return records.filter((item) =>
+            item.name?.toLowerCase().includes(q) ||
+            item.employee_id?.toLowerCase?.().includes(q) ||
+            item.store_name?.toLowerCase().includes(q) ||
+            item.department?.toLowerCase().includes(q)
+        );
+
+    }, [records, search]);
+
+    // ======================================================
     // DELETE
     // ======================================================
 
@@ -966,27 +991,6 @@ function AttendanceReports() {
         setSelectedStatus("");
         setCurrentPage(1);
     };
-
-    // ======================================================
-    // CLIENT-SIDE SEARCH (server already filters store/employee/status/
-    // date — search narrows further across name/id/store already
-    // loaded for the selected filters).
-    // ======================================================
-
-    const filteredRecords = useMemo(() => {
-
-        if (!search) return records;
-
-        const q = search.toLowerCase();
-
-        return records.filter((item) =>
-            item.name?.toLowerCase().includes(q) ||
-            item.employee_id?.toLowerCase?.().includes(q) ||
-            item.store_name?.toLowerCase().includes(q) ||
-            item.department?.toLowerCase().includes(q)
-        );
-
-    }, [records, search]);
 
     // ======================================================
     // PAGINATION

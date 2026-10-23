@@ -259,7 +259,6 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
             if (toastTimer.current) window.clearTimeout(toastTimer.current);
             stopStream();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [refreshMs]);
 
     // outside click / Escape
@@ -373,7 +372,10 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
         if (!item?.link) return;
         setOpen(false);
         if (onNavigate) onNavigate(item.link, item);
-        else window.location.href = item.link;
+        // location.assign() navigates exactly like setting location.href,
+        // but as a method call rather than an assignment to a browser
+        // global, which react-hooks/immutability does not allow.
+        else window.location.assign(item.link);
     };
 
     const toggle = () => {

@@ -25,7 +25,10 @@ const BASE = "/learning-development";
 
 // ---------------- helpers ----------------
 
-const useLoad = (loader, deps) => {
+// `loader` must be memoized by the caller with useCallback (and its own
+// literal dependency list, e.g. [id]); a new loader identity triggers a
+// fresh load, exactly like the old `deps` argument did.
+const useLoad = (loader) => {
   const [state, setState] = useState({ loading: true, error: "", data: null });
   const reload = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: "" }));
@@ -34,8 +37,7 @@ const useLoad = (loader, deps) => {
     } catch (error) {
       setState({ loading: false, error: errorMessage(error, "Unable to load"), data: null });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [loader]);
   useEffect(() => runAfterCommit(() => { reload(); }), [reload]);
   return { ...state, reload };
 };
@@ -99,7 +101,8 @@ const Thumb = ({ url, seed, alt = "" }) => (
 // ---------------- My Training ----------------
 
 function Catalog() {
-  const { loading, error, data, reload } = useLoad(() => lndApi.overview(), []);
+  const loadOverview = useCallback(() => lndApi.overview(), []);
+  const { loading, error, data, reload } = useLoad(loadOverview);
   const [tab, setTab] = useState("All");
   const [query, setQuery] = useState("");
   const { canEdit } = usePermission("Learning & Development");
@@ -208,7 +211,8 @@ function Catalog() {
 
 function Program() {
   const { id } = useParams();
-  const { loading, error, data, reload } = useLoad(() => lndApi.program(id), [id]);
+  const loadProgram = useCallback(() => lndApi.program(id), [id]);
+  const { loading, error, data, reload } = useLoad(loadProgram);
   const [tab, setTab] = useState("modules");
 
   if (loading || error) return <div className="lnd"><BackCard to={BASE} title="Back to My Training" sub="Return to your training list" /><State loading={loading} error={error} onRetry={reload} /></div>;
@@ -317,7 +321,8 @@ const youtubeEmbed = (url) => {
 function ModulePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { loading, error, data, reload } = useLoad(() => lndApi.module(id), [id]);
+  const loadModule = useCallback(() => lndApi.module(id), [id]);
+  const { loading, error, data, reload } = useLoad(loadModule);
   const [tab, setTab] = useState("video");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -702,7 +707,8 @@ function Exam() {
 function Certificate() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { loading, error, data, reload } = useLoad(() => lndApi.certificate(id), [id]);
+  const loadCertificate = useCallback(() => lndApi.certificate(id), [id]);
+  const { loading, error, data, reload } = useLoad(loadCertificate);
   if (loading || error) return <div className="lnd"><BackCard to={`${BASE}/certificates`} title="Back to My Certificates" /><State loading={loading} error={error} onRetry={reload} /></div>;
   const c = data.certificate;
   return (
@@ -735,7 +741,8 @@ function Certificate() {
 }
 
 function Certificates() {
-  const { loading, error, data, reload } = useLoad(() => lndApi.certificates(), []);
+  const loadCertificates = useCallback(() => lndApi.certificates(), []);
+  const { loading, error, data, reload } = useLoad(loadCertificates);
   const list = data?.certificates || [];
   return (
     <div className="lnd">

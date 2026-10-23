@@ -47,12 +47,15 @@ const AUDIENCES = [
     { id: "specific", label: "Specific Users", text: "Pick people by name", icon: FaUserCheck }
 ];
 
-const fileIcon = (name) => {
-    if (IMAGE_RE.test(String(name || ""))) return FaImage;
-    if (VIDEO_RE.test(String(name || ""))) return FaVideo;
-    if (String(name || "").toLowerCase().endsWith(".pdf")) return FaFilePdf;
-    return FaPaperclip;
-};
+// Icon for the attached file type. Declared once at module level (not
+// picked during render) so React always sees the same component type.
+function FileTypeIcon({ name }) {
+    const value = String(name || "");
+    if (IMAGE_RE.test(value)) return <FaImage />;
+    if (VIDEO_RE.test(value)) return <FaVideo />;
+    if (value.toLowerCase().endsWith(".pdf")) return <FaFilePdf />;
+    return <FaPaperclip />;
+}
 
 export default function AnnouncementComposer({ editingItem, onClose, onSuccess }) {
     const isEditing = Boolean(editingItem);
@@ -181,7 +184,6 @@ export default function AnnouncementComposer({ editingItem, onClose, onSuccess }
     const AudienceIcon = audienceMeta.icon;
     const existingName = isEditing && !removeAttachment ? editingItem?.attachment_original_name : "";
     const attachmentName = file?.name || existingName || "";
-    const AttachIcon = fileIcon(attachmentName);
 
     const checklist = [
         { ok: Boolean(title.trim()), label: "Title added" },
@@ -295,7 +297,7 @@ export default function AnnouncementComposer({ editingItem, onClose, onSuccess }
                             <span className="ac-label">{isEditing ? "Replace Attachment" : "Attachment"} <i>(optional)</i></span>
                             {attachmentName ? (
                                 <div className="ac-file">
-                                    {preview ? <img src={preview} alt="" /> : <span className="ac-file-icon"><AttachIcon /></span>}
+                                    {preview ? <img src={preview} alt="" /> : <span className="ac-file-icon"><FileTypeIcon name={attachmentName} /></span>}
                                     <div>
                                         <strong>{attachmentName}</strong>
                                         <small>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB · new file` : "Current attachment"}</small>
@@ -356,7 +358,7 @@ export default function AnnouncementComposer({ editingItem, onClose, onSuccess }
                             <p className={content.trim() ? "" : "is-placeholder"}>{content.trim() || "Your message will appear here exactly as people will read it."}</p>
                             {preview && <img className="ac-preview-img" src={preview} alt="" />}
                             {attachmentName && !preview && (
-                                <div className="ac-preview-file"><AttachIcon /> {attachmentName}</div>
+                                <div className="ac-preview-file"><FileTypeIcon name={attachmentName} /> {attachmentName}</div>
                             )}
                             <div className="ac-preview-foot">
                                 <span><AudienceIcon /> {audience === "specific" ? `${specificUsers.length} selected user(s)` : audienceMeta.label}</span>
