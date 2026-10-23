@@ -11,6 +11,7 @@ import {
 import ExportButton from "../ExportButton/ExportButton";
 
 import "../../../styles/common/PageToolbar.css";
+import runAfterCommit from "../../../utils/runAfterCommit";
 
 function PageToolbar({
 
@@ -92,12 +93,12 @@ function PageToolbar({
   // (e.g. "Clear Filters").
   // Only overwrite what's typed when it really differs (ignoring
   // spaces at the ends), so a pause after "mrpl " keeps the space.
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     const applied = String(search || "");
     setDraft((current) =>
       current.trim() === applied.trim() ? current : applied
     );
-  }, [search]);
+  }), [search]);
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 

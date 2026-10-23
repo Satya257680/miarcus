@@ -36,7 +36,8 @@ import {
     FaCheckCircle
 } from "react-icons/fa";
 
-import InsightStrip, { useInsightSummary } from "../components/premium/InsightStrip";
+import InsightStrip from "../components/premium/InsightStrip";
+import { useInsightSummary } from "../components/premium/useInsightSummary";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 
@@ -48,6 +49,7 @@ import "../styles/ChecklistReports.css";
 import "../styles/premium/ChecklistPremium.css";
 import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 import { exportTableData } from "../utils/exportUtils.js";
+import runAfterCommit from "../utils/runAfterCommit";
 
 
 // ======================================================
@@ -152,7 +154,6 @@ function ChecklistReports() {
 
     const [showEditModal, setShowEditModal] = useState(false);
 
-    const [showBulkModal, setShowBulkModal] = useState(false);
 
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -562,7 +563,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // INITIAL LOAD
     // ======================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
 
         if (!canView) {
 
@@ -575,7 +576,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
         loadData();
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [canView]);
+    }), [canView]);
 
     // ======================================================
     // DEBOUNCE SEARCH
@@ -600,7 +601,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     const didMountRef = useRef(false);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
 
         if (!canView) return;
 
@@ -612,7 +613,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
         silentRefresh();
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
+    }), [
         canView,
         currentPage,
         pageSize,
@@ -872,7 +873,6 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
         setExportProgress({ rows: 0 });
 
         try {
-            // eslint-disable-next-line no-constant-condition
             while (true) {
                 const params = { ...baseParams, size: EXPORT_CHUNK_SIZE };
                 if (cursor) params.cursor = cursor;
@@ -1335,9 +1335,9 @@ const uploadChecklistReport = async (file, assembled) => {
     // the end (e.g. a filter narrowed the result set, or the last row
     // on the last page was just deleted) — the RE-FETCH effect above
     // picks this up and reloads automatically.
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (currentPage > totalPages) setCurrentPage(totalPages);
-    }, [currentPage, totalPages]);
+    }), [currentPage, totalPages]);
 
     // ======================================================
     // FORMAT DATE

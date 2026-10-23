@@ -2,25 +2,24 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../styles/AddUserModal.css";
 
 import {
-  LuShieldCheck,
-  LuBuilding2,
-  LuStore,
-  LuLockKeyhole,
-  LuX,
-  LuCheck,
-  LuSearch,
-  LuChevronDown,
-  LuLoaderCircle,
-  LuArrowLeft,
-  LuArrowRight,
-  LuUserRound,
-  LuClipboardCheck,
-  LuUserRoundCog,
-  LuCircleAlert,
-  LuPower,
-  LuEye,
-  LuEyeOff,
-  LuRefreshCw,
+    LuShieldCheck,
+    LuBuilding2,
+    LuStore,
+    LuLockKeyhole,
+    LuX,
+    LuCheck,
+    LuSearch,
+    LuChevronDown,
+    LuLoaderCircle,
+    LuArrowLeft,
+    LuArrowRight,
+    LuUserRound,
+    LuClipboardCheck,
+    LuUserRoundCog,
+    LuPower,
+    LuEye,
+    LuEyeOff,
+    LuRefreshCw
 } from "react-icons/lu";
 
 import axios, { API_BASE_URL } from "../axiosConfig.js";
@@ -35,6 +34,27 @@ import {
   clampLevel,
 } from "../config/rbacCatalog";
 import "../styles/AddUserModalPremium.css";
+import runAfterCommit from "../utils/runAfterCommit";
+
+// Static module / permission catalogue (kept outside the component so
+// effects and callbacks do not need them as dependencies).
+// Every module that can be granted — defined once in
+// config/rbacCatalog.js (grouped, with pages / sub-modules).
+const modules = MODULE_NAMES;
+
+const permissionTypes = [
+  "None",
+  "View",
+  "Add",
+  "Edit",
+  "Full",
+];
+
+const createDefaultPermissions = () =>
+  modules.reduce((acc, module) => {
+    acc[module] = "None";
+    return acc;
+  }, {});
 
 function AddUserModal({
   onClose,
@@ -181,23 +201,6 @@ function AddUserModal({
   // MODULE ACCESS
   // =====================================================
 
-  // Every module that can be granted — defined once in
-  // config/rbacCatalog.js (grouped, with pages / sub-modules).
-  const modules = MODULE_NAMES;
-
-  const permissionTypes = [
-    "None",
-    "View",
-    "Add",
-    "Edit",
-    "Full",
-  ];
-
-  const createDefaultPermissions = () =>
-    modules.reduce((acc, module) => {
-      acc[module] = "None";
-      return acc;
-    }, {});
 
   const [modulePermissions, setModulePermissions] =
     useState(createDefaultPermissions());
@@ -288,18 +291,47 @@ function AddUserModal({
   // LOAD INITIAL DATA
   // =====================================================
 
-  useEffect(() => {
-    loadReports();
-    fetchDepartments();
-    fetchDesignations();
-    fetchStores();
-  }, []);
 
   // =====================================================
   // RESET / EDIT MODE
   // =====================================================
 
-  useEffect(() => {
+
+  // =====================================================
+  // RESET
+  // =====================================================
+
+  const resetForm = () => {
+    setFullName("");
+    setEmployeeId("");
+    setEmail("");
+    setConfirmEmail("");
+
+    setCallContact("");
+    setWhatsappContact("");
+    setConfirmWhatsappContact("");
+
+    setDepartmentId("");
+    setDesignationId("");
+
+    setSelectedReport(null);
+    setReportSearch("");
+    setShowReportList(false);
+
+    setSelectedStores([]);
+    setStoreSearch("");
+
+    setModulePermissions(
+      createDefaultPermissions()
+    );
+    setPageAccess({});
+
+    setIsActive(true);
+    setIsAdmin(false);
+    permissionsBeforeAdminRef.current = null;
+  };
+
+  useEffect(() => runAfterCommit(() => {
     const userKey = editingUser?.id
       ? `edit-${editingUser.id}`
       : "new";
@@ -487,41 +519,7 @@ function AddUserModal({
         normalizedPermissions
       );
     }
-  }, [editingUser]);
-
-  // =====================================================
-  // RESET
-  // =====================================================
-
-  const resetForm = () => {
-    setFullName("");
-    setEmployeeId("");
-    setEmail("");
-    setConfirmEmail("");
-
-    setCallContact("");
-    setWhatsappContact("");
-    setConfirmWhatsappContact("");
-
-    setDepartmentId("");
-    setDesignationId("");
-
-    setSelectedReport(null);
-    setReportSearch("");
-    setShowReportList(false);
-
-    setSelectedStores([]);
-    setStoreSearch("");
-
-    setModulePermissions(
-      createDefaultPermissions()
-    );
-    setPageAccess({});
-
-    setIsActive(true);
-    setIsAdmin(false);
-    permissionsBeforeAdminRef.current = null;
-  };
+  }), [editingUser]);
 
   // =====================================================
   // API - REPORTS
@@ -612,6 +610,13 @@ function AddUserModal({
       );
     }
   };
+
+  useEffect(() => runAfterCommit(() => {
+    loadReports();
+    fetchDepartments();
+    fetchDesignations();
+    fetchStores();
+  }), []);
 
   // =====================================================
   // ADMINISTRATOR

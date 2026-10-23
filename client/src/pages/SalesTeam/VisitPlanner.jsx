@@ -2,16 +2,14 @@ import PremiumLoader from "../../components/premium/PremiumLoader";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  FaDownload,
-  FaPlus,
-  FaSyncAlt,
-  FaTrash,
-  FaUpload,
-  FaCheckCircle,
-  FaClock,
-  FaTimes,
-  FaSearch,
-  FaChevronDown,
+    FaPlus,
+    FaSyncAlt,
+    FaTrash,
+    FaCheckCircle,
+    FaClock,
+    FaTimes,
+    FaSearch,
+    FaChevronDown
 } from "react-icons/fa";
 
 import PageToolbar from "../../components/common/PageToolbar";
@@ -35,15 +33,14 @@ import {
 } from "../../services/salesTeamService";
 
 import {
-  canAdd,
-  canDelete,
-  canEdit,
-  canView,
-  downloadBlob,
-  formatDate,
-  getStoredUser,
-  isAdmin,
-  toInputDate,
+    canAdd,
+    canDelete,
+    canEdit,
+    canView,
+    formatDate,
+    getStoredUser,
+    isAdmin,
+    toInputDate
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
@@ -54,6 +51,7 @@ import InsightStrip from "../../components/premium/InsightStrip";
 import { FaMapMarkedAlt, FaHourglassHalf, FaUmbrellaBeach, FaEdit as FaEditIcon, FaListUl, FaExclamationCircle, FaUserTie, FaCalendarAlt, FaStore, FaRoute } from "react-icons/fa";
 import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
 import { exportFromCSV } from "../../utils/exportUtils.js";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 /* =========================================================
    INITIAL FORM
@@ -219,14 +217,15 @@ function VisitPlanner() {
 
   const [form, setForm] = useState(makeInitialForm());
 
-  useEffect(() => {
-    if (showModal) setModalError("");
-  }, [showModal]);
 
   // Add / Edit wizard: "details" -> "dates" (store-wise dates) -> "review"
   const [step, setStep] = useState("details");
   // Inline validation message inside the wizard (instead of browser alerts)
   const [modalError, setModalError] = useState("");
+
+  useEffect(() => runAfterCommit(() => {
+    if (showModal) setModalError("");
+  }), [showModal]);
   const [excludedStores, setExcludedStores] = useState([]);
 
   const [employeeSearch, setEmployeeSearch] = useState("");
@@ -314,9 +313,9 @@ function VisitPlanner() {
     storeFilter,
   ]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     load();
-  }, [load]);
+  }), [load]);
 
   /* =========================================================
      LOAD EMPLOYEES + STORES
@@ -383,9 +382,9 @@ function VisitPlanner() {
      INITIAL LOOKUP LOAD
   ========================================================= */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     loadLookups();
-  }, [loadLookups]);
+  }), [loadLookups]);
 
   /* =========================================================
      EMPLOYEE OPTIONS
@@ -690,7 +689,7 @@ function VisitPlanner() {
      first selected Store Management city.
   ========================================================= */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (
       form.week_off ||
       form.city ||
@@ -708,7 +707,7 @@ function VisitPlanner() {
         city: firstCity,
       }));
     }
-  }, [
+  }), [
     form.week_off,
     form.city,
     selectedStores,

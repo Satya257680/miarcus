@@ -4,7 +4,6 @@ import {
     FaPaperclip,
     FaMapMarkerAlt,
     FaTimes,
-    FaCloudUploadAlt,
     FaInfoCircle,
     FaExternalLinkAlt,
     FaBullhorn,
@@ -12,7 +11,7 @@ import {
     FaHourglassHalf,
     FaExclamationTriangle,
     FaStore,
-    FaBuilding,
+    FaBuilding
 } from "react-icons/fa";
 
 import PageToolbar from "../components/common/PageToolbar";
@@ -41,6 +40,7 @@ import InsightStrip from "../components/premium/InsightStrip";
 import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const API = API_BASE_URL;
 
@@ -91,8 +91,8 @@ const LEGAL_DEFAULT = {
 const getPermissions = () => {
     let user = {};
     let permissions = {};
-    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch {}
-    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch {}
+    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch { /* keep the default value */ }
+    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch { /* keep the default value */ }
 
     const admin = user?.administrator === true || user?.administrator === 1 || user?.administrator === "1" ||
         user?.is_admin === true || user?.is_admin === 1 || user?.is_admin === "1";
@@ -157,7 +157,7 @@ function AssetModal({ type, open, initialData, options, onClose, onSaved }) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!open) return;
         if (initialData) {
             if (isMarketing) {
@@ -184,7 +184,7 @@ function AssetModal({ type, open, initialData, options, onClose, onSaved }) {
         }
         setFiles([]);
         setError("");
-    }, [open, initialData, isMarketing]);
+    }), [open, initialData, isMarketing]);
 
     const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -391,7 +391,7 @@ export default function AssetManagement({ type = "marketing" }) {
         ? "Manage all marketing materials, assets and promotional items."
         : "Manage and track all legal related assets, documents and notices.";
     const columns = isMarketing ? MARKETING_COLUMNS : LEGAL_COLUMNS;
-    const permissions = useMemo(getPermissions, []);
+    const permissions = useMemo(() => getPermissions(), []);
 
     const [rows, setRows] = useState([]);
     const [options, setOptions] = useState({ departments: [], stores: [], categories: [], statuses: [] });
@@ -423,15 +423,15 @@ export default function AssetManagement({ type = "marketing" }) {
         } finally { setLoading(false); }
     }, [type, page, pageSize, search, permissions.canView]);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => runAfterCommit(() => { load(); }), [load]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         setPage(1);
         setSearch("");
         fetchAssetOptions()
             .then((data) => setOptions(data || { departments: [], stores: [], categories: [], statuses: [] }))
             .catch(() => setOptions({ departments: [], stores: [], categories: [], statuses: [] }));
-    }, [type]);
+    }), [type]);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -451,7 +451,7 @@ export default function AssetManagement({ type = "marketing" }) {
             if (!result?.success) throw new Error(result?.message || "Bulk upload failed.");
             return result;
         } catch (err) {
-            throw new Error(err?.response?.data?.message || err?.message || "Bulk upload failed.");
+            throw new Error(err?.response?.data?.message || err?.message || "Bulk upload failed.", { cause: err });
         }
     };
 

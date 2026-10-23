@@ -37,6 +37,7 @@ import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 import "../styles/premium/PagePremium.css";
 import "../styles/premium/AdminPagesPremium.css";
 import "../styles/premium/ModulesPremium.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // EMPLOYEE LOCATION – STORE REPORTS
@@ -171,9 +172,9 @@ export default function EmployeeLocationReports() {
             .catch(() => {});
     }, []);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         load();
-    }, [load]);
+    }), [load]);
 
     // Live mode refreshes quietly every 30 seconds.
     useEffect(() => {

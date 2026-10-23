@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import "../../styles/checklist/QuestionPhotos.css";
 import { newPhotoId as newId, fileToPhoto, releasePhoto, loadImage, isTouchDevice } from "../../utils/photoEvidence";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ==========================================================
 // QUESTION PHOTO PICKER
@@ -59,7 +60,7 @@ function CameraCapture({ onCapture, onClose, onFallback }) {
     const [error, setError] = useState("");
     const [facing, setFacing] = useState("environment");
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let alive = true;
         const start = async () => {
             try {
@@ -86,7 +87,7 @@ function CameraCapture({ onCapture, onClose, onFallback }) {
             alive = false;
             streamRef.current?.getTracks().forEach((t) => t.stop());
         };
-    }, [facing]);
+    }), [facing]);
 
     const capture = () => {
         const video = videoRef.current;

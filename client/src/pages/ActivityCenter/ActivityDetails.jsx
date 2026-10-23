@@ -1,5 +1,5 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import axios, { API_BASE_URL } from "../../axiosConfig.js";
 import {
@@ -51,6 +51,7 @@ import {
 
 import "../../styles/pages/ActivityDetails.css";
 import "../../styles/pages/ActivityDetailsPremium.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const API = API_BASE_URL + "/api";
 
@@ -200,9 +201,9 @@ function ActivityDetails() {
         }
     }, [id, showToast]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         loadActivity();
-    }, [loadActivity]);
+    }), [loadActivity]);
 
     const recipientName = activity?.assigned_to_name || activity?.created_by_name || "User";
     const recipientEmail = activity?.assigned_to_email || activity?.created_by_email || "";
@@ -215,9 +216,9 @@ function ActivityDetails() {
         [activity]
     );
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (showEmail && !emailSubject) setEmailSubject(defaultEmailSubject);
-    }, [showEmail, emailSubject, defaultEmailSubject]);
+    }), [showEmail, emailSubject, defaultEmailSubject]);
 
     // ---------------- CHAT ----------------
     const loadMessages = useCallback(async () => {
@@ -233,12 +234,12 @@ function ActivityDetails() {
         }
     }, [id]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!showChat) return undefined;
         loadMessages();
         const timer = window.setInterval(loadMessages, 4000);
         return () => window.clearInterval(timer);
-    }, [showChat, loadMessages]);
+    }), [showChat, loadMessages]);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });

@@ -36,6 +36,7 @@ import {
     inspectBulkFile
 } from "../../../services/bulkUploadService.js";
 import "../../../styles/common/BulkUploadModal.css";
+import runAfterCommit from "../../../utils/runAfterCommit";
 
 // ==========================================================
 // MI ARCUS — GLOBAL BULK UPLOAD MODAL
@@ -402,10 +403,9 @@ function BulkUploadModal({
         clearInterval(timerRef.current);
     }, []);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!isOpen) {
             // Intentional: clear the modal state whenever it is closed.
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             resetAll();
             setUploadedSomething(false);
             return;
@@ -415,7 +415,7 @@ function BulkUploadModal({
                 .then((data) => setSpec(data))
                 .catch(() => setSpec(null));
         }
-    }, [isOpen, moduleKey, resetAll]);
+    }), [isOpen, moduleKey, resetAll]);
 
     useEffect(() => () => clearInterval(timerRef.current), []);
 
@@ -750,7 +750,7 @@ function BulkUploadModal({
     // render pieces
     // ------------------------------------------------------
 
-    const SelectedFileCard = ({ showRemove = true }) => {
+    const renderSelectedFile = ({ showRemove = true } = {}) => {
         if (!file) return null;
         const Icon = fileIcon(file.name);
         return (
@@ -813,7 +813,7 @@ function BulkUploadModal({
                 </div>
             ) : (
                 <>
-                    <SelectedFileCard />
+                    {renderSelectedFile()}
                     {inspecting && (
                         <div className="bum-note info">
                             <span className="bum-spinner" /> Checking the columns in your file…
@@ -883,7 +883,7 @@ function BulkUploadModal({
         const ok = missing.length === 0;
         return (
             <>
-                <SelectedFileCard />
+                {renderSelectedFile()}
 
                 <div className={`bum-banner ${ok ? "success" : "warning"}`}>
                     <span className="bum-banner-icon">{ok ? <FaCheck /> : <FaExclamationTriangle />}</span>
@@ -966,7 +966,7 @@ function BulkUploadModal({
 
     const renderProcessing = () => (
         <>
-            <SelectedFileCard showRemove={false} />
+            {renderSelectedFile({ showRemove: false })}
             <div className="bum-progress-card">
                 <div className="bum-progress-head">
                     <span className="bum-spinner big" />

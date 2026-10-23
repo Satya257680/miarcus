@@ -1,4 +1,3 @@
-import React from "react";
 import { FaProjectDiagram, FaCheckCircle, FaClock, FaCircle, FaMagic, FaPen } from "react-icons/fa";
 import "../../styles/AddNewStoreOpeningModal.css";
 

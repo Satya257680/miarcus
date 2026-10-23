@@ -1,5 +1,5 @@
 import PremiumLoader from "./premium/PremiumLoader";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   createRule,
@@ -23,6 +23,7 @@ import {
   LuChevronDown,
   LuUsers,
 } from "react-icons/lu";
+import runAfterCommit from "../utils/runAfterCommit";
 
 
 function AddRuleModal({
@@ -103,22 +104,13 @@ function AddRuleModal({
   // LOAD DATA WHEN MODAL OPENS
   // =====================================================
 
-  useEffect(() => {
-
-    if (!isOpen) {
-      return;
-    }
-
-    loadData();
-
-  }, [isOpen]);
 
 
   // =====================================================
   // LOAD EDIT DATA
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     if (!isOpen) {
       return;
@@ -187,7 +179,7 @@ function AddRuleModal({
 
     });
 
-  }, [
+  }), [
     isOpen,
     editData,
     departments,
@@ -224,6 +216,16 @@ function AddRuleModal({
 
     }
   };
+
+  useEffect(() => runAfterCommit(() => {
+
+    if (!isOpen) {
+      return;
+    }
+
+    loadData();
+
+  }), [isOpen]);
 
 
   // =====================================================

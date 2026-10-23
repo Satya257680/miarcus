@@ -1,6 +1,6 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useEffectEvent } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 // ======================================================
@@ -28,7 +28,6 @@ import AddQuestionModal from "../components/AddQuestionModal";
 
 import {
     FaEdit,
-    FaUpload,
     FaTrash
 } from "react-icons/fa";
 
@@ -45,6 +44,7 @@ import { FaQuestionCircle, FaClipboardList, FaAsterisk, FaStopwatch } from "reac
 import { formatCount } from "../utils/premiumFormat";
 import { exportTableData } from "../utils/exportUtils.js";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // API
@@ -88,9 +88,9 @@ function Questions() {
 
     const [pageSize] = useState(10);
 
-    const [totalRecords, setTotalRecords] = useState(0);
+    const [, setTotalRecords] = useState(0);
 
-    const [totalPages, setTotalPages] = useState(1);
+    const [, setTotalPages] = useState(1);
 
     // ======================================================
     // MODALS
@@ -199,7 +199,8 @@ function Questions() {
     // LOAD
     // ======================================================
 
-    useEffect(() => {
+    const loadQuestionsEvent = useEffectEvent((...args) => loadQuestions(...args));
+    useEffect(() => runAfterCommit(() => {
 
         if (!canView) {
 
@@ -209,9 +210,9 @@ function Questions() {
 
         }
 
-        loadQuestions();
+        loadQuestionsEvent();
 
-    }, [canView]);
+    }), [canView]);
 
     // ======================================================
     // ADD
@@ -641,11 +642,11 @@ const uploadQuestions = async (file) => {
 
         );
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
 
         setCurrentPage(1);
 
-    }, [
+    }), [
 
         search,
 

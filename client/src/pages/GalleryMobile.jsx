@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { FaCamera, FaCloudUploadAlt, FaCheckCircle, FaImages, FaTimes } from "react-icons/fa";
 import "../styles/Gallery.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 export default function GalleryMobile() {
     const token = window.location.pathname.split("/").filter(Boolean).pop() || "";
@@ -24,7 +25,7 @@ export default function GalleryMobile() {
         return () => { active = false; };
     }, [token]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!file) {
             setPreview("");
             return undefined;
@@ -32,7 +33,7 @@ export default function GalleryMobile() {
         const url = URL.createObjectURL(file);
         setPreview(url);
         return () => URL.revokeObjectURL(url);
-    }, [file]);
+    }), [file]);
 
     const chooseFile = (event) => {
         const selected = event.target.files?.[0];

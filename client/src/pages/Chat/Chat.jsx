@@ -1,5 +1,5 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useEffectEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
     FaComments,
@@ -13,7 +13,6 @@ import {
     FaVideoSlash,
     FaTimes,
     FaCheck,
-    FaUserPlus,
     FaUsers,
     FaStore,
     FaSmile,
@@ -32,7 +31,7 @@ import {
     FaStar,
     FaArrowLeft,
     FaLock,
-    FaCommentMedical,
+    FaCommentMedical
 } from "react-icons/fa";
 
 import {
@@ -73,6 +72,7 @@ import {
 import "../../styles/pages/Chat.css";
 import { EMOJI_CATEGORIES } from "./emojiData";
 import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "👏"];
 
@@ -185,7 +185,7 @@ function Chat() {
     const currentUser = useMemo(() => safeUser(), []);
     const admin = isAdminUser(currentUser);
 
-    let storedPermissions = {};
+    let storedPermissions;
     try {
         storedPermissions = JSON.parse(
             localStorage.getItem("permissions") || "{}"
@@ -450,18 +450,8 @@ function Chat() {
         }
     };
 
-    const refreshSelectedConversation = async () => {
-        if (!selectedConversationId) return;
 
-        try {
-            const response = await getChatConversation(selectedConversationId);
-            setSelectedConversation(response.data?.conversation || null);
-        } catch {
-            // The conversation may have been deleted/changed; the list refresh handles it.
-        }
-    };
-
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let mounted = true;
 
         const start = async () => {
@@ -536,9 +526,9 @@ function Chat() {
         };
         // The first load intentionally runs once.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }), []);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!selectedStoreId) return;
 
         setSearchParams(
@@ -554,7 +544,7 @@ function Chat() {
         loadContacts(selectedStoreId).catch(() => {});
         loadConversations(selectedStoreId).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedStoreId]);
+    }), [selectedStoreId]);
 
     useEffect(() => {
         updateChatPresence("online").catch(() => {});
@@ -576,16 +566,12 @@ function Chat() {
         };
     }, []);
 
-    useEffect(() => () => {
-        clearTimeout(incomingCallTimeoutRef.current);
-        clearTimeout(outgoingCallTimeoutRef.current);
-        clearInterval(callStatusPollRef.current);
-        clearInterval(signalPollRef.current);
-        stopRingtone();
-        localStreamRef.current?.getTracks().forEach(track => track.stop());
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
+    const loadConversationsEvent = useEffectEvent((...args) => loadConversations(...args));
+    const setSearchParamsEvent = useEffectEvent((...args) => setSearchParams(...args));
+    const showIncomingCallEvent = useEffectEvent((...args) => showIncomingCall(...args));
+    const handleCallSignalEvent = useEffectEvent((...args) => handleCallSignal(...args));
+    const applyCallStatusEvent = useEffectEvent((...args) => applyCallStatus(...args));
     useEffect(() => {
         eventCleanupRef.current?.();
 
@@ -606,7 +592,7 @@ function Chat() {
                     }, 20);
                 }
 
-                loadConversations(selectedStoreId).catch(() => {});
+                loadConversationsEvent(selectedStoreId).catch(() => {});
             },
 
             message_updated: (event) => {
@@ -620,7 +606,7 @@ function Chat() {
                             : item
                     )
                 );
-                loadConversations(selectedStoreId).catch(() => {});
+                loadConversationsEvent(selectedStoreId).catch(() => {});
             },
 
             message_deleted_for_me: (event) => {
@@ -628,7 +614,7 @@ function Chat() {
                 setMessages(previous =>
                     previous.filter(item => Number(item.id) !== Number(event.message_id))
                 );
-                loadConversations(selectedStoreId).catch(() => {});
+                loadConversationsEvent(selectedStoreId).catch(() => {});
             },
 
             read: (event) => {
@@ -653,7 +639,7 @@ function Chat() {
                 if (Number(selectedConversationId) === conversationId) {
                     setSelectedConversation(null);
                     setMessages([]);
-                    setSearchParams({ store: String(selectedStoreId || "") });
+                    setSearchParamsEvent({ store: String(selectedStoreId || "") });
                 }
             },
 
@@ -665,7 +651,7 @@ function Chat() {
 
             conversation: (event) => {
                 if (event?.conversation) {
-                    loadConversations(selectedStoreId).catch(() => {});
+                    loadConversationsEvent(selectedStoreId).catch(() => {});
                 }
             },
 
@@ -693,18 +679,18 @@ function Chat() {
             },
 
             incoming_call: (event) => {
-                showIncomingCall(event?.call, event?.conversation);
+                showIncomingCallEvent(event?.call, event?.conversation);
             },
 
             call_signal: async (signal) => {
-                await handleCallSignal(signal);
+                await handleCallSignalEvent(signal);
             },
 
             call_status: (event) => {
                 const call = event?.call;
                 if (!call) return;
 
-                applyCallStatus(call);
+                applyCallStatusEvent(call);
             },
 
             connected: () => {
@@ -773,6 +759,16 @@ function Chat() {
         try { ring.ctx.close(); } catch { /* ignore */ }
         ringtoneRef.current = null;
     };
+
+    useEffect(() => () => {
+        clearTimeout(incomingCallTimeoutRef.current);
+        clearTimeout(outgoingCallTimeoutRef.current);
+        clearInterval(callStatusPollRef.current);
+        clearInterval(signalPollRef.current);
+        stopRingtone();
+        localStreamRef.current?.getTracks().forEach(track => track.stop());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const startRingtone = () => {
         stopRingtone();
@@ -875,7 +871,7 @@ function Chat() {
 
     // Fallback: look for incoming calls by polling, so a call always rings
     // even if the SSE stream cannot connect through the proxy.
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let stopped = false;
         let ticks = 0;
 
@@ -903,7 +899,7 @@ function Chat() {
             clearInterval(timer);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }), []);
 
     // Fallback: keep messages and the chat list live when SSE is unavailable.
     useEffect(() => {

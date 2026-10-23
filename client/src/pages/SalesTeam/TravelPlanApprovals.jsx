@@ -38,6 +38,7 @@ import "../../styles/premium/AdminPagesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 /* =========================================================
    TRAVEL PLAN APPROVALS
@@ -120,9 +121,9 @@ function TravelPlanApprovals() {
      INITIAL LOAD
   ======================================================= */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     load();
-  }, [load]);
+  }), [load]);
 
   /* =======================================================
      VIEW REQUEST DETAILS

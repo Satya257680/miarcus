@@ -1,5 +1,5 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useEffectEvent } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/ChecklistSubmission.css";
 import "../styles/pages/ChecklistSubmissionPremium.css";
@@ -25,6 +25,7 @@ import {
   expectedAnswerOf,
   unexpectedAnswerOf,
 } from "../config/checklistPhotoRules";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const API = API_BASE_URL;
 
@@ -384,7 +385,7 @@ function ChecklistSubmission() {
   const [errorMessage, setErrorMessage] = useState("");
 
   // Refresh the current IST submission window while the page stays open.
-  const [windowClock, setWindowClock] = useState(Date.now());
+  const [windowClock, setWindowClock] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setWindowClock(Date.now()), 30000);
     return () => window.clearInterval(timer);
@@ -454,7 +455,7 @@ function ChecklistSubmission() {
   // is interrupted by a phone call. Reset is the only action that
   // intentionally removes this draft.
   // =========================================================
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     try {
       const raw = localStorage.getItem(draftStorageKey);
       if (raw) {
@@ -471,7 +472,7 @@ function ChecklistSubmission() {
     } finally {
       setDraftHydrated(true);
     }
-  }, [draftStorageKey]);
+  }), [draftStorageKey]);
 
   useEffect(() => {
     if (!draftHydrated) return;
@@ -515,12 +516,6 @@ function ChecklistSubmission() {
   // LOAD CHECKLIST TYPES + STORES
   // =========================================================
 
-  useEffect(() => {
-    if (!canView) return;
-
-    fetchChecklistTypes();
-    fetchStores();
-  }, [canView]);
 
   // =========================================================
   // FETCH CHECKLIST TYPES
@@ -568,36 +563,18 @@ function ChecklistSubmission() {
     }
   };
 
+  useEffect(() => runAfterCommit(() => {
+    if (!canView) return;
+
+    fetchChecklistTypes();
+    fetchStores();
+  }), [canView]);
+
   // =========================================================
   // LOAD QUESTIONS ONLY AFTER ALL BASIC FIELDS
   // ARE COMPLETED
   // =========================================================
 
-  useEffect(() => {
-    if (!draftHydrated) return;
-
-    if (!canView) {
-      setQuestions([]);
-      clearPhotos();
-      return;
-    }
-
-    // Do NOT load questions until all required
-    // submission fields are completed.
-    if (!basicDetailsComplete) {
-      setQuestions([]);
-      setLoadingQuestions(false);
-      return;
-    }
-
-    fetchQuestions();
-  }, [
-    checklistTypeId,
-    storeId,
-    submissionDate,
-    canView,
-    draftHydrated,
-  ]);
 
   // =========================================================
   // FETCH QUESTIONS
@@ -669,6 +646,34 @@ function ChecklistSubmission() {
       setRefreshingQuestions(false);
     }
   };
+
+  const fetchQuestionsEvent = useEffectEvent((...args) => fetchQuestions(...args));
+  useEffect(() => runAfterCommit(() => {
+    if (!draftHydrated) return;
+
+    if (!canView) {
+      setQuestions([]);
+      clearPhotos();
+      return;
+    }
+
+    // Do NOT load questions until all required
+    // submission fields are completed.
+    if (!basicDetailsComplete) {
+      setQuestions([]);
+      setLoadingQuestions(false);
+      return;
+    }
+
+    fetchQuestionsEvent();
+  }), [
+    checklistTypeId,
+    storeId,
+    submissionDate,
+    basicDetailsComplete,
+    canView,
+    draftHydrated,
+  ]);
 
   const refreshQuestionsManually = async () => {
     if (!basicDetailsComplete || loadingQuestions || refreshingQuestions) return;

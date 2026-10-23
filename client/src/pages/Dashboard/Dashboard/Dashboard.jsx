@@ -1,34 +1,28 @@
 import { useState, useEffect, useRef } from "react";
 import { getDashboardStats, getNSOSummary } from "../../../services/dashboardService";
 import {
-  FaTasks,
-  FaBullhorn,
-  FaBoxes,
-  FaCalendarAlt,
-  FaClipboardList,
-  FaChartBar,
-  FaMoneyBillWave,
-  FaLayerGroup,
-  FaGlobe,
-  FaStore,
-  FaBook,
-  FaQuestionCircle,
-  FaUsers,
-  FaCog,
-  FaChartLine,
-
-  // Dashboard KPI Icons
-  FaUserFriends,
-  FaStoreAlt,
-  FaClipboardCheck,
-  FaExclamationTriangle,
-
-  // Welcome card chips
-  FaUser,
-  FaShieldAlt,
-  FaClock,
-  FaArrowRight,
-
+    FaTasks,
+    FaBullhorn,
+    FaBoxes,
+    FaCalendarAlt,
+    FaClipboardList,
+    FaChartBar,
+    FaMoneyBillWave,
+    FaLayerGroup,
+    FaGlobe,
+    FaStore,
+    FaBook,
+    FaQuestionCircle,
+    FaUsers,
+    FaCog,
+    FaChartLine,
+    FaUserFriends,
+    FaClipboardCheck,
+    FaExclamationTriangle,
+    FaUser,
+    FaShieldAlt,
+    FaClock,
+    FaArrowRight
 } from "react-icons/fa";
 
 import { Navigate, useNavigate } from "react-router-dom";
@@ -38,6 +32,7 @@ import ModuleGrid from "../components/ModuleGrid";
 import "../../../styles/dashboard/Dashboard.css";
 import "../../../styles/dashboard/Dashboard3D.css";
 import RecentActivity from "../components/RecentActivity";
+import runAfterCommit from "../../../utils/runAfterCommit";
 
 function Dashboard() {
 
@@ -135,7 +130,7 @@ function Dashboard() {
 
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     let cancelled = false;
 
@@ -161,7 +156,7 @@ function Dashboard() {
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }), []);
 
   useEffect(() => {
 
@@ -323,7 +318,7 @@ function Dashboard() {
 
   const currentHour = now.getHours();
 
-  let greeting = "";
+  let greeting;
 
   if (currentHour >= 5 && currentHour < 12) {
 

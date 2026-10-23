@@ -4,6 +4,7 @@ import { refreshAccess } from "../utils/rbac";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 import LndArt from "../components/lnd/LndArt";
 import "../styles/pages/LndAccessControl.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // =================================================================
 // LEARNING & DEVELOPMENT — ACCESS CONTROL (OWNER ONLY)
@@ -85,7 +86,7 @@ export default function LndAccessControl() {
   }, []);
 
   const loadAudit = useCallback(async () => {
-    try { setAudit((await axios.get(`${API}/audit`)).data?.audit || []); } catch (_) { /* optional */ }
+    try { setAudit((await axios.get(`${API}/audit`)).data?.audit || []); } catch { /* optional */ }
   }, []);
 
   const load = useCallback(async () => {
@@ -104,7 +105,7 @@ export default function LndAccessControl() {
     }
   }, [loadAudit]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => runAfterCommit(() => { load(); }), [load]);
 
   // Sidebar / route permissions of every open tab follow the change.
   const afterChange = useCallback(() => { refreshAccess(); loadAudit(); }, [loadAudit]);

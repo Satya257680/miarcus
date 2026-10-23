@@ -1,9 +1,9 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState
 } from "react";
 
 import {
@@ -48,6 +48,7 @@ import "../../styles/premium/AdminPagesPremium.css";
 import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 /* ======================================================
    HELPERS
@@ -624,11 +625,11 @@ export default function BillingAudit() {
      INITIAL LOAD
   ==================================================== */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     loadAuditLogs();
 
-  }, [
+  }), [
     loadAuditLogs
   ]);
 

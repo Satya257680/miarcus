@@ -45,6 +45,7 @@ import {
   deleteStore,
   deleteAllStores,
 } from "../services/storeService";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function StoreManagement() {
   // ==========================
@@ -125,20 +126,20 @@ function StoreManagement() {
     }
   };
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!canView) {
       setLoading(false);
       return;
     }
 
     fetchStores();
-  }, [canView]);
+  }), [canView]);
 
   // ==========================
   // Search and Filters
   // ==========================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     const keyword = search.trim().toLowerCase();
 
     const filtered = stores.filter((store) => {
@@ -172,7 +173,7 @@ function StoreManagement() {
 
     setFilteredStores(filtered);
     setCurrentPage(1);
-  }, [search, statusFilter, stores]);
+  }), [search, statusFilter, stores]);
 
   // ==========================
   // Add Store

@@ -1,5 +1,5 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useEffectEvent } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
@@ -27,8 +27,7 @@ import AddChecklistTypeModal from "../components/AddChecklistTypeModal";
 
 import {
     FaEdit,
-    FaTrash,
-    FaUpload
+    FaTrash
 } from "react-icons/fa";
 
 // ======================================================
@@ -44,6 +43,7 @@ import { FaClipboardList, FaClipboardCheck, FaHistory, FaClock } from "react-ico
 import { formatCount } from "../utils/premiumFormat";
 import { exportFromXLSXBinary } from "../utils/exportUtils.js";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // API
@@ -87,9 +87,9 @@ function ChecklistTypes() {
 
     const [pageSize] = useState(10);
 
-    const [totalRecords, setTotalRecords] = useState(0);
+    const [, setTotalRecords] = useState(0);
 
-    const [totalPages, setTotalPages] = useState(1);
+    const [, setTotalPages] = useState(1);
 
     // ======================================================
     // MODALS
@@ -201,7 +201,8 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // LOAD
     // ======================================================
 
-    useEffect(() => {
+    const loadChecklistTypesEvent = useEffectEvent((...args) => loadChecklistTypes(...args));
+    useEffect(() => runAfterCommit(() => {
 
         if (!canView) {
 
@@ -211,9 +212,9 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         }
 
-        loadChecklistTypes();
+        loadChecklistTypesEvent();
 
-    }, [canView]);
+    }), [canView]);
         // ======================================================
     // ADD
     // ======================================================
@@ -491,15 +492,6 @@ const handleSave = async (data) => {
     // SUCCESS
     // ======================================================
 
-    const handleSuccess = () => {
-
-        setShowModal(false);
-
-        setSelectedChecklist(null);
-
-        loadChecklistTypes();
-
-    };
         // ======================================================
     // CLEAR FILTERS
     // ======================================================
@@ -637,11 +629,11 @@ const handleSave = async (data) => {
 
         );
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
 
         setCurrentPage(1);
 
-    }, [
+    }), [
 
         search,
 

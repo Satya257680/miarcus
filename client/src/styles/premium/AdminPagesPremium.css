@@ -1643,7 +1643,7 @@
 .pf-hint {
     margin: 0;
     font-size: 12px;
-    color: var(--pp-faint);
+    color: var(--pp-muted);
 }
 
 .pf-strength {

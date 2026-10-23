@@ -12,11 +12,11 @@ import {
     FaSearch,
     FaCalculator,
     FaExternalLinkAlt,
-    FaCopy,
     FaCalendarAlt,
     FaRupeeSign,
     FaTrash
 } from "react-icons/fa";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 function CheckIcon({ status }) {
     if (status === "PASS") return <FaCheckCircle className="expense-status-pass" />;
@@ -53,7 +53,7 @@ function ExpenseDetails({ id, onClose, onDeleted }) {
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState("");
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let active = true;
 
         setLoading(true);
@@ -74,7 +74,7 @@ function ExpenseDetails({ id, onClose, onDeleted }) {
         return () => {
             active = false;
         };
-    }, [id]);
+    }), [id]);
 
     const checks = useMemo(() => expense?.checks || [], [expense]);
     const attachmentUrl = expense?.attachment_path

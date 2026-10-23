@@ -44,6 +44,7 @@ import {
 import heroArt from "../assets/premium/nso-hero.png";
 import bulbArt from "../assets/premium/nso-bulb.png";
 import "../styles/pages/NSOTrackingPremium.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // NSO TRACKING (premium)
@@ -78,7 +79,7 @@ function Ring({ value, tone }) {
 
 export default function NSOTracking() {
     const navigate = useNavigate();
-    const permissions = useMemo(nsoPermissions, []);
+    const permissions = useMemo(() => nsoPermissions(), []);
 
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -114,10 +115,10 @@ export default function NSOTracking() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (permissions.canView) load();
         else setLoading(false);
-    }, [load, permissions.canView]);
+    }), [load, permissions.canView]);
 
     const rows = useMemo(
         () =>
@@ -175,9 +176,9 @@ export default function NSOTracking() {
         });
     }, [rows, search, status, region, fromDate, toDate]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         setPage(1);
-    }, [search, status, region, fromDate, toDate, pageSize]);
+    }), [search, status, region, fromDate, toDate, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const safePage = Math.min(page, totalPages);

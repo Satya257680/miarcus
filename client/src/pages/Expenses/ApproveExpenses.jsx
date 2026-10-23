@@ -19,6 +19,7 @@ import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ======================================================
 // HELPERS
@@ -210,11 +211,11 @@ function ApproveExpenses() {
     // INITIAL LOAD
     // ==================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         load();
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }), []);
 
     // ==================================================
     // SEARCH

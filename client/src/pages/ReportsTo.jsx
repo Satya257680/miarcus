@@ -1,5 +1,5 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useEffectEvent } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import { getDepartments } from "../services/departmentService.js";
 
@@ -42,6 +42,7 @@ import InsightStrip from "../components/premium/InsightStrip";
 import { FaSitemap, FaUserTie, FaUserCheck, FaUserSlash, FaBuilding } from "react-icons/fa";
 import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 import { exportFromXLSXBinary } from "../utils/exportUtils.js";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // API
@@ -86,9 +87,9 @@ function ReportsTo() {
 
     const [pageSize] = useState(10);
 
-    const [totalRecords, setTotalRecords] = useState(0);
+    const [, setTotalRecords] = useState(0);
 
-    const [totalPages, setTotalPages] = useState(1);
+    const [, setTotalPages] = useState(1);
 
     // ======================================================
     // MODALS
@@ -153,7 +154,7 @@ function ReportsTo() {
     // LOAD CURRENT DEPARTMENTS
     // ======================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let mounted = true;
 
         const loadDepartments = async () => {
@@ -183,7 +184,7 @@ function ReportsTo() {
         return () => {
             mounted = false;
         };
-    }, []);
+    }), []);
 
     // ======================================================
     // LOAD REPORTS
@@ -237,7 +238,8 @@ function ReportsTo() {
     // LOAD
     // ======================================================
 
-    useEffect(() => {
+    const loadReportsEvent = useEffectEvent((...args) => loadReports(...args));
+    useEffect(() => runAfterCommit(() => {
 
         if (!canView) {
 
@@ -247,9 +249,9 @@ function ReportsTo() {
 
         }
 
-        loadReports();
+        loadReportsEvent();
 
-    }, [canView]);
+    }), [canView]);
         // ======================================================
     // ADD
     // ======================================================
@@ -559,11 +561,11 @@ function ReportsTo() {
 
         );
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
 
         setCurrentPage(1);
 
-    }, [
+    }), [
 
         search,
 

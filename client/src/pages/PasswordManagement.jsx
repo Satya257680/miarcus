@@ -23,6 +23,7 @@ import EditVaultUserModal from "../components/EditVaultUserModal";
 import SetVaultUserPasswordModal from "../components/SetVaultUserPasswordModal";
 import ViewVaultUserPasswordModal from "../components/ViewVaultUserPasswordModal";
 import "../styles/PasswordManagement.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function PasswordManagement() {
   const [users, setUsers] = useState([]);
@@ -70,9 +71,9 @@ function PasswordManagement() {
     }
   };
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     fetchVault();
-  }, []);
+  }), []);
 
   const getRole = (user) => {
     if (user.isSuperAdmin) return "super-admin";
@@ -108,9 +109,9 @@ function PasswordManagement() {
     });
   }, [users, search, roleFilter, statusFilter]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     setCurrentPage(1);
-  }, [search, roleFilter, statusFilter]);
+  }), [search, roleFilter, statusFilter]);
 
   const totalRecords = filteredUsers.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
@@ -120,11 +121,6 @@ function PasswordManagement() {
     safePage * pageSize
   );
 
-  const clearFilters = () => {
-    setSearch("");
-    setRoleFilter("all");
-    setStatusFilter("all");
-  };
 
   const formatUpdated = (user) => {
     if (!user.passwordUpdatedAt) return "—";

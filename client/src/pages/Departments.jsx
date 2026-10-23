@@ -30,6 +30,7 @@ import {
   deleteAllDepartments,
   bulkUploadDepartments,
 } from "../services/departmentService";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function Departments() {
 
@@ -149,7 +150,7 @@ function Departments() {
 
   };
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     if (!canView) {
 
@@ -161,13 +162,13 @@ function Departments() {
 
     fetchDepartments();
 
-  }, [canView]);
+  }), [canView]);
 
   // =====================================================
   // SEARCH
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     const keyword = search.toLowerCase();
 
@@ -195,7 +196,7 @@ function Departments() {
 
     setCurrentPage(1);
 
-  }, [search, statusFilter, departments]);
+  }), [search, statusFilter, departments]);
   // =====================================================
 // ADD DEPARTMENT
 // =====================================================

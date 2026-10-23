@@ -5,6 +5,7 @@ import { getUsers } from "../../services/userService";
 
 import "../../styles/common/ProfessionalModal.css";
 import "./DepartmentModal.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 function DepartmentModal({
   isOpen,
@@ -83,7 +84,7 @@ function DepartmentModal({
   // LOAD / RESET FORM
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!isOpen) {
       return;
     }
@@ -116,7 +117,7 @@ function DepartmentModal({
     }
 
     setSearch("");
-  }, [department, isOpen]);
+  }), [department, isOpen]);
 
   // =====================================================
   // CLOSE

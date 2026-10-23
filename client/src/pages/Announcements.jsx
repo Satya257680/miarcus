@@ -1,24 +1,22 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useEffectEvent } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 import {
     FaBullhorn,
     FaCalendarAlt,
-    FaChevronLeft,
     FaDownload,
     FaEdit,
     FaFile,
     FaImage,
     FaPaperclip,
     FaPrint,
-    FaSearch,
     FaThumbtack,
     FaTimes,
     FaTrash,
     FaUser,
     FaUsers,
-    FaVideo,
+    FaVideo
 } from "react-icons/fa";
 
 import announcementService from "../services/announcementService";
@@ -36,6 +34,7 @@ import { FaEnvelope, FaClock } from "react-icons/fa";
 import { daysFromToday, formatCount } from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // CONSTANTS
@@ -247,14 +246,13 @@ function Announcements() {
     // LOAD WHEN FILTER CHANGES
     // ==================================================
 
-    useEffect(() => {
-
-        load();
+    const loadEvent = useEffectEvent((...args) => load(...args));
+    useEffect(() => runAfterCommit(() => {
 
         // Search/date filtering is handled by backend.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        loadEvent();
 
-    }, [
+    }), [
         search,
         startDate,
         endDate,

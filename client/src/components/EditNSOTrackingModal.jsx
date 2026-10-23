@@ -1,4 +1,4 @@
-import React, {
+import {
     useEffect,
     useState
 } from "react";
@@ -12,6 +12,7 @@ import {
 
 
 import "../styles/NSOTracking.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 
 
@@ -71,7 +72,7 @@ function EditNSOTrackingModal({
     // LOAD DATA
     // ======================================================
 
-    useEffect(()=>{
+    useEffect(()=>runAfterCommit(() => {
 
 
         if(data){
@@ -111,7 +112,7 @@ function EditNSOTrackingModal({
         }
 
 
-    },[data]);
+    }),[data]);
 
 
 

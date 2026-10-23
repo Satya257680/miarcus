@@ -3,6 +3,7 @@ import {
     useEffect,
     useMemo,
     useState,
+    useEffectEvent
 } from "react";
 
 import {
@@ -35,6 +36,7 @@ import "../../styles/premium/PagePremium.css";
 import "../../styles/premium/QuizPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import { FaPaperPlane as FaHeroSend } from "react-icons/fa";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 
 function EmailSettings() {
@@ -293,11 +295,12 @@ function EmailSettings() {
     // INITIAL LOAD
     // ============================================================
 
-    useEffect(() => {
+    const loadEvent = useEffectEvent((...args) => load(...args));
+    useEffect(() => runAfterCommit(() => {
 
-        load();
+        loadEvent();
 
-    }, [quizIdFromUrl]);
+    }), [quizIdFromUrl]);
 
 
     // ============================================================
@@ -374,7 +377,8 @@ function EmailSettings() {
     // QUIZ SELECTION CHANGE
     // ============================================================
 
-    useEffect(() => {
+    const loadLogsEvent = useEffectEvent((...args) => loadLogs(...args));
+    useEffect(() => runAfterCommit(() => {
 
         if (!selectedQuiz) {
 
@@ -385,7 +389,7 @@ function EmailSettings() {
         }
 
 
-        loadLogs();
+        loadLogsEvent();
 
 
         const currentQuiz =
@@ -414,7 +418,7 @@ function EmailSettings() {
 
         setFeedback("");
 
-    }, [
+    }), [
         selectedQuiz,
         quizzes,
     ]);

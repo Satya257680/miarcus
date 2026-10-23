@@ -12,9 +12,10 @@ import { useState, useEffect, useCallback } from "react";
 import axios, { API_BASE_URL } from "../../axiosConfig.js";
 
 import NotificationCenter from "../common/NotificationCenter";
-import { useTheme } from "../../context/ThemeProvider";
+import { useTheme } from "../../context/themeContext";
 
 import "../../styles/layout/Topbar.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // Keep Topbar API calls and the rest of the application on
 // the exact same configured backend URL.
@@ -150,7 +151,7 @@ function Topbar({ toggleSidebar }) {
   // PROFILE EVENT
   // ==========================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     loadProfile();
 
     window.addEventListener(
@@ -164,7 +165,7 @@ function Topbar({ toggleSidebar }) {
         loadProfile
       );
     };
-  }, [loadProfile]);
+  }), [loadProfile]);
 
   // ==========================================================
   // LOGOUT

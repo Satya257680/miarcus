@@ -60,7 +60,7 @@ const install = () => {
     });
 
     // Show messages carried over from the previous page.
-    let carried = [];
+    let carried;
     try {
         carried = JSON.parse(sessionStorage.getItem(CARRY_KEY) || "[]");
         sessionStorage.removeItem(CARRY_KEY);

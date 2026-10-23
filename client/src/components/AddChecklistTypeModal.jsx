@@ -4,6 +4,7 @@ import axios, { API_BASE_URL } from "../axiosConfig.js";
 import ProfessionalModal from "./common/ProfessionalModal";
 
 import "../styles/AddChecklistTypeModal.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const API = API_BASE_URL + '/api';
 
@@ -56,7 +57,7 @@ function AddChecklistTypeModal({
   // LOAD DEPARTMENTS
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     const loadDepartments = async () => {
       try {
         const res = await axios.get(
@@ -79,13 +80,13 @@ function AddChecklistTypeModal({
     };
 
     loadDepartments();
-  }, []);
+  }), []);
 
   // =====================================================
   // LOAD USERS
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     const loadUsers = async () => {
       try {
         const res = await axios.get(
@@ -108,13 +109,13 @@ function AddChecklistTypeModal({
     };
 
     loadUsers();
-  }, []);
+  }), []);
 
   // =====================================================
   // EDIT / RESET
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!checklist) {
       setChecklistName("");
       setSelectedDepartments([]);
@@ -162,7 +163,7 @@ function AddChecklistTypeModal({
     );
 
     setSearchUser("");
-  }, [checklist]);
+  }), [checklist]);
 
   // =====================================================
   // DEPARTMENT SELECTION

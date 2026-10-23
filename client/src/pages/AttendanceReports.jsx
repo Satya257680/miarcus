@@ -97,6 +97,7 @@ import {
     getAttendancePhotoDataUrl,
     getAttendancePhotoDetails
 } from "../services/attendanceService.js";
+import runAfterCommit from "../utils/runAfterCommit";
 
 
 // ======================================================
@@ -496,7 +497,7 @@ function AttendanceReports() {
 
     const [records, setRecords] = useState([]);
 
-    const [summary, setSummary] = useState({});
+    const [, setSummary] = useState({});
 
     const [stores, setStores] = useState([]);
 
@@ -681,7 +682,7 @@ function AttendanceReports() {
         await loadReports();
     };
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
 
         if (!canView) {
             setLoading(false);
@@ -704,7 +705,7 @@ function AttendanceReports() {
         };
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
+    }), [
         canView,
         showViewModal,
         showDeleteDialog,
@@ -713,11 +714,11 @@ function AttendanceReports() {
 
     // Re-run the reports query (server-side filtering) whenever a
     // filter changes — the employee/store lists don't need reloading.
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!canView) return;
         loadReports();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [search, selectedStore, selectedEmployee, selectedStatus, fromDate, toDate]);
+    }), [search, selectedStore, selectedEmployee, selectedStatus, fromDate, toDate]);
 
     // ======================================================
     // VIEW RECORD
@@ -782,7 +783,7 @@ function AttendanceReports() {
     // page or filters the table is currently on.
     // ======================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (viewPhotoHandledRef.current) return;
 
         const params = new URLSearchParams(window.location.search);
@@ -831,7 +832,7 @@ function AttendanceReports() {
             }
         })();
 
-    }, []);
+    }), []);
 
     const handleDownloadPhoto = async (row, type) => {
         try {
@@ -999,14 +1000,14 @@ function AttendanceReports() {
 
     const currentRecords = filteredRecords.slice(startIndex, startIndex + pageSize);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         setCurrentPage(1);
-    }, [pageSize, search, selectedStore, selectedEmployee, selectedStatus, fromDate, toDate]);
+    }), [pageSize, search, selectedStore, selectedEmployee, selectedStatus, fromDate, toDate]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         const pages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
         if (currentPage > pages) setCurrentPage(pages);
-    }, [filteredRecords.length, pageSize, currentPage]);
+    }), [filteredRecords.length, pageSize, currentPage]);
 
     // ======================================================
     // ACCESS DENIED

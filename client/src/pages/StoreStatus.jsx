@@ -26,6 +26,7 @@ import { initials, avatarTone } from "../utils/premiumFormat";
 
 import "../styles/premium/PagePremium.css";
 import "../styles/pages/StoreStatus.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // STORE STATUS (ADMIN ONLY)
@@ -132,6 +133,13 @@ function StoreStatus() {
     const [search, setSearch] = useState("");
     const [view, setView] = useState("table");
     const [expanded, setExpanded] = useState({});
+    // Wall clock for the "Updated Xs ago" label (Date.now() must not run during render).
+    const [clock, setClock] = useState(() => Date.now());
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setClock(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
 
     const load = useCallback(async (silent = false) => {
         if (silent) setRefreshing(true);
@@ -152,7 +160,7 @@ function StoreStatus() {
     }, []);
 
     // Live refresh
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         load(false);
 
         const timer = window.setInterval(() => {
@@ -168,7 +176,7 @@ function StoreStatus() {
             window.clearInterval(timer);
             document.removeEventListener("visibilitychange", onVisible);
         };
-    }, [load]);
+    }), [load]);
 
     // "Updated 5 s ago" ticker
     useEffect(() => {
@@ -207,7 +215,7 @@ function StoreStatus() {
         if (storeId === ALL) return "";
         const opt = storeOptions.find((o) => o.id === String(storeId));
         return opt ? opt.value : "";
-    }, [storeId, storeOptions, allLabel]);
+    }, [storeId, storeOptions]);
 
     const onStoreChange = (value) => {
         const opt = storeOptions.find((o) => o.value === value);
@@ -256,7 +264,7 @@ function StoreStatus() {
 
     const toggle = (id) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
-    const secondsSinceUpdate = updatedAt ? Math.floor((Date.now() - updatedAt.getTime()) / 1000) : null;
+    const secondsSinceUpdate = updatedAt ? Math.max(0, Math.floor((clock - updatedAt.getTime()) / 1000)) : null;
 
     const renderStaff = (store) => (
         <ul className="sst-staff">

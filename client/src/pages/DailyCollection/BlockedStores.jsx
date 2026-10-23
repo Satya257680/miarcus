@@ -18,6 +18,7 @@ import {
 import PremiumLoader from "../../components/premium/PremiumLoader";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import "../../styles/pages/DailyCollectionPremium.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ======================================================
 // DAILY COLLECTION — BLOCKED STORES
@@ -86,11 +87,11 @@ export default function BlockedStores() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         load();
         const timer = setInterval(() => load({ silent: true }), 60000);
         return () => clearInterval(timer);
-    }, [load]);
+    }), [load]);
 
     const rows = tab === "blocked" ? blocked : history;
 

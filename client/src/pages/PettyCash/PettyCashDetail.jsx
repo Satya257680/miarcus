@@ -24,22 +24,26 @@ import {
 import "../../styles/premium/PagePremium.css";
 import "./PettyCashPremium.css";
 import {
-    money,
-    today,
-    dmy,
-    dateTime,
-    getAccess,
-    apiError,
     PettyNav,
     PcModal,
     ConfirmModal,
     FileDrop,
     FileLink,
     Field,
-    StatusPill,
-    EXPENSE_TYPES,
-    validateFile
+    StatusPill
 } from "./pettyCashShared";
+import {
+    money,
+    today,
+    dmy,
+    dateTime,
+    getAccess,
+    apiError,
+    EXPENSE_TYPES,
+    validateFile,
+    auditLabel
+} from "./pettyCashUtils";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ------------------------------------------------------
 // ADD EXPENSE (all fields + bill mandatory)
@@ -204,17 +208,6 @@ function AddDepositModal({ advance, options, access, onClose, onSaved }) {
     );
 }
 
-const AUDIT_LABEL = {
-    CREATE_ADVANCE: "Advance created",
-    UPDATE_ADVANCE: "Advance edited",
-    ADD_EXPENSE: "Expense added",
-    ADD_DEPOSIT: "Deposit recorded",
-    SETTLE: "Advance settled",
-    DELETE: "Advance deleted",
-    DELETE_BULK: "Advance deleted (bulk)"
-};
-
-export const auditLabel = (action) => AUDIT_LABEL[action] || String(action || "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
 // ======================================================
 // ADVANCE DETAIL
@@ -250,10 +243,10 @@ export default function PettyCashDetail() {
         }
     };
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id]);
+    }), [id]);
 
     if (loading && !detail) {
         return <div className="pc-page pp-premium"><div className="pc-card pc-center"><PremiumLoader title="Loading advance" /></div></div>;

@@ -34,6 +34,7 @@ import {
 
 import "../styles/FilterAccess.css";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // FILTER ACCESS (admin only)
@@ -368,7 +369,7 @@ export default function FilterAccess() {
         setLoading(false);
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => runAfterCommit(() => { load(); }), [load]);
 
     const values = catalog.values || {};
 
@@ -394,7 +395,7 @@ export default function FilterAccess() {
         });
     }, [users, search, deptFilter, desigFilter, storeFilter, modeFilter]);
 
-    useEffect(() => { setPage(1); }, [search, deptFilter, desigFilter, storeFilter, modeFilter]);
+    useEffect(() => runAfterCommit(() => { setPage(1); }), [search, deptFilter, desigFilter, storeFilter, modeFilter]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const safePage = Math.min(page, totalPages);
@@ -664,7 +665,7 @@ function EditAccessModal({ user, catalog, storeName, onClose, onSaved }) {
     const [error, setError] = useState("");
     const [advancedOpen, setAdvancedOpen] = useState(false);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let alive = true;
         (async () => {
             setBusy(true);
@@ -687,7 +688,7 @@ function EditAccessModal({ user, catalog, storeName, onClose, onSaved }) {
             }
         })();
         return () => { alive = false; };
-    }, [user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    }), [user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const onKey = (e) => { if (e.key === "Escape" && !saving) onClose(); };
@@ -947,11 +948,11 @@ function BulkAssignModal({ catalog, onClose, onApplied }) {
     }, [onClose, applying]);
 
     // New module -> start with every filter on "Leave unchanged".
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         setRules(Object.fromEntries(filterKeys.map((key) => [key, { policy: "unchanged", ids: [] }])));
         setConfirming(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [moduleName]);
+    }), [moduleName]);
 
     const setGroupKey = (key, ids) => {
         setGroup((old) => ({ ...old, [key]: ids }));

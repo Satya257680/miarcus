@@ -36,6 +36,144 @@ const CATEGORIES = [
     { id: "Personal", tone: "rose", blurb: "Your own look and feel." }
 ];
 
+// Static catalogue of settings pages (declared once, not on every render).
+const SETTINGS_MODULES = [
+
+    {
+        category: "Personal",
+        permission: "Appearance",
+        title: "Appearance",
+        description: "Personalize your theme and display preferences.",
+        icon: FaPalette,
+        path: "/settings/appearance",
+        personal: true
+    },
+
+    {
+        category: "People & Access",
+        permission: "Users",
+        title: "Users",
+        description: "Create and manage users.",
+        icon: FaUsers,
+        path: "/users"
+    },
+
+    {
+        category: "Organization",
+        permission: "Departments",
+        title: "Departments",
+        description: "Manage departments.",
+        icon: FaBuilding,
+        path: "/departments"
+    },
+
+    {
+        category: "Organization",
+        permission: "Designations",
+        title: "Designations",
+        description: "Manage designations.",
+        icon: FaBriefcase,
+        path: "/designations"
+    },
+
+    {
+        category: "Operations",
+        permission: "Stores",
+        title: "Store Management",
+        description: "Manage store information.",
+        icon: FaStore,
+        path: "/stores",
+        adminOnly: true
+    },
+
+    {
+        category: "Operations",
+        permission: "NSO Email Routing",
+        title: "NSO Email Routing",
+        description: "Set New Store Opening email recipients, roles and Select All/Specific routing.",
+        icon: FaEnvelope,
+        path: "/settings/new-store-openings-email",
+        adminOnly: true
+    },
+
+    {
+        category: "Operations",
+        permission: "Daily Collection Email Routing",
+        title: "Daily Collection Email Routing",
+        description: "Choose who receives the one daily summary and the store-manager pending, blocked and ready emails.",
+        icon: FaEnvelope,
+        path: "/settings/daily-collection-email",
+        adminOnly: true
+    },
+
+    {
+        category: "Operations",
+        permission: "Petty Cash Email Routing",
+        title: "Petty Cash Email Notifications",
+        description: "Choose which Petty Cash events send email and exactly who receives them.",
+        icon: FaWallet,
+        path: "/petty-cash/email-settings",
+        adminOnly: true
+    },
+    {
+        category: "Operations",
+        permission: "Travel Plan Email Routing",
+        title: "Travel Plan Email Routing",
+        description: "Master ON/OFF, per-event switches and who receives Visit Planner / Travel Plan / Approval emails.",
+        icon: FaPlaneDeparture,
+        path: "/settings/travel-plan-email",
+        adminOnly: true
+    },
+    {
+        category: "Checklist & Controls",
+        permission: "Checklist Email Routing",
+        title: "Checklist Email Routing",
+        description: "Choose who receives the one email sent when a store submits a checklist.",
+        icon: FaEnvelope,
+        path: "/settings/checklist-email",
+        adminOnly: true
+    },
+    {
+        category: "Checklist & Controls",
+        permission: "Action Point Email Routing",
+        title: "Action Point Email Routing",
+        description: "Separate routing for Action Point generated, status and completion emails – one email per store.",
+        icon: FaTasks,
+        path: "/settings/action-point-email",
+        adminOnly: true
+    },
+
+    {
+        category: "Checklist & Controls",
+        permission: "Questions",
+        title: "Questions",
+        description: "Manage checklist questions.",
+        icon: FaQuestionCircle,
+        path: "/questions",
+        adminOnly: true
+    },
+
+    {
+        category: "Checklist & Controls",
+        permission: "Checklist Types",
+        title: "Checklist Types",
+        description: "Manage checklist types.",
+        icon: FaClipboardList,
+        path: "/checklist-types",
+        adminOnly: true
+    },
+
+    {
+        category: "People & Access",
+        permission: "Hierarchy",
+        title: "Hierarchy",
+        description: "Manage reporting hierarchy and organizational levels.",
+        icon: FaSitemap,
+        path: "/settings/hierarchy"
+    }
+
+];
+
 function Settings() {
     const navigate = useNavigate();
 
@@ -63,142 +201,6 @@ function Settings() {
     // SETTINGS MODULES
     // ==========================================
 
-    const modules = [
-
-        {
-            category: "Personal",
-            permission: "Appearance",
-            title: "Appearance",
-            description: "Personalize your theme and display preferences.",
-            icon: FaPalette,
-            path: "/settings/appearance",
-            personal: true
-        },
-
-        {
-            category: "People & Access",
-            permission: "Users",
-            title: "Users",
-            description: "Create and manage users.",
-            icon: FaUsers,
-            path: "/users"
-        },
-
-        {
-            category: "Organization",
-            permission: "Departments",
-            title: "Departments",
-            description: "Manage departments.",
-            icon: FaBuilding,
-            path: "/departments"
-        },
-
-        {
-            category: "Organization",
-            permission: "Designations",
-            title: "Designations",
-            description: "Manage designations.",
-            icon: FaBriefcase,
-            path: "/designations"
-        },
-
-        {
-            category: "Operations",
-            permission: "Stores",
-            title: "Store Management",
-            description: "Manage store information.",
-            icon: FaStore,
-            path: "/stores",
-            adminOnly: true
-        },
-
-        {
-            category: "Operations",
-            permission: "NSO Email Routing",
-            title: "NSO Email Routing",
-            description: "Set New Store Opening email recipients, roles and Select All/Specific routing.",
-            icon: FaEnvelope,
-            path: "/settings/new-store-openings-email",
-            adminOnly: true
-        },
-
-        {
-            category: "Operations",
-            permission: "Daily Collection Email Routing",
-            title: "Daily Collection Email Routing",
-            description: "Choose who receives the one daily summary and the store-manager pending, blocked and ready emails.",
-            icon: FaEnvelope,
-            path: "/settings/daily-collection-email",
-            adminOnly: true
-        },
-
-        {
-            category: "Operations",
-            permission: "Petty Cash Email Routing",
-            title: "Petty Cash Email Notifications",
-            description: "Choose which Petty Cash events send email and exactly who receives them.",
-            icon: FaWallet,
-            path: "/petty-cash/email-settings",
-            adminOnly: true
-        },
-        {
-            category: "Operations",
-            permission: "Travel Plan Email Routing",
-            title: "Travel Plan Email Routing",
-            description: "Master ON/OFF, per-event switches and who receives Visit Planner / Travel Plan / Approval emails.",
-            icon: FaPlaneDeparture,
-            path: "/settings/travel-plan-email",
-            adminOnly: true
-        },
-        {
-            category: "Checklist & Controls",
-            permission: "Checklist Email Routing",
-            title: "Checklist Email Routing",
-            description: "Choose who receives the one email sent when a store submits a checklist.",
-            icon: FaEnvelope,
-            path: "/settings/checklist-email",
-            adminOnly: true
-        },
-        {
-            category: "Checklist & Controls",
-            permission: "Action Point Email Routing",
-            title: "Action Point Email Routing",
-            description: "Separate routing for Action Point generated, status and completion emails – one email per store.",
-            icon: FaTasks,
-            path: "/settings/action-point-email",
-            adminOnly: true
-        },
-
-        {
-            category: "Checklist & Controls",
-            permission: "Questions",
-            title: "Questions",
-            description: "Manage checklist questions.",
-            icon: FaQuestionCircle,
-            path: "/questions",
-            adminOnly: true
-        },
-
-        {
-            category: "Checklist & Controls",
-            permission: "Checklist Types",
-            title: "Checklist Types",
-            description: "Manage checklist types.",
-            icon: FaClipboardList,
-            path: "/checklist-types",
-            adminOnly: true
-        },
-
-        {
-            category: "People & Access",
-            permission: "Hierarchy",
-            title: "Hierarchy",
-            description: "Manage reporting hierarchy and organizational levels.",
-            icon: FaSitemap,
-            path: "/settings/hierarchy"
-        }
-
-    ];
 
     // ==========================================
     // FILTER MODULES
@@ -206,7 +208,7 @@ function Settings() {
 
     const visibleModules = useMemo(() => {
 
-        return modules.filter((module) => {
+        return SETTINGS_MODULES.filter((module) => {
 
             const hasPermission =
                 module.personal ||
@@ -225,9 +227,9 @@ function Settings() {
 
         });
 
-    }, [modules, permissions, isAdministrator, search]);
+    }, [permissions, isAdministrator, search]);
 
-    const totalAllowed = modules.filter((module) =>
+    const totalAllowed = SETTINGS_MODULES.filter((module) =>
         module.personal || isAdministrator || (!module.adminOnly && ["View", "Add", "Edit", "Full"].includes(permissions[module.permission]))
     ).length;
     const emailRoutes = visibleModules.filter((module) => module.path.includes("email")).length;

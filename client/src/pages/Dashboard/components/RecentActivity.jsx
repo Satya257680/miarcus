@@ -11,7 +11,6 @@ import {
     FaBullhorn,
     FaImages,
     FaCalendarCheck,
-    FaListAlt,
     FaTasks,
     FaQuestionCircle,
     FaUsers,
@@ -19,12 +18,13 @@ import {
     FaChartLine,
     FaBox,
     FaCreditCard,
-    FaCog,
+    FaCog
 } from "react-icons/fa";
 
 import { getRecentActivities } from "../../../services/dashboardService";
 
 import "../../../styles/dashboard/RecentActivity.css";
+import runAfterCommit from "../../../utils/runAfterCommit";
 
 function RecentActivity() {
 
@@ -33,11 +33,6 @@ function RecentActivity() {
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-
-        loadActivities();
-
-    }, []);
 
     const loadActivities = async () => {
 
@@ -61,6 +56,12 @@ function RecentActivity() {
         }
 
     };
+
+    useEffect(() => runAfterCommit(() => {
+
+        loadActivities();
+
+    }), []);
 
     const getIcon = (type, moduleName) => {
         const key = String(moduleName || type || "").toLowerCase();

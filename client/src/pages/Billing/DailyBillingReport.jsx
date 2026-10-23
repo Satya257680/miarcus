@@ -1,32 +1,31 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState
 } from "react";
 
 import {
-  FaCalendarAlt,
-  FaStore,
-  FaSyncAlt,
-  FaFileInvoiceDollar,
-  FaMoneyBillWave,
-  FaPercentage,
-  FaChartLine,
-  FaCreditCard,
-  FaUniversity,
-  FaSearch,
-  FaFilter,
-  FaDownload,
-  FaPrint,
-  FaChevronLeft,
-  FaChevronRight,
-  FaExclamationTriangle,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaArrowUp,
-  FaReceipt,
+    FaCalendarAlt,
+    FaStore,
+    FaSyncAlt,
+    FaFileInvoiceDollar,
+    FaMoneyBillWave,
+    FaPercentage,
+    FaChartLine,
+    FaCreditCard,
+    FaUniversity,
+    FaSearch,
+    FaFilter,
+    FaPrint,
+    FaChevronLeft,
+    FaChevronRight,
+    FaExclamationTriangle,
+    FaCheckCircle,
+    FaTimesCircle,
+    FaArrowUp,
+    FaReceipt
 } from "react-icons/fa";
 
 import {
@@ -41,6 +40,7 @@ import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 /* ======================================================
    CONSTANTS
@@ -277,20 +277,6 @@ const getPaymentIcon = (
    CSV VALUE
 ====================================================== */
 
-const csvValue = (
-  value
-) => {
-
-  const text =
-    String(
-      value ?? ""
-    ).replace(
-      /"/g,
-      '""'
-    );
-
-  return `"${text}"`;
-};
 
 /* ======================================================
    MAIN COMPONENT
@@ -371,7 +357,7 @@ export default function DailyBillingReport() {
      LOAD STORES
   ==================================================== */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     let mounted = true;
 
@@ -424,7 +410,7 @@ export default function DailyBillingReport() {
       mounted = false;
     };
 
-  }, []);
+  }), []);
 
   /* ====================================================
      LOAD REPORT
@@ -499,11 +485,11 @@ export default function DailyBillingReport() {
      AUTO LOAD
   ==================================================== */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     loadReport();
 
-  }, [
+  }), [
     loadReport
   ]);
 
@@ -791,7 +777,7 @@ export default function DailyBillingReport() {
       safePage,
     ]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     if (
       page >
@@ -802,7 +788,7 @@ export default function DailyBillingReport() {
       );
     }
 
-  }, [
+  }), [
     page,
     totalPages,
   ]);

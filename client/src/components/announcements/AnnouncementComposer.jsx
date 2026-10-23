@@ -23,6 +23,7 @@ import {
 } from "react-icons/fa";
 import announcementService from "../../services/announcementService";
 import "../../styles/premium/AnnouncementComposer.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ======================================================
 // ANNOUNCEMENT COMPOSER (Create / Edit)
@@ -91,7 +92,7 @@ export default function AnnouncementComposer({ editingItem, onClose, onSuccess }
     }, [editingItem]);
 
     // User search for "specific"
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (audience !== "specific") return undefined;
         setUsersLoading(true);
         const timer = setTimeout(async () => {
@@ -105,15 +106,15 @@ export default function AnnouncementComposer({ editingItem, onClose, onSuccess }
             }
         }, 250);
         return () => clearTimeout(timer);
-    }, [audience, userSearch]);
+    }), [audience, userSearch]);
 
     // Image preview for a newly picked file
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!file || !IMAGE_RE.test(file.name)) { setPreview(""); return undefined; }
         const url = URL.createObjectURL(file);
         setPreview(url);
         return () => URL.revokeObjectURL(url);
-    }, [file]);
+    }), [file]);
 
     const clearError = (key) => { setErrors((e) => ({ ...e, [key]: "" })); setError(""); };
 

@@ -47,6 +47,7 @@ import {
   getDepartments
 
 } from "../services/departmentService";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function Designations() {
 
@@ -330,7 +331,7 @@ function Designations() {
   // INITIAL LOAD
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     if (!canView) {
 
@@ -344,12 +345,12 @@ function Designations() {
 
     fetchDepartments();
 
-  }, [canView]);
+  }), [canView]);
     // =====================================================
   // SEARCH
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     const keyword = search.toLowerCase();
 
@@ -384,7 +385,7 @@ function Designations() {
 
     setCurrentPage(1);
 
-  }, [search, departmentFilter, statusFilter, designations]);
+  }), [search, departmentFilter, statusFilter, designations]);
 
   // =====================================================
   // ADD DESIGNATION

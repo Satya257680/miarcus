@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useEffectEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import {
@@ -9,6 +9,7 @@ import {
 } from "react-icons/fa";
 
 import "../styles/ActivateAccount.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function ActivateAccount() {
 
@@ -32,11 +33,6 @@ function ActivateAccount() {
 
     const [activated, setActivated] = useState(false);
 
-    useEffect(() => {
-
-        validateToken();
-
-    }, []);
 
     // ===============================
     // Validate Token
@@ -67,6 +63,13 @@ function ActivateAccount() {
         }
 
     };
+
+    const validateTokenEvent = useEffectEvent((...args) => validateToken(...args));
+    useEffect(() => runAfterCommit(() => {
+
+        validateTokenEvent();
+
+    }), []);
 
     // ===============================
     // Activate Account

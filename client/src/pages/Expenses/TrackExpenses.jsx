@@ -1,5 +1,5 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useEffectEvent } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import axios from "./expenseApi";
 import {
@@ -290,9 +290,10 @@ function TrackExpenses() {
     // FILTER / SEARCH
     // ==================================================
 
+    const loadEvent = useEffectEvent((...args) => load(...args));
     useEffect(() => {
         const timer = setTimeout(
-            load,
+            loadEvent,
             250
         );
 

@@ -43,11 +43,10 @@ import {
 } from "../../services/salesTeamService";
 
 import {
-  canDelete,
-  canEdit,
-  canView,
-  downloadBlob,
-  formatDate,
+    canDelete,
+    canEdit,
+    canView,
+    formatDate
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
@@ -57,6 +56,7 @@ import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
 import { exportFromCSV } from "../../utils/exportUtils.js";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 /* =========================================================
    TRAVEL PLAN
@@ -282,9 +282,9 @@ function TravelPlan() {
      INITIAL LOAD
   ======================================================= */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     load();
-  }, [load]);
+  }), [load]);
 
   /* =======================================================
      LOAD CURRENT STORE MANAGEMENT STORES
@@ -324,20 +324,6 @@ function TravelPlan() {
      STORE MAP
   ======================================================= */
 
-  const storeMap = useMemo(() => {
-    const map = new Map();
-
-    stores.forEach(
-      (storeItem) => {
-        map.set(
-          Number(storeItem.id),
-          storeItem
-        );
-      }
-    );
-
-    return map;
-  }, [stores]);
 
   /* =======================================================
      ACTUAL STORE SELECTION

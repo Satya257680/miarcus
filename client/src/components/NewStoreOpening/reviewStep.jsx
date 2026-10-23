@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../../axiosConfig.js";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
     FaCheckCircle,
@@ -19,6 +19,7 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 
 /* ======================================================
@@ -388,16 +389,17 @@ export default function ReviewStep({
     );
 
 
-    useEffect(() => {
+    const savedRemarks =
+        getRemarksValue(formData);
+
+    useEffect(() => runAfterCommit(() => {
 
         setRemarksDraft(
-            getRemarksValue(formData)
+            savedRemarks
         );
 
-    }, [
-        formData?.remarks,
-        formData?.remark,
-        formData?.remarks_text
+    }), [
+        savedRemarks
     ]);
 
 

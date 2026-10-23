@@ -1,5 +1,5 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { FaChartBar, FaMoneyBillWave, FaSyncAlt, FaStore, FaCheckCircle, FaExclamationTriangle, FaLock, FaWallet } from "react-icons/fa";
 import PageToolbar from "../../components/common/PageToolbar";
@@ -23,6 +23,7 @@ import { initials, avatarTone } from "../../utils/premiumFormat";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import { exportTableData } from "../../utils/exportUtils.js";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -30,8 +31,8 @@ const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { mini
 const getUserPermissions = () => {
     let user = {};
     let permissions = {};
-    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch {}
-    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch {}
+    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch { /* keep the default value */ }
+    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch { /* keep the default value */ }
     const admin = [true, 1, "1"].includes(user?.administrator) || [true, 1, "1"].includes(user?.is_admin);
     const permission = permissions?.["Daily Collection"] || "None";
     return {
@@ -43,7 +44,7 @@ const getUserPermissions = () => {
 };
 
 export default function DailyCollectionReport() {
-    const permissions = useMemo(getUserPermissions, []);
+    const permissions = useMemo(() => getUserPermissions(), []);
     const { canView, canAdd, canDelete } = permissions;
     const [date, setDate] = useState(today());
     const [reports, setReports] = useState([]);
@@ -82,20 +83,20 @@ export default function DailyCollectionReport() {
         }
     };
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!canView) {
             setLoading(false);
             return;
         }
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [date]);
+    }), [date]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!canView) return;
         loadStores();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }), []);
 
     const filteredReports = useMemo(() => {
         if (!selectedStore) return [];

@@ -16,6 +16,7 @@ import {
   FaSave,
 } from "react-icons/fa";
 import "../styles/ChecklistAccessControl.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const API = API_BASE_URL;
 
@@ -101,9 +102,9 @@ const ChecklistAccessControl = () => {
     [editable, quickId]
   );
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     setDraft(quickUser ? { ...quickUser.access } : {});
-  }, [quickUser]);
+  }), [quickUser]);
 
   const patchAccess = async (id, access) => {
     await axios.put(`${API}/api/checklist-access/users/${id}`, { access });

@@ -46,10 +46,9 @@ import {
     FaPalette,
     FaWifi,
     FaStoreAlt,
-    FaHistory,
     FaLock,
     FaGraduationCap,
-    FaUserShield,
+    FaUserShield
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -57,6 +56,7 @@ import { useRbacVersion } from "../../hooks/usePermission";
 import { canAccessPage, isAdministratorUser } from "../../utils/rbac";
 
 import "../../styles/layout/Sidebar.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 function Sidebar({ collapsed }) {
     const location = useLocation();
@@ -170,71 +170,71 @@ function Sidebar({ collapsed }) {
     const [collectionTrackingOpen, setCollectionTrackingOpen] =
         useState(collectionTrackingOpenByPath);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (collectionTrackingOpenByPath) {
             setCollectionTrackingOpen(true);
         }
-    }, [collectionTrackingOpenByPath]);
+    }), [collectionTrackingOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (assetMasterOpenByPath) {
             setAssetMasterOpen(true);
         }
-    }, [assetMasterOpenByPath]);
+    }), [assetMasterOpenByPath]);
 
     // ======================================================
     // KEEP GROUP OPEN WHEN DIRECT URL IS OPENED
     // ======================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (expenseOpenByPath) {
             setExpenseOpen(true);
         }
-    }, [expenseOpenByPath]);
+    }), [expenseOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (pettyCashOpenByPath) {
             setPettyCashOpen(true);
         }
-    }, [pettyCashOpenByPath]);
+    }), [pettyCashOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (lndOpenByPath) {
             setLndOpen(true);
         }
-    }, [lndOpenByPath]);
+    }), [lndOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (quizOpenByPath) {
             setQuizOpen(true);
         }
-    }, [quizOpenByPath]);
+    }), [quizOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (billingOpenByPath) {
             setBillingOpen(true);
         }
-    }, [billingOpenByPath]);
+    }), [billingOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (dailyCollectionOpenByPath) {
             setDailyCollectionOpen(true);
         }
-    }, [dailyCollectionOpenByPath]);
+    }), [dailyCollectionOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (salesTeamOpenByPath) setSalesTeamOpen(true);
-    }, [salesTeamOpenByPath]);
+    }), [salesTeamOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (inventoryPlanningOpenByPath) setInventoryPlanningOpen(true);
-    }, [inventoryPlanningOpenByPath]);
+    }), [inventoryPlanningOpenByPath]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (settingsOpenByPath) {
             setSettingsOpen(true);
         }
-    }, [settingsOpenByPath]);
+    }), [settingsOpenByPath]);
 
     // ======================================================
     // RBAC

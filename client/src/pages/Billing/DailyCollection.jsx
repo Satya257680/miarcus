@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import {
     FaChartBar,
@@ -40,6 +40,7 @@ import "../../styles/premium/AdminPagesPremium.css";
 import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", {
@@ -50,8 +51,8 @@ const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", {
 const readAccess = () => {
     let user = {};
     let permissions = {};
-    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch {}
-    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch {}
+    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch { /* keep the default value */ }
+    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch { /* keep the default value */ }
 
     const admin =
         [true, 1, "1"].includes(user?.administrator) ||
@@ -74,7 +75,7 @@ const emptyEntry = () => ({
 });
 
 export default function DailyCollection() {
-    const access = useMemo(readAccess, []);
+    const access = useMemo(() => readAccess(), []);
     const { admin, canView, canAdd, canDelete } = access;
 
     const [date, setDate] = useState(today());
@@ -197,26 +198,26 @@ export default function DailyCollection() {
         }
     };
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (canView) loadStores();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [canView, admin]);
+    }), [canView, admin]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (canView && !loadingStores) load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [date, selectedStore, loadingStores]);
+    }), [date, selectedStore, loadingStores]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (admin && canView) loadAdminControls();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [admin, canView, date]);
+    }), [admin, canView, date]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (admin && selectedStore && selectedStore !== "all") {
             setControlStoreId(String(selectedStore));
         }
-    }, [admin, selectedStore]);
+    }), [admin, selectedStore]);
 
     const filteredReports = useMemo(() => {
         const keyword = search.trim().toLowerCase();
@@ -341,7 +342,7 @@ export default function DailyCollection() {
         try {
             setControlLoading(true);
             setError("");
-            const nextEnabled = !Boolean(emailSettings.email_enabled);
+            const nextEnabled = !emailSettings.email_enabled;
             const response = await updateDailyCollectionEmailSettings(nextEnabled);
             setEmailSettings(response.data?.settings || { email_enabled: nextEnabled });
             setSuccess(response.data?.message || `Daily Collection email notifications ${nextEnabled ? "enabled" : "disabled"}.`);

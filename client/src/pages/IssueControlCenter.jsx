@@ -14,6 +14,7 @@ import {
 } from "../utils/issueRuleConfig";
 import "../styles/IssueControlCenter.css";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // ISSUE CONTROL CENTER
@@ -98,13 +99,13 @@ export default function IssueControlCenter() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => runAfterCommit(() => { load(); }), [load]);
 
   const questionById = useMemo(() => new Map(questions.map((q) => [String(q.id), q])), [questions]);
   const ruleById = useMemo(() => new Map(rules.map((r) => [String(r.id), r])), [rules]);
 
   // ---------------- editor: open / prefill ----------------
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!isFormRoute || loading) return;
     setFormErrors([]);
     if (id) {
@@ -127,7 +128,7 @@ export default function IssueControlCenter() {
     setForm({ ...empty, question_id: preset && questionById.has(String(preset)) ? String(preset) : "" });
     if (preset && questionById.has(String(preset))) setFormTypeFilter(questionById.get(String(preset)).checklist_name || ALL_TYPES);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFormRoute, id, loading, ruleById, questionById]);
+  }), [isFormRoute, id, loading, ruleById, questionById]);
 
   // ---------------- derived lists ----------------
   const checklistTypes = useMemo(() => {
@@ -169,7 +170,9 @@ export default function IssueControlCenter() {
   }), [questions, search, typeFilter, ruleStateFilter]);
 
   const list = tab === "rules" ? filteredRules : filteredQuestions;
-  useEffect(() => setPage(1), [tab, search, typeFilter, statusFilter, priorityFilter, ruleStateFilter, pageSize]);
+  useEffect(() => runAfterCommit(() => {
+        setPage(1);
+    }), [tab, search, typeFilter, statusFilter, priorityFilter, ruleStateFilter, pageSize]);
   const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageRows = list.slice((currentPage - 1) * pageSize, currentPage * pageSize);

@@ -3,6 +3,7 @@ import axios, { API_BASE_URL } from "../axiosConfig.js";
 import { getDepartments } from "../services/departmentService.js";
 import { getDesignations } from "../services/designationService.js";
 import "../styles/AddReportModal.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function AddReportModal({
   editData,
@@ -22,7 +23,7 @@ function AddReportModal({
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     let mounted = true;
 
     const loadMasterData = async () => {
@@ -68,7 +69,7 @@ function AddReportModal({
     return () => {
       mounted = false;
     };
-  }, []);
+  }), []);
 
   const activeDepartments = departments.filter(
     (department) =>
@@ -101,16 +102,6 @@ function AddReportModal({
   // LOAD EDIT DATA
   // =====================================================
 
-  useEffect(() => {
-    if (editData) {
-      setManagerName(editData.manager_name || "");
-      setDepartment(editData.department || "");
-      setDesignation(editData.designation || "");
-      setStatus(editData.status || "Active");
-    } else {
-      resetForm();
-    }
-  }, [editData]);
 
   // =====================================================
   // RESET FORM
@@ -122,6 +113,17 @@ function AddReportModal({
     setDesignation("");
     setStatus("Active");
   };
+
+  useEffect(() => runAfterCommit(() => {
+    if (editData) {
+      setManagerName(editData.manager_name || "");
+      setDepartment(editData.department || "");
+      setDesignation(editData.designation || "");
+      setStatus(editData.status || "Active");
+    } else {
+      resetForm();
+    }
+  }), [editData]);
 
   // =====================================================
   // CLOSE

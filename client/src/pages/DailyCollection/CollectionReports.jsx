@@ -1,5 +1,5 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useEffectEvent } from "react";
 import { FaChartLine, FaMoneyBillWave, FaSyncAlt, FaStore, FaCheckCircle, FaExclamationTriangle, FaLock, FaWallet, FaBalanceScale } from "react-icons/fa";
 import { initials, avatarTone } from "../../utils/premiumFormat";
 import { getCollectionReports, getDailyCollectionStores } from "../../services/billingService";
@@ -11,6 +11,7 @@ import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -18,8 +19,8 @@ const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { mini
 const readAccess = () => {
     let user = {};
     let permissions = {};
-    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch {}
-    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch {}
+    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch { /* keep the default value */ }
+    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch { /* keep the default value */ }
     const admin = [true, 1, "1"].includes(user?.administrator) || [true, 1, "1"].includes(user?.is_admin);
     const permission = permissions?.["Daily Collection"] || "None";
     return {
@@ -36,7 +37,7 @@ const PERIODS = [
 ];
 
 export default function CollectionReports() {
-    const { admin, canView } = useMemo(readAccess, []);
+    const { admin, canView } = useMemo(() => readAccess(), []);
     const [date, setDate] = useState(today());
     const [period, setPeriod] = useState("daily");
     const [stores, setStores] = useState([]);
@@ -44,7 +45,7 @@ export default function CollectionReports() {
     const [reports, setReports] = useState([]);
     const [totals, setTotals] = useState({});
     const [label, setLabel] = useState("");
-    const [search, setSearch] = useState("");
+    const [search] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -81,8 +82,10 @@ export default function CollectionReports() {
         }
     };
 
-    useEffect(() => { if (canView) loadStores(); }, [canView, admin]);
-    useEffect(() => { if (canView && selectedStore) loadReports(); }, [canView, selectedStore, period, date]);
+    const loadStoresEvent = useEffectEvent((...args) => loadStores(...args));
+    useEffect(() => runAfterCommit(() => { if (canView) loadStoresEvent(); }), [canView, admin]);
+    const loadReportsEvent = useEffectEvent((...args) => loadReports(...args));
+    useEffect(() => runAfterCommit(() => { if (canView && selectedStore) loadReportsEvent(); }), [canView, selectedStore, period, date]);
 
     const filteredReports = useMemo(() => {
         const keyword = search.trim().toLowerCase();

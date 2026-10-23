@@ -10,6 +10,7 @@ import {
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 import "../styles/Signup.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 
 // ======================================================
@@ -342,11 +343,6 @@ function Signup() {
     // account yet.
     // ==================================================
 
-    useEffect(() => {
-
-        loadSignupData();
-
-    }, []);
 
 
     // ==================================================
@@ -416,6 +412,12 @@ function Signup() {
             }
 
         };
+
+    useEffect(() => runAfterCommit(() => {
+
+        loadSignupData();
+
+    }), []);
 
 
     // ==================================================

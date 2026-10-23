@@ -12,6 +12,7 @@ import {
   normalizeExpectedAnswer,
   suggestExpectedAnswer,
 } from "../config/checklistPhotoRules";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function AddQuestionModal({
   question,
@@ -52,10 +53,6 @@ function AddQuestionModal({
   // LOAD DROPDOWN DATA
   // =====================================================
 
-  useEffect(() => {
-    loadChecklistTypes();
-    loadDepartments();
-  }, []);
 
   const loadChecklistTypes = async () => {
     try {
@@ -81,11 +78,16 @@ function AddQuestionModal({
     }
   };
 
+  useEffect(() => runAfterCommit(() => {
+    loadChecklistTypes();
+    loadDepartments();
+  }), []);
+
   // =====================================================
   // EDIT / RESET FORM
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!question) {
       setFormData({
         checklist_type_id: "",
@@ -148,7 +150,7 @@ function AddQuestionModal({
 
       departments: departmentIds,
     });
-  }, [question]);
+  }), [question]);
 
   // =====================================================
   // HANDLE CHANGE

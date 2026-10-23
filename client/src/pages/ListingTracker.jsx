@@ -5,7 +5,6 @@ import {
     FaPlus,
     FaSearch,
     FaUpload,
-    FaDownload,
     FaSyncAlt,
     FaTrash,
     FaEdit,
@@ -16,7 +15,7 @@ import {
     FaCheckCircle,
     FaCircle,
     FaTags,
-    FaExclamationTriangle,
+    FaExclamationTriangle
 } from "react-icons/fa";
 import {
     createListing,
@@ -36,6 +35,7 @@ import ExportButton from "../components/common/ExportButton";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 import { exportFromCSV } from "../utils/exportUtils.js";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const EMPTY_FORM = {
     ppk_code: "",
@@ -60,8 +60,8 @@ const formatPercent = (value) =>
     `${Math.round(Number(value || 0))}%`;
 
 const getInitialPermissions = () => {
-    let user = {};
-    let permissions = {};
+    let user;
+    let permissions;
 
     try {
         user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -138,14 +138,15 @@ function SignalsPieChart({ slices = [], centerLabel = "", centerValue = "" }) {
     const total = slices.reduce((sum, s) => sum + Math.max(0, s.value), 0);
     const r = 70;
     const c = 2 * Math.PI * r;
-    let offset = 0;
+    const lengths = slices.map((slice) => (total > 0 ? (Math.max(0, slice.value) / total) * c : 0));
     return (
         <div className="lt-pie">
             <svg viewBox="0 0 200 200" className="lt-pie-svg" role="img" aria-label={slices.map((s) => `${s.label} ${s.value}`).join(", ")}>
                 <circle cx="100" cy="100" r={r} fill="none" stroke="var(--pp-line, #ebe7f5)" strokeWidth="34" />
-                {total > 0 && slices.map((slice) => {
-                    const len = (Math.max(0, slice.value) / total) * c;
-                    const el = (
+                {total > 0 && slices.map((slice, index) => {
+                    const len = lengths[index];
+                    const offset = lengths.slice(0, index).reduce((sum, value) => sum + value, 0);
+                    return (
                         <circle
                             key={slice.label}
                             cx="100"
@@ -161,8 +162,6 @@ function SignalsPieChart({ slices = [], centerLabel = "", centerValue = "" }) {
                             <title>{`${slice.label}: ${slice.value}`}</title>
                         </circle>
                     );
-                    offset += len;
-                    return el;
                 })}
                 <text x="100" y="96" textAnchor="middle" className="lt-pie-center-value">{centerValue}</text>
                 <text x="100" y="118" textAnchor="middle" className="lt-pie-center-label">{centerLabel}</text>
@@ -214,7 +213,7 @@ export default function ListingTracker() {
 
     const [showBulkModal, setShowBulkModal] = useState(false);
 
-    const permissions = useMemo(getInitialPermissions, []);
+    const permissions = useMemo(() => getInitialPermissions(), []);
 
     const categories = useMemo(() => {
         const values = summary.categories || [];
@@ -307,9 +306,9 @@ export default function ListingTracker() {
         return () => clearInterval(interval);
     }, [loadData]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         setPage(1);
-    }, [search, collection, category, photoshoot, listed, pageSize]);
+    }), [search, collection, category, photoshoot, listed, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 

@@ -6,6 +6,7 @@ import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlas
 import LndArt from "../components/lnd/LndArt";
 import "../styles/pages/LearningDevelopment.css";
 import "../styles/pages/LndManage.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // =================================================================
 // LEARNING & DEVELOPMENT — PROGRAM MANAGEMENT (Edit / Full)
@@ -49,12 +50,12 @@ const fallbackCover = (seed) => SAMPLE_COVERS[Math.abs(Number(seed) || 0) % SAMP
 // Preview URL for a staged File, revoked automatically.
 const useObjectUrl = (file) => {
   const [url, setUrl] = useState("");
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!file) { setUrl(""); return undefined; }
     const u = URL.createObjectURL(file);
     setUrl(u);
     return () => URL.revokeObjectURL(u);
-  }, [file]);
+  }), [file]);
   return url;
 };
 
@@ -215,7 +216,7 @@ function ProgramList({ perms, flash, onCreate, onEdit, onManage }) {
     } catch (e) { flash("error", errorMessage(e, "Unable to load programs")); }
     finally { setLoading(false); }
   }, [flash]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => runAfterCommit(() => { load(); }), [load]);
 
   const audiences = useMemo(() => [...new Set(programs.map((p) => p.audience).filter(Boolean))], [programs]);
   const filtered = programs.filter((p) => {
@@ -259,7 +260,7 @@ function ProgramList({ perms, flash, onCreate, onEdit, onManage }) {
     setImporting(true);
     try {
       const text = await file.text();
-      const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((line) => line.trim());
+      const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
       const parse = (line) => { const cells = []; let cur = "", quoted = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (c === '"' && quoted && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') quoted = !quoted; else if (c === "," && !quoted) { cells.push(cur.trim()); cur = ""; } else cur += c; } cells.push(cur.trim()); return cells; };
       if (lines.length < 2) throw new Error("CSV must include a header row and at least one program row");
       const headers = parse(lines[0]).map((h) => h.toLowerCase());
@@ -406,7 +407,7 @@ function ProgramForm({ initial, perms, flash, onCancel, onSaved }) {
     try {
       const blob = await (await fetch(src)).blob();
       setCover(new File([blob], src.split("/").pop(), { type: blob.type || "image/jpeg" }));
-    } catch (_) { flash("error", "Could not load the sample image"); }
+    } catch { flash("error", "Could not load the sample image"); }
   };
 
   const save = async () => {
@@ -523,7 +524,7 @@ function ProgramManage({ id, perms, flash, onBack, onEdit }) {
     try { setData(await lndApi.adminProgram(id)); setError(""); }
     catch (e) { setError(errorMessage(e, "Unable to load program")); }
   }, [id]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => runAfterCommit(() => { load(); }), [load]);
 
   if (error) return <div className="lnd lm"><button className="lm-crumb lm-crumb--btn" onClick={onBack}>‹ Back to Program Management</button><div className="lnd-state lnd-state--err">{error}<button className="lnd-btn lnd-btn--sm lnd-btn--ghost" onClick={load}>Retry</button></div></div>;
   if (!data) return <div className="lnd lm"><div className="lnd-state"><span className="lnd-spinner" />Loading program…</div></div>;
@@ -604,7 +605,7 @@ function ProgramManage({ id, perms, flash, onBack, onEdit }) {
 
 function ModulesPanel({ program, modules, perms, flash, reload, onOpen }) {
   const [list, setList] = useState(modules);
-  useEffect(() => { setList(modules); }, [modules]);
+  useEffect(() => runAfterCommit(() => { setList(modules); }), [modules]);
 
   const move = async (index, dir) => {
     const next = [...list]; const j = index + dir;
@@ -714,10 +715,10 @@ function ModuleWizard({ initial, programId, flash, onClose, onSaved }) {
     return keys.reduce((sum, key) => sum + (videoSecs.get(key) || 0), 0);
   }, [media, files, videoSecs]);
   const detectedMin = detectedSec > 0 ? secondsToMinutes(detectedSec) : null;
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!autoDuration.current || !detectedMin) return;
     setForm((f) => (Number(f.durationMin) === detectedMin ? f : { ...f, durationMin: detectedMin }));
-  }, [detectedMin]);
+  }), [detectedMin]);
   const durationValid = Number.isFinite(Number(form.durationMin)) && Number(form.durationMin) >= 1 && Number(form.durationMin) <= 600 && String(form.durationMin).trim() !== "";
 
   // Existing assessment → load its questions.
@@ -1237,7 +1238,7 @@ function Report({ canEdit, canFull, flash }) {
     setError("");
     return lndApi.report().then((r) => setRows(r.rows || [])).catch((e) => setError(errorMessage(e)));
   }, []);
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => runAfterCommit(() => { refresh(); }), [refresh]);
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();

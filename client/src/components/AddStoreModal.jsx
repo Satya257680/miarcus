@@ -239,8 +239,8 @@ function AddStoreModal({ store, onSave, onClose }) {
       </span>
     ) : null;
 
-  // Plain function (not a component) so inputs keep focus between renders
-  const TextField = ({ name, label, icon, required, placeholder, type = "text", full }) => (
+  // Plain render function (not a component) so inputs keep focus between renders
+  const renderTextField = ({ name, label, icon, required, placeholder, type = "text", full }) => (
     <div className={`store-field ${full ? "store-full-width" : ""}`} data-field={name}>
       <label htmlFor={`sf-${name}`}>
         {label}
@@ -327,7 +327,7 @@ function AddStoreModal({ store, onSave, onClose }) {
               </div>
 
               <div className="store-form-grid">
-                {TextField({
+                {renderTextField({
                   name: "store_code",
                   label: "Store Code",
                   icon: <FaHashtag />,
@@ -335,7 +335,7 @@ function AddStoreModal({ store, onSave, onClose }) {
                   placeholder: "e.g. 502",
                 })}
 
-                {TextField({
+                {renderTextField({
                   name: "store_name",
                   label: "Store Name",
                   icon: <FaStore />,
@@ -480,7 +480,7 @@ function AddStoreModal({ store, onSave, onClose }) {
               </div>
 
               <div className="store-form-grid">
-                {TextField({
+                {renderTextField({
                   name: "manager_name",
                   label: "Manager Name",
                   icon: <FaUserTie />,
@@ -507,7 +507,7 @@ function AddStoreModal({ store, onSave, onClose }) {
                   {fieldError("contact_number")}
                 </div>
 
-                {TextField({
+                {renderTextField({
                   name: "email",
                   label: "Email",
                   icon: <FaEnvelope />,

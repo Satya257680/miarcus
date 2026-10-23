@@ -355,7 +355,8 @@
 }
 
 .pp-premium .premium-insight-hint {
-    color: var(--pp-faint);
+    /* --pp-muted (not --pp-faint) keeps the hint readable on white tiles */
+    color: var(--pp-muted);
 }
 
 /* ==========================================================

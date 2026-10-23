@@ -10,16 +10,19 @@ import {
     FaMagic,
     FaMoon,
     FaPalette,
+    FaRunning,
     FaSave,
     FaSlidersH,
     FaSun,
     FaSwatchbook,
+    FaTable,
     FaTextHeight,
     FaUndo,
-    FaUsers
+    FaUsers,
+    FaVectorSquare
 } from "react-icons/fa";
 
-import { useTheme } from "../../context/ThemeProvider";
+import { useTheme } from "../../context/themeContext";
 import {
     THEMES,
     THEME_GROUPS,
@@ -169,6 +172,7 @@ function Appearance() {
         isDirty,
         mode,
         prefersDark,
+        prefersReducedMotion,
         previewPreferences,
         discardPreview,
         savePersonal,
@@ -227,9 +231,16 @@ function Appearance() {
         setBusy("mine");
         const result = await savePersonal(preferences);
         setBusy("");
-        setNotice(result.ok
-            ? { tone: "ok", text: "Saved as your default. It will follow you on every device you sign in to." }
-            : { tone: "error", text: result.error });
+        if (!result.ok) {
+            setNotice({ tone: "error", text: result.error });
+            return;
+        }
+        setNotice({
+            tone: "ok",
+            text: result.localOnly
+                ? "Saved on this device. Sign in to keep it on your account."
+                : "Saved as your default. It will follow you on every device you sign in to."
+        });
     };
 
     const handleDiscard = () => {
@@ -293,9 +304,9 @@ function Appearance() {
                 icon={FaPalette}
                 eyebrow="Settings · Personalisation"
                 title="Appearance"
-                badge={isAdmin ? "Personal · Admin" : "Personal"}
+                badge="Personal"
                 badgeTone="mint"
-                subtitle="Personalise how MIARCUS looks and feels. Changes preview instantly — press “Save as my default” to keep them."
+                subtitle="Personalise how MIARCUS looks and feels — theme, accent, typography, density and motion. Changes preview instantly; press “Save as my default” to keep them."
                 meta={[
                     { label: "Theme", value: themeLabel },
                     { label: "Accent", value: accentName(preferences) },
@@ -403,6 +414,7 @@ function Appearance() {
                                     </span>
                                     <span className="ap-preset-copy">
                                         <strong>{preset.name}</strong>
+                                        <span className="ap-preset-desc">{preset.description}</span>
                                         <small>{presetTheme.name} · {accent?.name} · {findFont(preset.fontFamily).name}</small>
                                     </span>
                                     {selected && <FaCheck className="ap-check" aria-hidden="true" />}
@@ -474,6 +486,7 @@ function Appearance() {
                             className={`ap-accent-default${preferences.accentColor === THEME_ACCENT_ID ? " is-on" : ""}`}
                             onClick={() => set({ accentColor: THEME_ACCENT_ID })}
                             title="Use the theme's own accent colour"
+                            aria-label="Theme default accent"
                         >
                             <span className="ap-swatch" style={{ "--swatch": theme.accent }} aria-hidden="true" />
                             Theme default
@@ -487,8 +500,8 @@ function Appearance() {
                                     type="button"
                                     role="radio"
                                     aria-checked={selected}
-                                    aria-label={accent.name}
-                                    title={accent.name}
+                                    aria-label={`${accent.name} accent`}
+                                    title={`${accent.name} accent`}
                                     className={`ap-accent${selected ? " is-on" : ""}`}
                                     style={{ "--swatch": accent.value }}
                                     onClick={() => set({ accentColor: accent.id })}
@@ -505,58 +518,31 @@ function Appearance() {
                     </div>
                 </Section>
 
-                <div className="ap-two-col">
-                    <Section
-                        id={`${uid}-size`}
-                        icon={FaTextHeight}
-                        title="Text size"
-                        description="A comfortable reading size for every page."
-                    >
-                        <Segmented
-                            label="Text size"
-                            options={TEXT_SIZES}
-                            value={preferences.fontSize}
-                            onChange={(fontSize) => set({ fontSize })}
-                        />
-                        <p className="ap-size-sample">
-                            Preview: <span>The store checklist was submitted on time.</span>
-                        </p>
-                    </Section>
-
-                    <Section
-                        id={`${uid}-layout`}
-                        icon={FaSlidersH}
-                        title="Layout & motion"
-                        description="Spacing, corners and animation."
-                    >
-                        <div className="ap-layout-rows">
-                            <div className="ap-row">
-                                <span className="ap-row-label"><FaColumns aria-hidden="true" /> Sidebar density</span>
-                                <Segmented label="Sidebar density" options={SIDEBAR_DENSITIES} value={preferences.sidebarStyle} onChange={(sidebarStyle) => set({ sidebarStyle })} />
-                            </div>
-                            <div className="ap-row">
-                                <span className="ap-row-label">Table row spacing</span>
-                                <Segmented label="Table row spacing" options={TABLE_DENSITIES} value={preferences.tableDensity} onChange={(tableDensity) => set({ tableDensity })} />
-                                <small>Compact rows show more records on one screen.</small>
-                            </div>
-                            <div className="ap-row">
-                                <span className="ap-row-label">Corner style</span>
-                                <Segmented label="Corner style" options={CORNER_STYLES} value={preferences.cornerStyle} onChange={(cornerStyle) => set({ cornerStyle })} />
-                            </div>
-                            <div className="ap-row">
-                                <span className="ap-row-label">Animations</span>
-                                <Segmented label="Animations" options={MOTION_OPTIONS} value={preferences.motion} onChange={(motion) => set({ motion })} />
-                                <small>“Match device” follows your operating system’s reduce-motion setting.</small>
-                            </div>
-                        </div>
-                    </Section>
-                </div>
+                <Section
+                    id={`${uid}-size`}
+                    icon={FaTextHeight}
+                    title="Text size"
+                    description="A comfortable reading size for every page."
+                    aside={<span className="ap-pill">{TEXT_SIZES.find((size) => size.id === preferences.fontSize)?.name || "Medium"}</span>}
+                >
+                    <Segmented
+                        label="Text size"
+                        options={TEXT_SIZES}
+                        value={preferences.fontSize}
+                        onChange={(fontSize) => set({ fontSize })}
+                    />
+                    <p className="ap-size-sample">
+                        <span className="ap-size-sample-label">Preview</span>
+                        <span>The store checklist was submitted on time.</span>
+                    </p>
+                </Section>
 
                 <Section
                     id={`${uid}-font`}
                     icon={FaFont}
                     title="Font family"
                     description="Used for labels, forms, tables, dialogs and navigation."
+                    aside={<span className="ap-pill">{fontName}</span>}
                 >
                     <div className="ap-fonts" role="radiogroup" aria-label="Font family">
                         {FONT_FAMILIES.map((font) => {
@@ -567,17 +553,51 @@ function Appearance() {
                                     type="button"
                                     role="radio"
                                     aria-checked={selected}
+                                    aria-label={`${font.name} font (${font.sample})`}
                                     className={`ap-font${selected ? " is-on" : ""}`}
                                     onClick={() => set({ fontFamily: font.id })}
                                     title={font.description}
                                 >
                                     <span className="ap-font-sample" style={{ fontFamily: font.stack }} aria-hidden="true">Aa</span>
-                                    <span className="ap-font-name">{font.name}</span>
-                                    <span className="ap-font-meta" style={{ fontFamily: font.stack }}>{font.sample}</span>
+                                    <span className="ap-font-name" style={{ fontFamily: font.stack }}>{font.name}</span>
+                                    <span className="ap-font-meta">{font.sample}</span>
                                     {selected && <FaCheck className="ap-check" aria-hidden="true" />}
                                 </button>
                             );
                         })}
+                    </div>
+                </Section>
+
+                <Section
+                    id={`${uid}-layout`}
+                    icon={FaSlidersH}
+                    title="Layout & motion"
+                    description="Navigation and table density, corner style and animation."
+                >
+                    <div className="ap-layout-rows">
+                        <div className="ap-row">
+                            <span className="ap-row-label"><FaColumns aria-hidden="true" /> Sidebar density</span>
+                            <Segmented label="Sidebar density" options={SIDEBAR_DENSITIES} value={preferences.sidebarStyle} onChange={(sidebarStyle) => set({ sidebarStyle })} />
+                            <small>Compact fits more menu items on screen.</small>
+                        </div>
+                        <div className="ap-row">
+                            <span className="ap-row-label"><FaTable aria-hidden="true" /> Table density</span>
+                            <Segmented label="Table density" options={TABLE_DENSITIES} value={preferences.tableDensity} onChange={(tableDensity) => set({ tableDensity })} />
+                            <small>Compact rows show more records on one screen.</small>
+                        </div>
+                        <div className="ap-row">
+                            <span className="ap-row-label"><FaVectorSquare aria-hidden="true" /> Corner style</span>
+                            <Segmented label="Corner style" options={CORNER_STYLES} value={preferences.cornerStyle} onChange={(cornerStyle) => set({ cornerStyle })} />
+                            <small>How rounded cards, buttons and inputs look.</small>
+                        </div>
+                        <div className="ap-row">
+                            <span className="ap-row-label"><FaRunning aria-hidden="true" /> Animations</span>
+                            <Segmented label="Animations" options={MOTION_OPTIONS} value={preferences.motion} onChange={(motion) => set({ motion })} />
+                            <small>
+                                “Match device” follows your operating system’s reduce-motion setting
+                                {preferences.motion === "system" ? ` (currently ${prefersReducedMotion ? "reduced" : "full"}).` : "."}
+                            </small>
+                        </div>
                     </div>
                 </Section>
             </fieldset>
@@ -673,7 +693,7 @@ function Appearance() {
                 message={
                     globalTheme.mode === "default"
                         ? "Your saved appearance will be removed and you will follow the organisation default on every device."
-                        : "Your saved appearance will be removed and the MIARCUS default (Miarcus Original, purple accent, default font) will be used on every device."
+                        : "Your saved appearance will be removed and the MIARCUS default (MIARCUS Original, purple accent, default font) will be used on every device."
                 }
                 confirmText="Reset to default"
                 confirmVariant="primary"

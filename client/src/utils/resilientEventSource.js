@@ -89,7 +89,7 @@ export function openResilientEventSource({
         if (!localStorage.getItem("token")) return;
 
         connecting = true;
-        let ticket = "";
+        let ticket;
 
         try {
             const response = await axios.post(ticketPath, null, { timeout: TICKET_TIMEOUT_MS });
@@ -126,7 +126,7 @@ export function openResilientEventSource({
 
         Object.entries(events).forEach(([name, handler]) => {
             source.addEventListener(name, (event) => {
-                let data = {};
+                let data;
                 try {
                     data = JSON.parse(event.data || "{}");
                 } catch {

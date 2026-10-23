@@ -1,8 +1,8 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
 import ActionPointEditModal from "../components/actionPoints/ActionPointEditModal";
 import { attachmentName, hasAttachment, openAttachment } from "../utils/attachments";
-import { useEffect, useRef, useState } from "react";
-import axios, { API_BASE_URL } from "../axiosConfig.js";
+import { useEffect, useRef, useState, useEffectEvent } from "react";
+import axios from "../axiosConfig.js";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -32,7 +32,6 @@ import {
     FaTrash,
     FaUpload,
     FaHistory,
-    FaClock,
     FaFileExcel,
     FaMagic,
     FaListUl,
@@ -40,10 +39,11 @@ import {
     FaHourglassHalf,
     FaCheckCircle,
     FaExclamationTriangle,
-    FaCalendarDay,
+    FaCalendarDay
 } from "react-icons/fa";
 
-import InsightStrip, { useInsightSummary } from "../components/premium/InsightStrip";
+import InsightStrip from "../components/premium/InsightStrip";
+import { useInsightSummary } from "../components/premium/useInsightSummary";
 import ReclassifyModal from "../components/premium/ReclassifyModal";
 
 // ======================================================
@@ -55,6 +55,7 @@ import "../styles/premium/ChecklistPremium.css";
 import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 import { exportFromCSV } from "../utils/exportUtils.js";
 import { activeFilters, hasActiveFilters, collectIds, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // API
@@ -65,7 +66,6 @@ import { activeFilters, hasActiveFilters, collectIds, deleteAllLabel, deleteAllM
 // API
 // ======================================================
 
-const API = API_BASE_URL;
 
 // ======================================================
 // COMPONENT
@@ -621,7 +621,7 @@ const fetchFilters = async () => {
 // LOAD DATA
 // ======================================================
 
-useEffect(() => {
+useEffect(() => runAfterCommit(() => {
 
     if (!canView) {
 
@@ -633,7 +633,7 @@ useEffect(() => {
 
     fetchFilters();
 
-}, [
+}), [
 
     canView
 
@@ -641,7 +641,8 @@ useEffect(() => {
 
 
 
-useEffect(() => {
+const fetchActionPointsEvent = useEffectEvent((...args) => fetchActionPoints(...args));
+useEffect(() => runAfterCommit(() => {
 
     if (!canView) {
 
@@ -649,9 +650,9 @@ useEffect(() => {
 
     }
 
-    fetchActionPoints();
+    fetchActionPointsEvent();
 
-}, [
+}), [
 
     canView,
 
@@ -1207,11 +1208,11 @@ const handleClearFilters = () => {
 
 const currentData = actionPoints;
 
-useEffect(() => {
+useEffect(() => runAfterCommit(() => {
 
     setCurrentPage(1);
 
-}, [
+}), [
 
     search,
 

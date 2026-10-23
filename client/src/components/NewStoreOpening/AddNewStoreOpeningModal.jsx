@@ -1,7 +1,8 @@
-import React, {
+import {
     useEffect,
     useMemo,
-    useState
+    useState,
+    useEffectEvent
 } from "react";
 
 import axios, { API_BASE_URL } from "../../axiosConfig.js";
@@ -22,6 +23,7 @@ import ProjectSummary from "./ProjectSummary";
 import ModalFooter from "./ModalFooter";
 
 import "../../styles/AddNewStoreOpeningModal.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 
 /* ======================================================
@@ -235,7 +237,8 @@ export default function AddNewStoreOpeningModal({
        LOAD DATA
     ====================================================== */
 
-    useEffect(() => {
+    const calculateDerivedFieldsEvent = useEffectEvent((...args) => calculateDerivedFields(...args));
+    useEffect(() => runAfterCommit(() => {
 
         if (!isOpen) {
             return;
@@ -263,7 +266,7 @@ export default function AddNewStoreOpeningModal({
 
 
             setFormData(
-                calculateDerivedFields(
+                calculateDerivedFieldsEvent(
                     mergedData
                 )
             );
@@ -308,7 +311,7 @@ export default function AddNewStoreOpeningModal({
 
         }
 
-    }, [
+    }), [
         isOpen,
         editData
     ]);

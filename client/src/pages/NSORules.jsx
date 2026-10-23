@@ -6,6 +6,7 @@ import { getNewStoreOpenings } from "../services/newStoreOpeningService";
 import { unwrapList, trackingStatus, progressFor, storeName, storeCode, todayYmd } from "../utils/nsoTracking";
 import "../styles/NSORules.css";
 import "../styles/premium/PagePremium.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const workflow = [
   { icon: FaStore, step: "01", title: "Create New Store Opening", text: "Create the NSO project and enter store details, possession date, planned milestone dates, billing date and actual opening date.", link: "/new-store-openings", action: "Open New Store Openings", tone: "violet" },
@@ -33,7 +34,7 @@ export default function NSORules() {
     catch (e) { setError(e.response?.data?.message || "Could not load New Store Opening projects. Workflow guidance is still available below."); }
     finally { setLoading(false); setRefreshing(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => runAfterCommit(() => { load(); }), []);
   const stats = useMemo(() => {
     const states = projects.map((project) => ({ project, status: trackingStatus(project), progress: progressFor(project) }));
     return {

@@ -2,6 +2,7 @@ import PremiumLoader from "./premium/PremiumLoader";
 import { useEffect, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/CreatePointModal.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const API = API_BASE_URL;
 
@@ -37,22 +38,17 @@ function CreatePointModal({
   // UPDATE SUBMISSION ID
   // ==========================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     setFormData((prev) => ({
       ...prev,
       submission_id: submissionId || "",
     }));
-  }, [submissionId]);
+  }), [submissionId]);
 
   // ==========================================================
   // LOAD DROPDOWN DATA
   // ==========================================================
 
-  useEffect(() => {
-    if (isOpen) {
-      loadData();
-    }
-  }, [isOpen]);
 
   const loadData = async () => {
     setLoadingData(true);
@@ -114,6 +110,12 @@ function CreatePointModal({
       setLoadingData(false);
     }
   };
+
+  useEffect(() => runAfterCommit(() => {
+    if (isOpen) {
+      loadData();
+    }
+  }), [isOpen]);
 
   // ==========================================================
   // HANDLE CHANGE

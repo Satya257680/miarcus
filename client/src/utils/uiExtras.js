@@ -31,13 +31,17 @@ export const readUiExtras = () => {
 
 // Returns the old device-only values mapped to the new preference keys,
 // or null when nothing was stored on this device.
-export const readLegacyUiExtras = () => {
-    let saved;
+// Parsed value of the old storage key, or null when missing / unreadable.
+const readLegacyValue = () => {
     try {
-        saved = JSON.parse(localStorage.getItem(UI_EXTRAS_KEY) || "null");
+        return JSON.parse(localStorage.getItem(UI_EXTRAS_KEY) || "null");
     } catch {
         return null;
     }
+};
+
+export const readLegacyUiExtras = () => {
+    const saved = readLegacyValue();
     if (!saved || typeof saved !== "object") return null;
 
     const mapped = {};

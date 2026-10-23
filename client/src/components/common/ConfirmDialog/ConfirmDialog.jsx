@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import "../../../styles/common/ConfirmDialog.css";
 import Button from "../Button";

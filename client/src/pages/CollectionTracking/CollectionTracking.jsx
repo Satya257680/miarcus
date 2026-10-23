@@ -1,42 +1,39 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
 import { API_BASE_URL } from "../../axiosConfig.js";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useEffectEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  FaArrowLeft,
-  FaArrowRight,
-  FaCheck,
-  FaCommentDots,
-  FaDownload,
-  FaEye,
-  FaFileUpload,
-  FaPlus,
-  FaSave,
-  FaTrash,
-  FaPaperPlane,
-  FaChevronDown,
-  FaTimes,
-  FaSearch,
-  FaCheckCircle,
-  FaClock,
-  FaUsers,
-  FaBoxOpen,
-  FaChartPie,
-  FaFilter,
-  FaEdit,
-  FaEnvelopeOpenText,
-  FaUserTie,
-  FaShoppingCart,
-  FaCogs,
-  FaMedal,
-  FaTruck,
-  FaWarehouse,
-  FaShieldAlt,
-  FaDatabase,
-  FaListAlt,
-  FaSlidersH,
-  FaPaperclip,
+    FaArrowLeft,
+    FaArrowRight,
+    FaCheck,
+    FaCommentDots,
+    FaEye,
+    FaFileUpload,
+    FaPlus,
+    FaSave,
+    FaTrash,
+    FaPaperPlane,
+    FaChevronDown,
+    FaTimes,
+    FaSearch,
+    FaCheckCircle,
+    FaClock,
+    FaUsers,
+    FaBoxOpen,
+    FaChartPie,
+    FaFilter,
+    FaEdit,
+    FaEnvelopeOpenText,
+    FaUserTie,
+    FaShoppingCart,
+    FaCogs,
+    FaMedal,
+    FaTruck,
+    FaWarehouse,
+    FaShieldAlt,
+    FaDatabase,
+    FaListAlt
 } from "react-icons/fa";
 
 import {
@@ -62,6 +59,7 @@ import ExportButton from "../../components/common/ExportButton";
 import BulkUploadModal from "../../components/common/BulkUploadModal";
 import { exportFromCSV } from "../../utils/exportUtils.js";
 import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const STAGES = [
   "Designer",
@@ -621,9 +619,10 @@ function ProductList() {
     }
   };
 
-  useEffect(() => {
-    loadProducts();
-  }, [query, stage, status, page]);
+  const loadProductsEvent = useEffectEvent((...args) => loadProducts(...args));
+  useEffect(() => runAfterCommit(() => {
+    loadProductsEvent();
+  }), [query, stage, status, page]);
 
   const handleExport = async (format = "csv") => {
     try {
@@ -1027,7 +1026,7 @@ function AddProduct() {
   const [saving, setSaving] =
     useState(false);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     let mounted = true;
 
     const load = async () => {
@@ -1064,7 +1063,7 @@ function AddProduct() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }), []);
 
   const saveProduct =
     async () => {
@@ -1313,7 +1312,7 @@ function Details() {
       }
     };
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     loadProduct({
       keepSelectedStage:
         false,
@@ -1321,7 +1320,7 @@ function Details() {
     // Product ID is the only dependency here.
     // Stage changes are handled by changeStage().
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }), [id]);
 
   const workflowStage =
     result?.product
@@ -2048,9 +2047,10 @@ function MasterData() {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, [stage]);
+  const loadEvent = useEffectEvent((...args) => load(...args));
+  useEffect(() => runAfterCommit(() => {
+    loadEvent();
+  }), [stage]);
 
   const updateField = (index, key, value) => {
     setFields((current) =>
@@ -2319,7 +2319,7 @@ function MasterData() {
 function Insight() {
   const [data, setData] = useState(null);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     const load = async () => {
       try {
         const response = await getInsight();
@@ -2330,7 +2330,7 @@ function Insight() {
       }
     };
     load();
-  }, []);
+  }), []);
 
   const total = Number(data?.summary?.total || 0);
   const stageRows = (data?.stages || []).map((item) => ({ ...item, count: Number(item.count || 0) }));
@@ -2339,12 +2339,11 @@ function Insight() {
   const completed = stageRows.find((item) => item.stage === "Warehouse")?.count || 0;
   const progress = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
 
-  let cumulative = 0;
+  const segmentSizes = stageRows.map((item) => (total ? (item.count / total) * 100 : 0));
   const donutSegments = stageRows.map((item, index) => {
-    const start = cumulative;
-    const size = total ? (item.count / total) * 100 : 0;
-    cumulative += size;
-    return `${stageColors[index % stageColors.length]} ${start}% ${cumulative}%`;
+    const start = segmentSizes.slice(0, index).reduce((sum, size) => sum + size, 0);
+    const end = start + segmentSizes[index];
+    return `${stageColors[index % stageColors.length]} ${start}% ${end}%`;
   }).join(", ");
 
   return (
@@ -2426,9 +2425,10 @@ function Requests() {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, [status]);
+  const loadEvent = useEffectEvent((...args) => load(...args));
+  useEffect(() => runAfterCommit(() => {
+    loadEvent();
+  }), [status]);
 
   const review = async (id, nextStatus) => {
     try {
@@ -2709,9 +2709,9 @@ function Permissions() {
     }
   };
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     load();
-  }, []);
+  }), []);
 
   const save = async () => {
     setSaving(true);

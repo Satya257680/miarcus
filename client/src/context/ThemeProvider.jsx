@@ -1,7 +1,5 @@
 import {
-    createContext,
     useCallback,
-    useContext,
     useEffect,
     useLayoutEffect,
     useMemo,
@@ -24,6 +22,8 @@ import {
     findTheme
 } from "../theme/appearanceConfig";
 import { readLegacyUiExtras, clearLegacyUiExtras } from "../utils/uiExtras";
+import runAfterCommit from "../utils/runAfterCommit";
+import { ThemeContext } from "./themeContext";
 
 // ---------------------------------------------------------------------
 // MIARCUS appearance state
@@ -42,7 +42,6 @@ import { readLegacyUiExtras, clearLegacyUiExtras } from "../utils/uiExtras";
 // saved to the user's own default straight away.
 // ---------------------------------------------------------------------
 
-const ThemeContext = createContext(null);
 
 const LAST_LIGHT_KEY = "miarcus_last_light_theme";
 const LAST_DARK_KEY = "miarcus_last_dark_theme";
@@ -273,7 +272,7 @@ function ThemeProvider({ children }) {
         return nextGlobal;
     }, []);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         refreshGlobalTheme();
 
         // Pick up an administrator's change when the user returns to the tab.
@@ -286,7 +285,7 @@ function ThemeProvider({ children }) {
             window.clearInterval(poll);
             window.removeEventListener("focus", onFocus);
         };
-    }, [refreshGlobalTheme]);
+    }), [refreshGlobalTheme]);
 
     // -----------------------------------------------------------------
     // Preview (draft) - nothing is saved yet.
@@ -437,6 +436,7 @@ function ThemeProvider({ children }) {
             mode: resolved.mode,
             accentHex: resolved.accentHex,
             prefersDark,
+            prefersReducedMotion,
             // saved state
             savedPreferences: effective.preferences,
             source: effective.source,
@@ -462,7 +462,7 @@ function ThemeProvider({ children }) {
             refreshGlobalTheme
         }),
         [
-            preferences, resolved, prefersDark, effective, personal, globalTheme,
+            preferences, resolved, prefersDark, prefersReducedMotion, effective, personal, globalTheme,
             isAdmin, locked, isDirty, loadedFromServer, previewPreferences,
             discardPreview, savePersonal, resetPersonal, saveGlobalTheme,
             disableGlobalTheme, toggleDayNight, updatePreferences, refreshGlobalTheme
@@ -475,15 +475,5 @@ function ThemeProvider({ children }) {
         </ThemeContext.Provider>
     );
 }
-
-export const useTheme = () => {
-    const context = useContext(ThemeContext);
-
-    if (!context) {
-        throw new Error("useTheme must be used inside ThemeProvider");
-    }
-
-    return context;
-};
 
 export default ThemeProvider;

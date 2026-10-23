@@ -26,6 +26,7 @@ import "../../styles/NeonGlassGlobal.css";
 // Day / night readability layer for every theme. Imported last so it can
 // correct module-level light surfaces when a dark theme is selected.
 import "../../styles/ThemeModes.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // Phones only (tablets / laptops / desktops keep the existing layout).
 const MOBILE_QUERY = "(max-width: 768px)";
@@ -47,7 +48,7 @@ function Layout() {
   const [isMobile, setIsMobile] = useState(getIsMobile);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (typeof window.matchMedia !== "function") return undefined;
 
     const media = window.matchMedia(MOBILE_QUERY);
@@ -65,12 +66,12 @@ function Layout() {
       if (media.removeEventListener) media.removeEventListener("change", onChange);
       else media.removeListener(onChange);
     };
-  }, []);
+  }), []);
 
   // Close the mobile drawer whenever the route changes
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     setMobileMenuOpen(false);
-  }, [location.pathname]);
+  }), [location.pathname]);
 
   // Lock background scroll + allow Escape to close the drawer
   useEffect(() => {

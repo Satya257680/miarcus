@@ -1,4 +1,3 @@
-import React from "react";
 import ProfessionalModal from "./common/ProfessionalModal";
 import "../styles/DailyCollection.css";
 

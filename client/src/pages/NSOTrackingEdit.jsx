@@ -56,7 +56,7 @@ const MAX_FILE = 10 * 1024 * 1024;
 export default function NSOTrackingEdit() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const permissions = useMemo(nsoPermissions, []);
+    const permissions = useMemo(() => nsoPermissions(), []);
     const fileRef = useRef(null);
 
     const [original, setOriginal] = useState(null);

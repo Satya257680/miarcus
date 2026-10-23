@@ -22,6 +22,7 @@ import {
 
 import "../../styles/pages/Quiz.css";
 import "../../styles/pages/TakeQuizPremium.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 
 function TakeQuiz() {
@@ -48,7 +49,7 @@ function TakeQuiz() {
     // LOAD ACTIVE QUIZZES
     // ============================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
 
         let mounted = true;
 
@@ -121,7 +122,7 @@ function TakeQuiz() {
 
         };
 
-    }, []);
+    }), []);
 
 
     // ============================================================

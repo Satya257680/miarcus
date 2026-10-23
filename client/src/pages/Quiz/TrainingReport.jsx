@@ -1,5 +1,5 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useEffectEvent } from "react";
 import axios from "../../axiosConfig";
 
 import {
@@ -10,14 +10,11 @@ import {
     FaSearch,
     FaTrash,
     FaTimes,
-    FaUsers,
     FaCheckCircle,
     FaExclamationCircle,
     FaClipboardCheck,
     FaClock,
-    FaDownload,
-    FaPrint,
-    FaRedo,
+    FaRedo
 } from "react-icons/fa";
 import { isAdministratorUser } from "../../utils/rbac";
 
@@ -30,6 +27,7 @@ import { initials, avatarTone } from "../../utils/premiumFormat";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
 import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const QUIZ_API_URL = (
     import.meta.env.VITE_QUIZ_API_URL?.trim() ||
@@ -210,9 +208,10 @@ function TrainingReport() {
     // INITIAL LOAD
     // ============================================================
 
-    useEffect(() => {
-        load();
-    }, [
+    const loadEvent = useEffectEvent((...args) => load(...args));
+    useEffect(() => runAfterCommit(() => {
+        loadEvent();
+    }), [
         quizId,
         result,
     ]);

@@ -3,6 +3,44 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "./login.css";
 
+// Declared outside the page so React keeps them stable between renders.
+const PasswordEye = ({ visible }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {visible ? (
+      <>
+        <path d="M3 3l18 18" />
+        <path d="M10.58 10.58a2 2 0 0 0 2.83 2.83" />
+        <path d="M9.88 4.24A10.6 10.6 0 0 1 12 4c5 0 8.73 4.11 9.73 6a11.8 11.8 0 0 1-3.04 3.76" />
+        <path d="M6.61 6.61A11.8 11.8 0 0 0 2.27 10c1 1.89 4.73 6 9.73 6 1.12 0 2.17-.2 3.12-.54" />
+      </>
+    ) : (
+      <>
+        <path d="M2.27 12S6 6 12 6s9.73 6 9.73 6S18 18 12 18 2.27 12 2.27 12Z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    )}
+  </svg>
+);
+
+const Rule = ({ valid, children }) => (
+  <li className={valid ? "password-rule valid" : "password-rule"}>
+    <span className="password-rule-icon" aria-hidden="true">
+      {valid ? "✓" : "•"}
+    </span>
+    <span>{children}</span>
+  </li>
+);
+
 function ResetPassword() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -26,7 +64,7 @@ function ResetPassword() {
       sessionStorage.removeItem("passwordResetToken");
       navigate("/forgot-password", { replace: true });
     }
-  }, [email, navigate]);
+  }, [email, resetToken, navigate]);
 
   const passwordRules = {
     length: password.length >= 8 && password.length <= 64,
@@ -85,43 +123,6 @@ function ResetPassword() {
       setLoading(false);
     }
   };
-
-  const PasswordEye = ({ visible }) => (
-    <svg
-      viewBox="0 0 24 24"
-      width="20"
-      height="20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {visible ? (
-        <>
-          <path d="M3 3l18 18" />
-          <path d="M10.58 10.58a2 2 0 0 0 2.83 2.83" />
-          <path d="M9.88 4.24A10.6 10.6 0 0 1 12 4c5 0 8.73 4.11 9.73 6a11.8 11.8 0 0 1-3.04 3.76" />
-          <path d="M6.61 6.61A11.8 11.8 0 0 0 2.27 10c1 1.89 4.73 6 9.73 6 1.12 0 2.17-.2 3.12-.54" />
-        </>
-      ) : (
-        <>
-          <path d="M2.27 12S6 6 12 6s9.73 6 9.73 6S18 18 12 18 2.27 12 2.27 12Z" />
-          <circle cx="12" cy="12" r="3" />
-        </>
-      )}
-    </svg>
-  );
-
-  const Rule = ({ valid, children }) => (
-    <li className={valid ? "password-rule valid" : "password-rule"}>
-      <span className="password-rule-icon" aria-hidden="true">
-        {valid ? "✓" : "•"}
-      </span>
-      <span>{children}</span>
-    </li>
-  );
 
   return (
     <main className="login-page auth-page">

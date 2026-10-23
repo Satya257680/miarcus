@@ -1,4 +1,3 @@
-import React from "react";
 import { FaInbox } from "react-icons/fa";
 
 import "../../../styles/common/EmptyState.css";

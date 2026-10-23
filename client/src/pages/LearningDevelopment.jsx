@@ -5,6 +5,7 @@ import usePermission from "../hooks/usePermission";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
 import LndArt from "../components/lnd/LndArt";
 import "../styles/pages/LearningDevelopment.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // =================================================================
 // LEARNING & DEVELOPMENT — learner side
@@ -35,7 +36,7 @@ const useLoad = (loader, deps) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => runAfterCommit(() => { reload(); }), [reload]);
   return { ...state, reload };
 };
 
@@ -322,11 +323,11 @@ function ModulePage() {
   const [msg, setMsg] = useState(null);
 
   const pickedFor = useRef(null);
-  useEffect(() => { setTab("video"); setMsg(null); }, [id]);
+  useEffect(() => runAfterCommit(() => { setTab("video"); setMsg(null); }), [id]);
 
   // Open the first tab that actually has something to show — only once
   // per module, so a reload (e.g. after "lesson completed") keeps the tab.
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!data || pickedFor.current === data.module.id) return;
     pickedFor.current = data.module.id;
     const media = data.media || [];
@@ -335,7 +336,7 @@ function ModulePage() {
     else if (media.some((m) => m.kind === "image")) setTab("images");
     else if (data.module.hasExam && !data.module.description) setTab("quiz");
     else setTab("notes");
-  }, [data]);
+  }), [data]);
 
   if (loading || error) return <div className="lnd"><BackCard to={BASE} title="Back to My Training" sub="Return to your training list" /><State loading={loading} error={error} onRetry={reload} /></div>;
 
@@ -532,7 +533,7 @@ function Exam() {
   const submitted = useRef(false);
   const deadline = useRef(0);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     let alive = true;
     setExam(null); setError(""); setResult(null); setAnswers({}); setCurrent(0);
     submitted.current = false;
@@ -546,7 +547,7 @@ function Exam() {
       })
       .catch((e) => alive && setError(errorMessage(e, "Unable to start the assessment")));
     return () => { alive = false; };
-  }, [id, round]);
+  }), [id, round]);
 
   const submit = useCallback(async () => {
     if (!exam || submitted.current) return;
@@ -567,7 +568,7 @@ function Exam() {
     return () => window.clearInterval(t);
   }, [exam, result]);
 
-  useEffect(() => { if (exam && !result && left <= 0) submit(); }, [left, exam, result, submit]);
+  useEffect(() => runAfterCommit(() => { if (exam && !result && left <= 0) submit(); }), [left, exam, result, submit]);
 
   const back = <BackCard to={`${BASE}/module/${id}`} title={exam ? `Back to ${exam.title}` : "Back to module"} sub="Return to module details" art="assessment" />;
 

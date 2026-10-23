@@ -1,9 +1,9 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState
 } from "react";
 
 import {
@@ -12,26 +12,25 @@ import {
 } from "react-router-dom";
 
 import {
-  FaSearch,
-  FaPlus,
-  FaSyncAlt,
-  FaEye,
-  FaEdit,
-  FaTrash,
-  FaFileInvoiceDollar,
-  FaCheckCircle,
-  FaClock,
-  FaTimesCircle,
-  FaFilter,
-  FaStore,
-  FaUser,
-  FaCreditCard,
-  FaMoneyBillWave,
-  FaChevronLeft,
-  FaChevronRight,
-  FaExclamationTriangle,
-  FaExternalLinkAlt,
-  FaBan,
+    FaSearch,
+    FaPlus,
+    FaSyncAlt,
+    FaEye,
+    FaEdit,
+    FaTrash,
+    FaFileInvoiceDollar,
+    FaCheckCircle,
+    FaClock,
+    FaTimesCircle,
+    FaFilter,
+    FaStore,
+    FaUser,
+    FaCreditCard,
+    FaMoneyBillWave,
+    FaChevronLeft,
+    FaChevronRight,
+    FaExclamationTriangle,
+    FaBan
 } from "react-icons/fa";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 
@@ -48,6 +47,7 @@ import "../../styles/premium/AdminPagesPremium.css";
 import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 /* ======================================================
    HELPERS
@@ -286,9 +286,9 @@ export default function Bills() {
     [search]
   );
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     loadBills();
-  }, [loadBills]);
+  }), [loadBills]);
 
   /* ====================================================
      SEARCH
@@ -451,11 +451,11 @@ export default function Bills() {
       safePage,
     ]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (page > totalPages) {
       setPage(totalPages);
     }
-  }, [page, totalPages]);
+  }), [page, totalPages]);
 
   /* ====================================================
      DELETE / CANCEL BILL

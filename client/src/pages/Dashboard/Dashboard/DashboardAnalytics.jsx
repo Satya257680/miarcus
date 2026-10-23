@@ -1,5 +1,5 @@
 import PremiumLoader from "../../../components/premium/PremiumLoader";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
     FaArrowDown,
@@ -22,6 +22,7 @@ import {
 
 import "../../../styles/dashboard/DashboardAnalytics.css";
 import "../../../styles/dashboard/DashboardAnalytics3D.css";
+import runAfterCommit from "../../../utils/runAfterCommit";
 
 // ======================================================
 // SETTINGS
@@ -92,7 +93,7 @@ const foldOther = (items, max = 7) => {
 // 0 → 1 easing animation that restarts whenever `key` changes.
 function useGrow(key, duration = 900) {
     const [progress, setProgress] = useState(0);
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let frame;
         const start = performance.now();
         const tick = (now) => {
@@ -103,7 +104,7 @@ function useGrow(key, duration = 900) {
         setProgress(0);
         frame = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(frame);
-    }, [key, duration]);
+    }), [key, duration]);
     return progress;
 }
 
@@ -642,7 +643,7 @@ function DashboardAnalytics() {
     }, []);
 
     // Load the saved reset point first, then the analytics for it.
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let alive = true;
         (async () => {
             try {
@@ -661,7 +662,7 @@ function DashboardAnalytics() {
             }
         })();
         return () => { alive = false; };
-    }, [loadAnalytics]);
+    }), [loadAnalytics]);
 
     const applySince = useCallback(async (request) => {
         setResetting(true);
@@ -690,7 +691,7 @@ function DashboardAnalytics() {
     );
 
     // ---------- REAL TIME ----------
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!live || !baselineReady) return undefined;
         let alive = true;
 
@@ -722,7 +723,7 @@ function DashboardAnalytics() {
             window.clearInterval(fullTimer);
             document.removeEventListener("visibilitychange", onVisible);
         };
-    }, [live, baselineReady, loadAnalytics]);
+    }), [live, baselineReady, loadAnalytics]);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(Date.now()), 1000);

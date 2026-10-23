@@ -30,18 +30,21 @@ import PremiumHero from "../../components/premium/PremiumHero";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
 import {
+    PettyNav,
+    ConfirmModal,
+    StatusPill,
+    Pager,
+    SortTh
+} from "./pettyCashShared";
+import {
     money,
     dmy,
     getAccess,
     apiError,
-    PettyNav,
-    ConfirmModal,
-    StatusPill,
     usePager,
-    Pager,
-    sortRows,
-    SortTh
-} from "./pettyCashShared";
+    sortRows
+} from "./pettyCashUtils";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const EMPTY_FILTERS = { search: "", store: "", status: "", from: "", to: "" };
 
@@ -102,10 +105,10 @@ function PettyCash({ mode = "dashboard" }) {
         }
     };
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         load(EMPTY_FILTERS);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode]);
+    }), [mode]);
 
     const sorted = useMemo(() => sortRows(advances, sort), [advances, sort]);
     const pager = usePager(sorted, manage ? 15 : 8);

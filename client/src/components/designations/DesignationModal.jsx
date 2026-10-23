@@ -7,6 +7,7 @@ import { getUsers } from "../../services/userService";
 
 import "../../styles/common/ProfessionalModal.css";
 import "./DesignationModal.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 function DesignationModal({
   isOpen,
@@ -95,7 +96,7 @@ function DesignationModal({
   // LOAD / RESET DESIGNATION
   // =====================================================
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!isOpen) {
       return;
     }
@@ -136,7 +137,7 @@ function DesignationModal({
     }
 
     setSearch("");
-  }, [designation, isOpen]);
+  }), [designation, isOpen]);
 
   // =====================================================
   // SUBMIT

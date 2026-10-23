@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useEffectEvent } from "react";
 import { useParams } from "react-router-dom";
 import axios from "../../axiosConfig";
 import {
@@ -10,7 +10,6 @@ import {
     FaCamera,
     FaCheckCircle,
     FaClock,
-    FaLocationArrow,
     FaMapMarkerAlt,
     FaShieldAlt,
     FaArrowLeft,
@@ -18,11 +17,12 @@ import {
     FaLock,
     FaEnvelope,
     FaPhone,
-    FaStore,
+    FaStore
 } from "react-icons/fa";
 
 import "../../styles/pages/Quiz.css";
 import "../../styles/pages/PublicQuizPremium.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const QUIZ_API_URL = (
     import.meta.env.VITE_QUIZ_API_URL?.trim() ||
@@ -194,7 +194,7 @@ function PublicQuiz() {
     // Browser preview of the exact photo captured before the attempt.
     const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!photo) {
             setPhotoPreviewUrl("");
             return undefined;
@@ -206,7 +206,7 @@ function PublicQuiz() {
         return () => {
             URL.revokeObjectURL(url);
         };
-    }, [photo]);
+    }), [photo]);
 
     // ============================================================
     // SESSION / ANSWERS
@@ -241,22 +241,6 @@ function PublicQuiz() {
      *
      * stay synchronized immediately.
      */
-    const updateAnswers = (updater) => {
-        const previous = answersRef.current || {};
-
-        const next =
-            typeof updater === "function"
-                ? updater(previous)
-                : updater;
-
-        // IMPORTANT:
-        // Update the ref FIRST. React state updates are asynchronous,
-        // so the submit handler must never depend on React finishing
-        // a render before the latest answer is available.
-        answersRef.current = next;
-
-        setAnswers(next);
-    };
 
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState(null);
@@ -272,7 +256,7 @@ function PublicQuiz() {
     // LOAD PUBLIC QUIZ
     // ============================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let mounted = true;
 
         const loadQuiz = async () => {
@@ -342,19 +326,12 @@ function PublicQuiz() {
         return () => {
             mounted = false;
         };
-    }, [token]);
+    }), [token]);
 
     // ============================================================
     // CAMERA CLEANUP
     // ============================================================
 
-    useEffect(() => {
-        return () => {
-            stopCamera();
-            faceDetectorRef.current = null;
-            faceDetectorLoadingRef.current = null;
-        };
-    }, []);
 
     // ============================================================
     // ATTACH CAMERA STREAM
@@ -374,43 +351,6 @@ function PublicQuiz() {
     // QUIZ TIMER
     // ============================================================
 
-    useEffect(() => {
-        if (
-            step !== "quiz" ||
-            remainingSeconds === null ||
-            submitting
-        ) {
-            return undefined;
-        }
-
-        if (remainingSeconds <= 0) {
-            handleSubmit(true);
-            return undefined;
-        }
-
-        const timer = setInterval(() => {
-            setRemainingSeconds(
-                (current) => {
-                    if (current === null) {
-                        return null;
-                    }
-
-                    if (current <= 1) {
-                        clearInterval(timer);
-                        return 0;
-                    }
-
-                    return current - 1;
-                }
-            );
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [
-        step,
-        remainingSeconds,
-        submitting,
-    ]);
 
     // ============================================================
     // STOP CAMERA
@@ -435,6 +375,14 @@ function PublicQuiz() {
             videoRef.current.srcObject = null;
         }
     };
+
+    useEffect(() => {
+        return () => {
+            stopCamera();
+            faceDetectorRef.current = null;
+            faceDetectorLoadingRef.current = null;
+        };
+    }, []);
 
     // ============================================================
     // RESET PARTICIPANT VERIFICATION
@@ -503,28 +451,6 @@ function PublicQuiz() {
     // This lock applies before camera verification, during verification,
     // and after verification. Only Retake Photo can clear it.
 
-    useEffect(() => {
-        // Camera is optional, so details are only frozen once the
-        // participant actually starts camera verification (a photo must
-        // stay attached to the identity it was captured for).
-        if (
-            !participantDetailsLocked &&
-            isCameraPrerequisiteComplete() &&
-            (cameraConsent || photo)
-        ) {
-            setParticipantDetailsLocked(true);
-        }
-    }, [
-        cameraConsent,
-        photo,
-        name,
-        email,
-        emailConsent,
-        gender,
-        storeId,
-        contactNumber,
-        participantDetailsLocked,
-    ]);
 
     // ============================================================
     // REQUEST CAMERA
@@ -883,7 +809,7 @@ function PublicQuiz() {
         );
 
         try {
-            const verification = await verifyCapturedFrame(canvas);
+            await verifyCapturedFrame(canvas);
 
             setCameraVerification({
                 status: "passed",
@@ -921,7 +847,7 @@ function PublicQuiz() {
             );
 
             return true;
-        } catch (err) {
+        } catch {
             setPhoto(null);
             setPhotoCapturedAt(null);
             setVerificationLocked(false);
@@ -1049,34 +975,6 @@ function PublicQuiz() {
         }, 650);
     };
 
-    useEffect(() => {
-        if (
-            cameraConsent &&
-            isCameraPrerequisiteComplete() &&
-            !photo &&
-            cameraVerification.status !== "passed"
-        ) {
-            const timer = setTimeout(() => {
-                startAutoCapture();
-            }, 800);
-
-            return () => {
-                clearTimeout(timer);
-                stopAutoCapture();
-            };
-        }
-
-        stopAutoCapture();
-
-        return undefined;
-    }, [
-        cameraConsent,
-        name,
-        email,
-        emailConsent,
-        photo,
-        cameraVerification.status,
-    ]);
 
     // ============================================================
     // REQUEST LOCATION
@@ -1167,11 +1065,65 @@ function PublicQuiz() {
         );
     };
 
+    const isCameraPrerequisiteCompleteEvent = useEffectEvent((...args) => isCameraPrerequisiteComplete(...args));
+    const startAutoCaptureEvent = useEffectEvent((...args) => startAutoCapture(...args));
+    useEffect(() => {
+        if (
+            cameraConsent &&
+            isCameraPrerequisiteCompleteEvent() &&
+            !photo &&
+            cameraVerification.status !== "passed"
+        ) {
+            const timer = setTimeout(() => {
+                startAutoCaptureEvent();
+            }, 800);
+
+            return () => {
+                clearTimeout(timer);
+                stopAutoCapture();
+            };
+        }
+
+        stopAutoCapture();
+
+        return undefined;
+    }, [
+        cameraConsent,
+        name,
+        email,
+        emailConsent,
+        photo,
+        cameraVerification.status,
+    ]);
+
+    useEffect(() => runAfterCommit(() => {
+        // Camera is optional, so details are only frozen once the
+        // participant actually starts camera verification (a photo must
+        // stay attached to the identity it was captured for).
+        if (
+            !participantDetailsLocked &&
+            isCameraPrerequisiteCompleteEvent() &&
+            (cameraConsent || photo)
+        ) {
+            setParticipantDetailsLocked(true);
+        }
+    }), [
+        cameraConsent,
+        photo,
+        name,
+        email,
+        emailConsent,
+        gender,
+        storeId,
+        contactNumber,
+        participantDetailsLocked,
+    ]);
+
     // ============================================================
     // ATTEMPT ELIGIBILITY (checked as soon as the e-mail is typed)
     // ============================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         const value = email.trim().toLowerCase();
 
         if (!token || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
@@ -1207,7 +1159,7 @@ function PublicQuiz() {
             cancelled = true;
             window.clearTimeout(timer);
         };
-    }, [email, token]);
+    }), [email, token]);
 
     const attemptBlocked = attemptCheck.status === "blocked";
 
@@ -1947,6 +1899,45 @@ function PublicQuiz() {
             }
         };
 
+    const handleSubmitEvent = useEffectEvent((...args) => handleSubmit(...args));
+    useEffect(() => runAfterCommit(() => {
+        if (
+            step !== "quiz" ||
+            remainingSeconds === null ||
+            submitting
+        ) {
+            return undefined;
+        }
+
+        if (remainingSeconds <= 0) {
+            handleSubmitEvent(true);
+            return undefined;
+        }
+
+        const timer = setInterval(() => {
+            setRemainingSeconds(
+                (current) => {
+                    if (current === null) {
+                        return null;
+                    }
+
+                    if (current <= 1) {
+                        clearInterval(timer);
+                        return 0;
+                    }
+
+                    return current - 1;
+                }
+            );
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }), [
+        step,
+        remainingSeconds,
+        submitting,
+    ]);
+
     // ============================================================
     // FORMAT TIMER
     // ============================================================
@@ -2122,7 +2113,9 @@ function PublicQuiz() {
     const currentAnswer =
         currentQuestion
             ? getStoredAnswer(
-                answersRef.current || answers,
+                // State and answersRef are always updated together;
+                // render reads the state (refs must not be read in render).
+                answers,
                 currentQuestion.id
             )
             : undefined;

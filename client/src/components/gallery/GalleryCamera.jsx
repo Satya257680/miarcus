@@ -20,6 +20,7 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/gallery/GalleryCamera.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ==========================================================
 // GalleryCamera
@@ -250,12 +251,12 @@ export default function GalleryCamera({
     }, [stopStream]);
 
     // (Re)start the camera while on the camera step
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!open || step !== "camera") return undefined;
         startStream(facing, mode === "video");
         return () => stopStream();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, step, facing, mode]);
+    }), [open, step, facing, mode]);
 
     // Stop the camera when the tab goes to the background
     useEffect(() => {
@@ -281,7 +282,7 @@ export default function GalleryCamera({
     }, [open]);
 
     // Preview URL for the captured file
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!capturedFile) {
             setCapturedUrl("");
             return undefined;
@@ -289,7 +290,7 @@ export default function GalleryCamera({
         const url = URL.createObjectURL(capturedFile);
         setCapturedUrl(url);
         return () => URL.revokeObjectURL(url);
-    }, [capturedFile]);
+    }), [capturedFile]);
 
     // ======================================================
     // GPS
@@ -325,10 +326,10 @@ export default function GalleryCamera({
     }, []);
 
     // Grab GPS in the background as soon as the camera opens
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (open && !gps && !gpsLoading) captureGps();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }), [open]);
 
     // ======================================================
     // CAPTURE

@@ -19,6 +19,7 @@ import {
     FaSearch,
     FaMapMarkerAlt,
 } from "react-icons/fa";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // Use the exact same backend URL configured by axiosConfig.
 // This prevents the deployed Vercel profile page from falling
@@ -165,7 +166,7 @@ function Profile() {
     const [stores, setStores] = useState([]);
     const [storeSearch, setStoreSearch] = useState("");
 
-    const [currentPhoto, setCurrentPhoto] = useState(
+    const [, setCurrentPhoto] = useState(
         localStorage.getItem("profilePhoto") || ""
     );
 
@@ -267,11 +268,11 @@ function Profile() {
         }
     };
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         loadProfile();
         // userId is the stable logged-in-user identity.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userId]);
+    }), [userId]);
 
     // ======================================================
     // PHOTO SELECT

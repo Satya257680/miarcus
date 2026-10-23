@@ -1,18 +1,15 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, useEffectEvent } from "react";
 import axios from "../../axiosConfig";
 import {
     FaPlus,
-    FaEdit,
-    FaTrash,
     FaTimes,
     FaMagic,
     FaSearch,
     FaLink,
     FaSave,
-    FaChevronDown,
+    FaChevronDown
 } from "react-icons/fa";
 import "../../styles/pages/Quiz.css";
 import "../../styles/premium/PagePremium.css";
@@ -20,6 +17,7 @@ import "../../styles/premium/QuizPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import { FaGraduationCap, FaLayerGroup } from "react-icons/fa";
 import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ======================================================
 // DEFAULT QUIZ
@@ -58,21 +56,6 @@ const emptyQuestion = {
 // QUESTION TYPE LABEL
 // ======================================================
 
-const typeLabel = (type) => {
-    if (type === "single_choice") {
-        return "Single Choice (Radio)";
-    }
-
-    if (type === "multiple_choice") {
-        return "Multiple Choice (Checkbox)";
-    }
-
-    if (type === "text") {
-        return "Text Input (Manual scoring in Training Report)";
-    }
-
-    return String(type || "").replaceAll("_", " ");
-};
 
 // ======================================================
 // RESPONSE HELPER
@@ -288,7 +271,7 @@ const resolveAnswerAgainstOptions = (
 
     // "A) Peacock", "B. Eagle", etc.
     const prefixedMatch = normalizedAnswer.match(
-        /^[A-Z]\s*[\)\.\:\-]\s*(.+)$/i
+        /^[A-Z]\s*[).:-]\s*(.+)$/i
     );
 
     if (prefixedMatch) {
@@ -588,8 +571,6 @@ const resolveGeneratedCorrectAnswer = (
 
 const QuizSetup = () => {
 
-    const navigate =
-        useNavigate();
 
     // ==================================================
     // QUIZ STATE
@@ -854,14 +835,15 @@ const QuizSetup = () => {
     // INITIAL LOAD
     // ==================================================
 
+    const loadQuizzesEvent = useEffectEvent((...args) => loadQuizzes(...args));
     useEffect(
-        () => {
+        () => runAfterCommit(() => {
 
-            loadQuizzes(
+            loadQuizzesEvent(
                 false
             );
 
-        },
+        }),
         []
     );
 
@@ -943,28 +925,6 @@ const QuizSetup = () => {
     // TOTAL POINTS
     // ==================================================
 
-    const totalPoints =
-        useMemo(
-            () =>
-                (
-                    selected?.questions ||
-                    []
-                ).reduce(
-                    (
-                        sum,
-                        question
-                    ) =>
-                        sum +
-                        Number(
-                            question.points ||
-                            0
-                        ),
-                    0
-                ),
-            [
-                selected
-            ]
-        );
 
     // ==================================================
     // CREATE CATEGORY
@@ -2758,36 +2718,6 @@ const QuizSetup = () => {
     // COPY LINK
     // ==================================================
 
-    const copyLink =
-        async () => {
-
-            if (
-                !selected?.public_token
-            ) {
-
-                return;
-            }
-
-            const link =
-                `${window.location.origin}/quiz/${selected.public_token}`;
-
-            try {
-
-                await navigator.clipboard.writeText(
-                    link
-                );
-
-                flash(
-                    "Reusable quiz link copied."
-                );
-
-            } catch {
-
-                flash(
-                    "Unable to copy quiz link."
-                );
-            }
-        };
 
     // ==================================================
     // CHECK CORRECT OPTION

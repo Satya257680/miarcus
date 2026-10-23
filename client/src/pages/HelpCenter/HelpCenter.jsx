@@ -1,11 +1,29 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useEffectEvent } from "react";
 import {
-    FaArrowRight, FaBookOpen, FaChevronDown, FaClock, FaComments,
-    FaHeadset, FaPlus, FaRobot, FaSearch, FaShieldAlt, FaTimes,
-    FaUserTie, FaPaperPlane, FaEdit, FaTrash, FaBolt, FaMicrophone,
-    FaVolumeUp, FaStop, FaMagic, FaHistory, FaRegLightbulb, FaCopy,
-    FaCheck, FaCircleNotch, FaGlobe
+    FaArrowRight,
+    FaBookOpen,
+    FaClock,
+    FaComments,
+    FaHeadset,
+    FaPlus,
+    FaRobot,
+    FaSearch,
+    FaShieldAlt,
+    FaTimes,
+    FaPaperPlane,
+    FaEdit,
+    FaTrash,
+    FaBolt,
+    FaMicrophone,
+    FaVolumeUp,
+    FaStop,
+    FaMagic,
+    FaHistory,
+    FaRegLightbulb,
+    FaCopy,
+    FaCheck,
+    FaGlobe
 } from "react-icons/fa";
 import {
     askZarvis, askPublicZarvis, createHelpTicket, getAdminHelpArticles,
@@ -15,6 +33,7 @@ import {
 } from "../../services/helpCenterService";
 import "../../styles/pages/HelpCenter.css";
 import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const emptyForm = { title: "", question: "", answer: "", category: "General", keywords: "", audience: "both", status: "published", sort_order: 0 };
 const userFromStorage = () => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } };
@@ -72,12 +91,10 @@ function HelpCenter({ publicMode = false }) {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
     const [tab, setTab] = useState(publicMode ? "home" : (requestedTab === "support" ? "support" : requestedTab === "history" ? "history" : "home"));
-    const [articles, setArticles] = useState([]);
+    const [, setArticles] = useState([]);
     const [adminArticles, setAdminArticles] = useState([]);
     const [tickets, setTickets] = useState([]);
-    const [search, setSearch] = useState("");
     const [category, setCategory] = useState("All");
-    const [openId, setOpenId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [botQuestion, setBotQuestion] = useState("");
     const [botMessages, setBotMessages] = useState([{ id: "welcome", from: "zarvis", text: `Hi ${effectiveUserName}! 👋 I'm Zarvis, your Miarcus assistant. Ask me naturally — even if your spelling is not perfect. I can explain modules, screens, workflows and the project structure. For a short follow-up like “explain that” or “how do I do it?”, I use the conversation context.` }]);
@@ -154,9 +171,10 @@ function HelpCenter({ publicMode = false }) {
         }
     };
 
-    useEffect(() => { load(); }, []);
+    const loadEvent = useEffectEvent((...args) => load(...args));
+    useEffect(() => runAfterCommit(() => { loadEvent(); }), []);
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [botMessages]);
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (publicMode || tab !== "history") return;
         let active = true;
         setHistoryLoading(true);
@@ -169,8 +187,8 @@ function HelpCenter({ publicMode = false }) {
             })
             .finally(() => { if (active) setHistoryLoading(false); });
         return () => { active = false; };
-    }, [tab, publicMode]);
-    useEffect(() => {
+    }), [tab, publicMode]);
+    useEffect(() => runAfterCommit(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         setVoiceSupported(Boolean(SpeechRecognition));
         if (!SpeechRecognition) return undefined;
@@ -188,14 +206,9 @@ function HelpCenter({ publicMode = false }) {
             setBotQuestion(transcript);
         };
         recognitionRef.current = recognition;
-        return () => { try { recognition.stop(); } catch {} };
-    }, [language]);
+        return () => { try { recognition.stop(); } catch { /* ignore: recognition already stopped or busy */ } };
+    }), [language]);
 
-    const categories = useMemo(() => ["All", ...new Set(articles.map(a => a.category).filter(Boolean))], [articles]);
-    const filtered = useMemo(() => articles.filter(a => {
-        const hay = `${a.title} ${a.question} ${a.answer} ${a.keywords || ""}`.toLowerCase();
-        return (category === "All" || a.category === category) && (!search.trim() || hay.includes(search.toLowerCase().trim()));
-    }), [articles, category, search]);
     const adminCategories = useMemo(() => ["All", ...new Set(adminArticles.map(a => a.category).filter(Boolean))], [adminArticles]);
     const publishedArticles = useMemo(() => adminArticles.filter(a => {
         const hay = `${a.title} ${a.question} ${a.answer} ${a.keywords || ""} ${a.category || ""}`.toLowerCase();
@@ -204,8 +217,8 @@ function HelpCenter({ publicMode = false }) {
 
     const toggleVoiceInput = () => {
         if (!voiceSupported) { setToast("Voice input is not supported by this browser. Chrome or Edge works best."); return; }
-        if (isListening) { try { recognitionRef.current?.stop(); } catch {} }
-        else { try { recognitionRef.current?.start(); inputRef.current?.focus(); } catch {} }
+        if (isListening) { try { recognitionRef.current?.stop(); } catch { /* ignore: recognition already stopped or busy */ } }
+        else { try { recognitionRef.current?.start(); inputRef.current?.focus(); } catch { /* ignore: recognition already stopped or busy */ } }
     };
 
     const speak = (message, id) => {
@@ -483,6 +496,5 @@ function HelpCenter({ publicMode = false }) {
 }
 
 function TicketConversation({ticket, reply, setReply, onSend}) { return <div className="hc-conversation"><div className="hc-conversation-meta"><span>#{ticket.id} · {ticket.status.replace("_"," ")}</span><b className={`priority ${ticket.priority}`}>{ticket.priority}</b></div><div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_type==='zarvis'?'Zarvis':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}</div><div className="hc-chat-input"><input value={reply} onChange={e=>setReply(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();onSend()}}} placeholder="Reply to support…"/><button onClick={onSend}><FaPaperPlane/></button></div></div>; }
-function AdminTicketView({ticket,onReply,onStatus}) { const [msg,setMsg]=useState(""); if(!ticket)return <div className="hc-admin-ticket-empty"><FaHeadset/><h3>Select a request</h3><p>Choose a support request to reply manually as Zarvis Support.</p></div>; return <div className="hc-admin-ticket"><div className="hc-conversation-meta"><div><strong>#{ticket.id} · {ticket.subject}</strong><small>{ticket.user_name} · {ticket.user_email}</small></div><select value={ticket.status} onChange={e=>onStatus(e.target.value)}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div><div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}</div><div className="hc-chat-input"><input value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Write a manual Zarvis Support reply…"/><button onClick={()=>{if(msg.trim()){onReply(msg.trim());setMsg("")}}}><FaPaperPlane/></button></div></div>; }
 
 export default HelpCenter;

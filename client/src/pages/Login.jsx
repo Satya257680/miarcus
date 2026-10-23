@@ -15,6 +15,7 @@ import axios, { API_BASE_URL } from "../axiosConfig.js";
 import InstallAppButton from "../components/InstallAppButton";
 import { withLegacyAliases } from "../utils/rbac";
 import "./login.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // =================================================================
 // MIARCUS — LOGIN
@@ -66,7 +67,7 @@ function Login() {
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     const email = formData.email.trim();
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -89,7 +90,7 @@ function Login() {
         if (!cancelled) {
           setShowForgotPassword(Boolean(response.data?.isSuperAdmin));
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setShowForgotPassword(false);
         }
@@ -100,7 +101,7 @@ function Login() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [formData.email]);
+  }), [formData.email]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

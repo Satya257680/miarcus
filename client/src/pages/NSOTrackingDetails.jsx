@@ -43,6 +43,7 @@ import {
 
 import storeThumb from "../assets/premium/nso-store.png";
 import "../styles/pages/NSOTrackingPremium.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // NSO DETAILS  (/nso-tracking/:id)
@@ -102,14 +103,14 @@ export function ProgressRing({ value, size = 64, label = "Project Progress", sub
 export default function NSOTrackingDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const permissions = useMemo(nsoPermissions, []);
+    const permissions = useMemo(() => nsoPermissions(), []);
 
     const [project, setProject] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [showAll, setShowAll] = useState(false);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let alive = true;
         setLoading(true);
         getNewStoreOpening(id)
@@ -124,7 +125,7 @@ export default function NSOTrackingDetails() {
         return () => {
             alive = false;
         };
-    }, [id]);
+    }), [id]);
 
     if (loading) {
         return (

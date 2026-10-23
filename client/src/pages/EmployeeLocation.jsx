@@ -3,8 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import {
-    FaBell,
-    FaBuilding,
     FaCalendarAlt,
     FaClock,
     FaCrosshairs,
@@ -25,6 +23,7 @@ import "../styles/premium/AdminPagesPremium.css";
 import "../styles/premium/ModulesPremium.css";
 import PremiumHero from "../components/premium/PremiumHero";
 import InsightStrip from "../components/premium/InsightStrip";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -86,20 +85,20 @@ const EmployeeLocation = () => {
                 }
             );
             setHistory(response.data?.history || []);
-        } catch (err) {
+        } catch {
             setHistory([]);
         } finally {
             setHistoryLoading(false);
         }
     }, [date]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         loadLive();
-    }, [loadLive]);
+    }), [loadLive]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         loadHistory(selected);
-    }, [selected, date, loadHistory]);
+    }), [selected, date, loadHistory]);
 
     useEffect(() => {
         const timer = setInterval(loadLive, 10000);

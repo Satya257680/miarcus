@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { FaMapMarkerAlt, FaCheckCircle, FaShieldAlt } from "react-icons/fa";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // Relative API paths: the shared axios configuration (axiosConfig.js)
 // supplies the correct origin for every environment. The old fallback
@@ -131,6 +132,8 @@ const LocationTrackingGate = () => {
 
   const trackingRef = useRef(false);
   const timerRef = useRef(null);
+  // Removes the visibility listener added by startTracking.
+  const visibilityCleanupRef = useRef(null);
   const sendingRef = useRef(false);
 
   const sendPosition = useCallback(async () => {
@@ -179,7 +182,7 @@ const LocationTrackingGate = () => {
       if (document.visibilityState === "visible") sendPosition();
     };
     document.addEventListener("visibilitychange", onVisible);
-    startTracking._cleanup = () => document.removeEventListener("visibilitychange", onVisible);
+    visibilityCleanupRef.current = () => document.removeEventListener("visibilitychange", onVisible);
   }, [sendPosition]);
 
   const loadStatus = useCallback(async () => {
@@ -253,18 +256,18 @@ const LocationTrackingGate = () => {
     }
   };
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     loadStatus();
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
       timerRef.current = null;
-      if (startTracking._cleanup) startTracking._cleanup();
-      startTracking._cleanup = null;
+      if (visibilityCleanupRef.current) visibilityCleanupRef.current();
+      visibilityCleanupRef.current = null;
       // Allow tracking to restart if this component mounts again (e.g. after
       // logging out and back in without a full page reload).
       trackingRef.current = false;
     };
-  }, [loadStatus, startTracking]);
+  }), [loadStatus, startTracking]);
 
   if (!showConsent && registered) return null;
   if (!showConsent) return null;

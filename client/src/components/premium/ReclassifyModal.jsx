@@ -3,6 +3,7 @@ import axios from "../../axiosConfig.js";
 import { FaMagic, FaTimes, FaArrowRight, FaCheckCircle, FaExclamationTriangle, FaSyncAlt, FaInfoCircle } from "react-icons/fa";
 import "../../styles/premium/ChecklistPremium.css";
 import "../../styles/premium/RecheckModal.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ======================================================
 // RE-CHECK ANSWERS
@@ -118,13 +119,13 @@ export default function ReclassifyModal({ isOpen, onClose, onApplied }) {
     }, [options, onApplied]);
 
     // Preview automatically when the dialog opens.
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!isOpen) { stopPolling(); return; }
         setPreview(null); setResult(null); setError(""); setIncludeMissing(false);
         setFromDate(daysAgo(6)); setToDate(isoDate(new Date()));
         runJob("preview");
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen]);
+    }), [isOpen]);
 
     if (!isOpen) return null;
 

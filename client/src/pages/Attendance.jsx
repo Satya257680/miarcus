@@ -25,6 +25,7 @@ import {
 } from "../services/attendanceService";
 
 import "../styles/pages/Attendance.css";
+import runAfterCommit from "../utils/runAfterCommit";
 
 // ======================================================
 // CONSTANTS
@@ -424,9 +425,9 @@ export default function Attendance() {
     // INITIAL LOAD
     // ==================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         load();
-    }, [load]);
+    }), [load]);
 
     // ==================================================
     // LIVE CLOCK
@@ -531,6 +532,9 @@ export default function Attendance() {
     // CAPTURE PHOTO
     // ==================================================
 
+    // Latest capturePhoto, used by its own "wait for a frame" retry.
+    const capturePhotoRef = useRef(null);
+
     const capturePhoto =
         useCallback(() => {
             if (
@@ -562,7 +566,7 @@ export default function Attendance() {
                 autoCaptureTimerRef.current =
                     setTimeout(
                         () =>
-                            capturePhoto(),
+                            capturePhotoRef.current?.(),
                         500
                     );
 
@@ -635,6 +639,10 @@ export default function Attendance() {
                 0.9
             );
         }, [stopCamera]);
+
+    useEffect(() => {
+        capturePhotoRef.current = capturePhoto;
+    }, [capturePhoto]);
 
     // ==================================================
     // CAMERA START
@@ -831,7 +839,7 @@ export default function Attendance() {
     //     camera stays off.
     // ==================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!context) {
             return;
         }
@@ -846,7 +854,7 @@ export default function Attendance() {
         }
 
         enableCamera();
-    }, [
+    }), [
         context,
         completed,
         photo,
@@ -960,7 +968,7 @@ export default function Attendance() {
     // AUTOMATIC LOCATION ON PAGE LOAD
     // ==================================================
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!context) {
             return;
         }
@@ -1032,7 +1040,7 @@ export default function Attendance() {
         return () => {
             stopLocationWatch();
         };
-    }, [
+    }), [
         context,
         completed,
         getLocation,

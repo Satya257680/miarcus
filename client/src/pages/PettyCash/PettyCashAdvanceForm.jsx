@@ -19,16 +19,19 @@ import "../../styles/premium/PagePremium.css";
 import "./PettyCashPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import {
+    PettyNav,
+    FileDrop,
+    Field
+} from "./pettyCashShared";
+import {
     money,
     today,
     dmy,
     getAccess,
     apiError,
-    PettyNav,
-    FileDrop,
-    Field,
     validateFile
-} from "./pettyCashShared";
+} from "./pettyCashUtils";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const PURPOSE_MAX = 300;
 
@@ -60,7 +63,7 @@ export default function PettyCashAdvanceForm() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let active = true;
         (async () => {
             try {
@@ -94,7 +97,7 @@ export default function PettyCashAdvanceForm() {
             }
         })();
         return () => { active = false; };
-    }, [id, editing]);
+    }), [id, editing]);
 
     const update = (key, value) => {
         setForm((f) => ({ ...f, [key]: value }));

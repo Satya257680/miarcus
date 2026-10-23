@@ -31,6 +31,7 @@ import {
     FaInfoCircle,
 } from "react-icons/fa";
 import "../../styles/NotificationCenter.css";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ==========================================================
 // NOTIFICATION CENTER (premium)
@@ -217,7 +218,7 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
         return () => window.clearInterval(timer);
     }, [open]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         load(true);
 
         // Live updates: short-lived single-use stream ticket, automatic
@@ -259,7 +260,7 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
             stopStream();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refreshMs]);
+    }), [refreshMs]);
 
     // outside click / Escape
     useEffect(() => {

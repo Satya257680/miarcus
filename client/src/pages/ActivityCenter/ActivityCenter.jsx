@@ -1,5 +1,5 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     FaSearch,
@@ -31,6 +31,7 @@ import {
 
 import "../../styles/pages/ActivityCenter.css";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 // ------------------------------------------------------
 // Fallback option lists. The real lists are loaded from
@@ -174,9 +175,9 @@ function ActivityCenter() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         loadOptions();
-    }, [loadOptions]);
+    }), [loadOptions]);
 
     const moduleOptions = useMemo(
         () => mergeOptions(options.modules, DEFAULT_MODULES).filter((m) => m.toLowerCase() !== "employee location"),
@@ -194,7 +195,7 @@ function ActivityCenter() {
     );
 
     // ---------------- LOAD LIST ----------------
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         const requestId = ++requestRef.current;
 
         const run = async () => {
@@ -241,7 +242,7 @@ function ActivityCenter() {
         };
 
         run();
-    }, [applied, page, limit, reloadKey, showToast]);
+    }), [applied, page, limit, reloadKey, showToast]);
 
     // Search applies automatically 450 ms after typing stops.
     useEffect(() => {

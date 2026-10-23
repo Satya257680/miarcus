@@ -53,6 +53,7 @@ import "../../styles/premium/AdminPagesPremium.css";
 import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import { exportFromCSV } from "../../utils/exportUtils.js";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 
 const departmentScoringStyles = `
@@ -330,6 +331,10 @@ const emptyFilters = {
    SALES REVIEW
 ========================================================= */
 
+// Unique upload name for a manually added entry. Kept outside the
+// component because Date.now() is not allowed during render.
+const salesEntryFileName = () => `sales-review-entry-${Date.now()}.csv`;
+
 function SalesReview() {
   const permission = "Sales Review";
 
@@ -387,7 +392,7 @@ function SalesReview() {
 
   const [departments, setDepartments] = useState([]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     let mounted = true;
 
     const loadDepartments = async () => {
@@ -419,7 +424,7 @@ function SalesReview() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }), []);
 
   const [selectedScoreStore, setSelectedScoreStore] = useState("");
 
@@ -440,7 +445,7 @@ function SalesReview() {
     return [];
   }, [rows, scorePeriodType]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     let mounted = true;
     const loadStores = async () => {
       setStoresLoading(true);
@@ -459,24 +464,24 @@ function SalesReview() {
     };
     loadStores();
     return () => { mounted = false; };
-  }, []);
+  }), []);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!scorePeriodValue && periodOptions.length) setScorePeriodValue(periodOptions[0]);
-  }, [periodOptions, scorePeriodValue]);
+  }), [periodOptions, scorePeriodValue]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (scorePeriodType === "day") return;
     if (scorePeriodValue && periodOptions.includes(scorePeriodValue)) return;
     if (!periodOptions.length) setScorePeriodValue("");
-  }, [scorePeriodType, periodOptions, scorePeriodValue]);
+  }), [scorePeriodType, periodOptions, scorePeriodValue]);
 
   const scoreStorageKey = useMemo(() => {
     const period = scorePeriodValue || `all-${scorePeriodType}s`;
     return `miarcus-sales-review-department-scores:${period}:${filters.years || "all-years"}`;
   }, [scorePeriodType, scorePeriodValue, filters.years]);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(scoreStorageKey) || "{}");
       setDepartmentScores(saved?.scores && typeof saved.scores === "object" ? saved.scores : {});
@@ -486,7 +491,7 @@ function SalesReview() {
       setDepartmentScores({});
       setScoresSavedAt("");
     }
-  }, [scoreStorageKey]);
+  }), [scoreStorageKey]);
 
   const selectScoringStore = (storeName) => {
     setSelectedScoreStore(storeName);
@@ -711,7 +716,7 @@ function SalesReview() {
 
     const file = new File(
       [csv],
-      `sales-review-entry-${Date.now()}.csv`,
+      salesEntryFileName(),
       { type: "text/csv;charset=utf-8" }
     );
 
@@ -813,9 +818,9 @@ function SalesReview() {
      INITIAL LOAD
   ======================================================= */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     load();
-  }, [load]);
+  }), [load]);
 
   /* =======================================================
      FILTER
@@ -1108,48 +1113,6 @@ function SalesReview() {
      SUMMARY
   ======================================================= */
 
-  const summary = useMemo(
-    () => {
-      if (!rows.length) {
-        return {
-          target: 0,
-          mtd: 0,
-          projection: 0,
-        };
-      }
-
-      return rows.reduce(
-        (
-          result,
-          row
-        ) => ({
-          target:
-            result.target +
-            Number(
-              row.target || 0
-            ),
-
-          mtd:
-            result.mtd +
-            Number(
-              row.mtd || 0
-            ),
-
-          projection:
-            result.projection +
-            Number(
-              row.projection || 0
-            ),
-        }),
-        {
-          target: 0,
-          mtd: 0,
-          projection: 0,
-        }
-      );
-    },
-    [rows]
-  );
 
   /* =======================================================
      LIVE SALES PULSE

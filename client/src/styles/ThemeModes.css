@@ -329,3 +329,148 @@
 :root[data-miarcus-mode="dark"] body .layout main.page-content :is(.ap-preview, .ap-mini, .ap-preset-tile) {
     color: inherit !important;
 }
+
+/* ---------------------------------------------------------------------
+   7. NIGHT MODE — page canvases
+   Several pages paint their own light canvas (#f2effa, #f6f5fb …). In a
+   dark theme the headings on that canvas turn white, so the canvas must
+   follow the theme too, otherwise titles disappear.
+--------------------------------------------------------------------- */
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content > :is(
+    .dashboard-page, .store-status-page, .settings-page,
+    [class$="-page"], [class*="-page "]
+) {
+    background: transparent !important;
+    color: var(--mi-text) !important;
+}
+
+/* ---------------------------------------------------------------------
+   8. MIARCUS NEON GLASS — premium pages use the glass tokens
+   (Neon Glass headings are light, so cards must not stay white.)
+--------------------------------------------------------------------- */
+:root[data-miarcus-theme="neon-glass"] .pp-premium {
+    --pp-ink: var(--mi-text-strong);
+    --pp-ink-2: var(--mi-text);
+    --pp-muted: var(--mi-muted);
+    --pp-faint: var(--mi-muted);
+    --pp-bg: transparent;
+    --pp-card: var(--mi-surface);
+    --pp-card-2: var(--mi-surface-2);
+    --pp-line: var(--mi-border);
+    --pp-line-2: var(--mi-border);
+    --pp-violet-soft: rgba(189, 123, 255, 0.2);
+    --pp-green-soft: rgba(5, 150, 105, 0.22);
+    --pp-amber-soft: rgba(217, 119, 6, 0.22);
+    --pp-red-soft: rgba(220, 38, 38, 0.22);
+    --pp-blue-soft: rgba(37, 99, 235, 0.22);
+    --pp-th: var(--mi-surface-2);
+    --pp-shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35);
+    --pp-shadow: 0 16px 38px rgba(0, 0, 0, 0.45);
+    color: var(--mi-text);
+}
+
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .pp-premium :is(
+    .premium-insight, .st-section
+) {
+    background: var(--mi-surface) !important;
+    border-color: var(--mi-border) !important;
+    color: var(--mi-text) !important;
+}
+
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .pp-premium :is(
+    .premium-insight-label, .premium-insight-value, .st-section-head h2
+) {
+    color: var(--mi-text-strong) !important;
+}
+
+:root[data-miarcus-theme="neon-glass"] body .layout main.page-content .pp-premium :is(
+    .premium-insight-hint, .st-section-head p
+) {
+    color: var(--mi-muted) !important;
+}
+
+/* ---------------------------------------------------------------------
+   9. Self-contained light panels keep their own dark text at night
+   (the branded loading card is always drawn on a light background).
+--------------------------------------------------------------------- */
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .pl-root :is(
+    .pl-title, .pl-step-label, .pl-count, .pl-tip b
+) {
+    color: var(--pl-navy) !important;
+    -webkit-text-fill-color: currentColor;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .pl-root :is(
+    p, .pl-message, .pl-caption, .pl-tip span
+) {
+    color: var(--pl-text) !important;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .pl-root .pl-tagline {
+    color: #4d4f73 !important;
+}
+
+/* ---------------------------------------------------------------------
+   10. NIGHT MODE — light strips and dark-violet labels found in modules
+   (pagination bars, save bars, count pills, eyebrow labels). Each keeps
+   its meaning but switches to a colour that is readable on dark.
+--------------------------------------------------------------------- */
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content :is(
+    .sm-pagination, .pf-savebar
+) {
+    background: var(--mi-surface-2) !important;
+    border-color: var(--mi-border) !important;
+    color: var(--mi-text) !important;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .sm-filter-btn:not(.is-on) .sm-filter-count {
+    background: var(--mi-surface-2) !important;
+    color: var(--mi-text-strong) !important;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content :is(
+    .clear-filter-btn, .announcement-clear-toolbar-btn, .page-info,
+    .pagination-left, .pagination-left span, .users-footer .pagination span,
+    .pf-count, .sst-live b, .dashboard-username
+) {
+    color: var(--mi-text-strong) !important;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .st-eyebrow {
+    color: color-mix(in srgb, var(--st-a, var(--mi-accent)) 55%, #ffffff) !important;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .dashboard-greeting {
+    color: color-mix(in srgb, var(--mi-accent) 50%, #ffffff) !important;
+    -webkit-text-fill-color: currentColor;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .pf-alert--error {
+    color: #fca5a5 !important;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .store-status-page .is-on {
+    color: #86efac !important;
+}
+
+:root[data-miarcus-mode="dark"][data-miarcus-theme] body .layout main.page-content .store-status-page .is-off {
+    color: #fca5a5 !important;
+}
+
+/* ---------------------------------------------------------------------
+   11. HIGH CONTRAST — light buttons and tabs become black with yellow
+   text (the theme's text colour); the selected tab is yellow on black.
+--------------------------------------------------------------------- */
+:root[data-miarcus-theme="high-contrast"] body .layout main.page-content :is(
+    .pp-hero-btn--solid, [class*="btn--soft"], [class$="-tabs"] button
+) {
+    background: #000000 !important;
+    color: #ffff00 !important;
+    border: 1px solid #ffff00 !important;
+    box-shadow: none !important;
+}
+
+:root[data-miarcus-theme="high-contrast"] body .layout main.page-content [class$="-tabs"] button:is(.active, .is-on, [aria-selected="true"]) {
+    background: #ffff00 !important;
+    color: #000000 !important;
+}

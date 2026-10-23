@@ -19,21 +19,24 @@ import PremiumHero from "../../components/premium/PremiumHero";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
 import {
+    PettyNav,
+    FileLink,
+    StatusPill,
+    Pager,
+    SortTh
+} from "./pettyCashShared";
+import {
     money,
     dmy,
     dateTime,
     getAccess,
     apiError,
-    PettyNav,
-    FileLink,
-    StatusPill,
     usePager,
-    Pager,
     sortRows,
-    SortTh,
-    EXPENSE_TYPES
-} from "./pettyCashShared";
-import { auditLabel } from "./PettyCashDetail";
+    EXPENSE_TYPES,
+    auditLabel
+} from "./pettyCashUtils";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 const EMPTY = { search: "", store: "", from: "", to: "", expense_type: "", action: "" };
 
@@ -122,12 +125,12 @@ function PettyCashRegister({ type }) {
         }
     };
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         setFilters(EMPTY);
         load(EMPTY);
         axios.get("/api/petty-cash/options").then((r) => setStores(r.data?.data?.stores || [])).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [type]);
+    }), [type]);
 
     const sorted = useMemo(() => sortRows(rows, sort), [rows, sort]);
     const pager = usePager(sorted, 15);

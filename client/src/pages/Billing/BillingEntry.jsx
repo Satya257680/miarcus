@@ -1,8 +1,8 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState
 } from "react";
 
 import {
@@ -11,23 +11,22 @@ import {
 } from "react-router-dom";
 
 import {
-  FaArrowLeft,
-  FaPlus,
-  FaTrash,
-  FaStore,
-  FaUser,
-  FaCalendarAlt,
-  FaFileInvoiceDollar,
-  FaCreditCard,
-  FaMoneyBillWave,
-  FaUniversity,
-  FaSave,
-  FaExclamationTriangle,
-  FaCheckCircle,
-  FaTimes,
-  FaCalculator,
-  FaSpinner,
-  FaReceipt,
+    FaArrowLeft,
+    FaPlus,
+    FaTrash,
+    FaStore,
+    FaUser,
+    FaCalendarAlt,
+    FaFileInvoiceDollar,
+    FaCreditCard,
+    FaMoneyBillWave,
+    FaUniversity,
+    FaSave,
+    FaExclamationTriangle,
+    FaCheckCircle,
+    FaTimes,
+    FaCalculator,
+    FaSpinner
 } from "react-icons/fa";
 
 import {
@@ -43,12 +42,12 @@ import "../../styles/premium/AdminPagesPremium.css";
 import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import confirmWithGlass from "../../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../../utils/runAfterCommit";
 
 /* ======================================================
    CONSTANTS
 ====================================================== */
 
-const REQUEST_TIMEOUT = 30000;
 
 const PAYMENT_TYPES = [
   "Cash",
@@ -241,7 +240,7 @@ export default function BillingEntry() {
   const isEdit = Boolean(editId);
   const [loadingBill, setLoadingBill] = useState(isEdit);
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
     if (!isEdit) return undefined;
     let mounted = true;
 
@@ -301,13 +300,13 @@ export default function BillingEntry() {
     return () => {
       mounted = false;
     };
-  }, [isEdit, editId]);
+  }), [isEdit, editId]);
 
   /* ====================================================
      LOAD STORES
   ==================================================== */
 
-  useEffect(() => {
+  useEffect(() => runAfterCommit(() => {
 
     let mounted = true;
 
@@ -377,7 +376,7 @@ export default function BillingEntry() {
       mounted = false;
     };
 
-  }, []);
+  }), []);
 
   /* ====================================================
      FORM UPDATE

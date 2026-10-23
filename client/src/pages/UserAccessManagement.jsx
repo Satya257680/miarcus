@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios, { API_BASE_URL } from '../axiosConfig.js';
 import '../styles/UserAccessManagement.css';
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const API = `${API_BASE_URL}/api`;
 const modules = ['Dashboard', 'Action Points', 'Checklist Reports', 'Checklist Submission', 'Checklist Types', 'Questions', 'Departments', 'Designations', 'Store Management', 'Users', 'NSO Rules', 'New Store Openings', 'Attendance', 'Daily Collection', 'Billing', 'Collection Tracking', 'Announcements', 'Gallery', 'Asset Master', 'Visit Planner', 'Travel Plan', 'Expenses', 'Petty Cash', 'Inventory Planning'];
@@ -14,6 +15,10 @@ const listFrom = (data, keys) => {
 const getId = x => Number(x.id ?? x.store_id ?? x.department_id ?? x.checklist_type_id);
 const getLabel = (x, kind) => x.name || x.store_name || x.department_name || x.checklist_type_name || x.type_name || x.title || `${kind} ${getId(x)}`;
 const initial = { department_ids: null, all_departments: null, store_ids: null, all_stores: null, checklist_type_ids: null, all_checklist_types: null, module_names: null };
+
+// Auth header built from the current token on every request (not once per
+// render), so callbacks never need it as a dependency.
+const authConfig = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
 export default function UserAccessManagement() {
   const [users, setUsers] = useState([]);
@@ -28,17 +33,15 @@ export default function UserAccessManagement() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
-  const token = localStorage.getItem('token');
-  const config = { headers: { Authorization: `Bearer ${token}` } };
 
   const load = useCallback(async () => {
     setLoading(true); setNotice('');
     try {
       const [u, d, s, c] = await Promise.allSettled([
-        axios.get(`${API}/users/access-config`, config),
-        axios.get(`${API}/departments`, config),
-        axios.get(`${API}/stores`, config),
-        axios.get(`${API}/checklist-types`, config),
+        axios.get(`${API}/users/access-config`, authConfig()),
+        axios.get(`${API}/departments`, authConfig()),
+        axios.get(`${API}/stores`, authConfig()),
+        axios.get(`${API}/checklist-types`, authConfig()),
       ]);
       if (u.status !== 'fulfilled') throw u.reason;
       setUsers(listFrom(u.value.data, ['users']));
@@ -50,7 +53,7 @@ export default function UserAccessManagement() {
     } catch (e) { setNotice(e?.response?.data?.message || 'Unable to load user access. Sign in with an administrator account.'); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => runAfterCommit(() => { load(); }), [load]);
 
   const filtered = useMemo(() => users.filter(u => {
     const text = `${u.name || ''} ${u.employee_id || ''} ${u.email || ''} ${u.department || ''} ${u.designation || ''}`.toLowerCase();
@@ -61,7 +64,7 @@ export default function UserAccessManagement() {
   const edit = async user => {
     setSelected(user); setDirty({}); setNotice('');
     try {
-      const { data } = await axios.get(`${API}/users/${user.id}/access-config`, config);
+      const { data } = await axios.get(`${API}/users/${user.id}/access-config`, authConfig());
       setDraft({ ...initial, ...(data.access || {}) });
     } catch (e) { setDraft({ ...initial }); setNotice(e?.response?.data?.message || 'Could not load this user’s settings.'); }
   };
@@ -76,7 +79,7 @@ export default function UserAccessManagement() {
     try {
       if (!Object.keys(dirty).length) { setSelected(null); return; }
       const changed = Object.fromEntries(Object.keys(dirty).map(key => [key, draft[key]]));
-      await axios.put(`${API}/users/${selected.id}/access-config`, changed, config);
+      await axios.put(`${API}/users/${selected.id}/access-config`, changed, authConfig());
       setSelected(null); await load(); setNotice('Changes saved. Only the fields you edited are customized; other access settings remain unchanged.');
     } catch (e) { setNotice(e?.response?.data?.message || 'Could not save access settings.'); }
     finally { setSaving(false); }
@@ -84,7 +87,7 @@ export default function UserAccessManagement() {
   const reset = async () => {
     if (!selected || !(await confirmWithGlass({ title: "Reset Access Overrides", message: `Remove all custom access overrides for ${selected.name}? Existing role-based rules will apply.`, confirmText: "Reset", danger: false }))) return;
     setSaving(true);
-    try { await axios.delete(`${API}/users/${selected.id}/access-config`, config); setSelected(null); await load(); setNotice('Custom overrides removed. Existing/default rules apply.'); }
+    try { await axios.delete(`${API}/users/${selected.id}/access-config`, authConfig()); setSelected(null); await load(); setNotice('Custom overrides removed. Existing/default rules apply.'); }
     catch (e) { setNotice(e?.response?.data?.message || 'Could not reset access.'); }
     finally { setSaving(false); }
   };

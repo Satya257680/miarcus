@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "../axiosConfig.js";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useEffectEvent } from "react";
 import { useRbacVersion } from "../hooks/usePermission";
 import { nsoPermissions } from "../utils/nsoTracking";
 
@@ -57,6 +57,7 @@ import {
     formatCount
 } from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function NewStoreOpenings() {
 
@@ -638,7 +639,8 @@ function NewStoreOpenings() {
     // LOAD ON PAGE / SEARCH CHANGE
     // ======================================================
 
-    useEffect(() => {
+    const fetchNewStoreOpeningsEvent = useEffectEvent((...args) => fetchNewStoreOpenings(...args));
+    useEffect(() => runAfterCommit(() => {
 
         if (!canView) {
 
@@ -648,9 +650,9 @@ function NewStoreOpenings() {
 
         }
 
-        fetchNewStoreOpenings();
+        fetchNewStoreOpeningsEvent();
 
-    }, [
+    }), [
         currentPage,
         pageSize,
         search,

@@ -35,6 +35,7 @@ import PremiumHero from "../components/premium/PremiumHero";
 import { formatCount } from "../utils/premiumFormat";
 import GalleryCamera from "../components/gallery/GalleryCamera";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 const getStoredUser = () => {
     try {
@@ -187,7 +188,7 @@ function ProtectedGalleryFile({ file, alt, className = "", compact = false }) {
     // shown as its file-type icon, so it is not downloaded at all.
     const needsDownload = !compact || fileKind(file?.mime_type) === "image";
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         let active = true;
         let objectUrl = "";
         let job = null;
@@ -224,7 +225,7 @@ function ProtectedGalleryFile({ file, alt, className = "", compact = false }) {
             controller?.abort();
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
-    }, [file?.id, compact, needsDownload, nearViewport, attempt]);
+    }), [file?.id, compact, needsDownload, nearViewport, attempt]);
 
     const kind = fileKind(file?.mime_type);
 
@@ -330,7 +331,7 @@ const permissions = () => {
 };
 
 export default function Gallery() {
-    const user = useMemo(getStoredUser, []);
+    const user = useMemo(() => getStoredUser(), []);
     const isAdmin =
         [true, 1, "1"].includes(user?.is_admin) ||
         [true, 1, "1"].includes(user?.administrator);
@@ -461,16 +462,16 @@ export default function Gallery() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         loadGallery(1);
-    }, [loadGallery]);
+    }), [loadGallery]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         loadCategories();
         loadLocations();
-    }, [loadCategories, loadLocations]);
+    }), [loadCategories, loadLocations]);
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!uploadFile) {
             setUploadPreview("");
             return undefined;
@@ -480,7 +481,7 @@ export default function Gallery() {
         setUploadPreview(url);
 
         return () => URL.revokeObjectURL(url);
-    }, [uploadFile]);
+    }), [uploadFile]);
 
     const captureLocation = () => {
         if (!navigator.geolocation) {
@@ -768,7 +769,7 @@ export default function Gallery() {
         }
     };
 
-    useEffect(() => {
+    useEffect(() => runAfterCommit(() => {
         if (!showQr || !qr?.sessionId) return undefined;
 
         let active = true;
@@ -805,7 +806,7 @@ export default function Gallery() {
             active = false;
             window.clearInterval(timer);
         };
-    }, [
+    }), [
         showQr,
         qr?.sessionId,
         loadGallery,

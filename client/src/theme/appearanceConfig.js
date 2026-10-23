@@ -15,7 +15,7 @@
 export const THEMES = [
     {
         id: "miarcus-original",
-        name: "Miarcus Original",
+        name: "MIARCUS Original",
         description: "The signature MIARCUS purple workspace.",
         icon: "🧸",
         mode: "light",
@@ -282,14 +282,14 @@ export const FONT_FAMILIES = [
         name: "Rounded",
         sample: "Quicksand",
         description: "Friendlier, softer letterforms.",
-        stack: "'Quicksand', 'Varela Round', Arial, sans-serif"
+        stack: "'Quicksand', 'Nunito', 'Varela Round', Arial, sans-serif"
     },
     {
         id: "modern",
         name: "Modern",
         sample: "Plus Jakarta Sans",
         description: "Geometric premium sans.",
-        stack: "'Plus Jakarta Sans', 'Inter', 'Segoe UI', Arial, sans-serif"
+        stack: "'Plus Jakarta Sans', 'Poppins', 'Inter', 'Segoe UI', Arial, sans-serif"
     },
     {
         id: "serif",
@@ -342,15 +342,17 @@ export const MOTION_OPTIONS = [
     { id: "reduced", name: "Reduced" }
 ];
 
-// One-click looks that set theme + accent + font together.
+// One-click looks that set theme + accent + font together. A preset is
+// only a shortcut: applying one writes the same theme / accentColor /
+// fontFamily keys the individual controls use (no separate state).
 export const PRESETS = [
-    { id: "p-original", name: "MIARCUS Classic", theme: "miarcus-original", accentColor: "purple", fontFamily: "default" },
-    { id: "p-neon-glass", name: "Neon Glass", theme: "neon-glass", accentColor: "violet", fontFamily: "modern" },
-    { id: "p-premium", name: "Premium Violet", theme: "lavender", accentColor: "violet", fontFamily: "modern" },
-    { id: "p-exec", name: "Executive", theme: "royal", accentColor: "gold", fontFamily: "serif" },
-    { id: "p-calm", name: "Calm Focus", theme: "nord", accentColor: "blue", fontFamily: "system" },
-    { id: "p-night", name: "Night Shift", theme: "aurora", accentColor: "teal", fontFamily: "modern" },
-    { id: "p-fresh", name: "Fresh Retail", theme: "emerald", accentColor: "green", fontFamily: "rounded" }
+    { id: "p-original", name: "MIARCUS Classic", description: "The signature purple workspace.", theme: "miarcus-original", accentColor: "purple", fontFamily: "default" },
+    { id: "p-neon-glass", name: "MIARCUS Neon Glass", description: "Deep navy glass with neon edges.", theme: "neon-glass", accentColor: "violet", fontFamily: "modern" },
+    { id: "p-premium", name: "Premium Violet", description: "Soft lavender with a modern type.", theme: "lavender", accentColor: "violet", fontFamily: "modern" },
+    { id: "p-exec", name: "Executive", description: "Royal plum, gold and classic serif.", theme: "royal", accentColor: "gold", fontFamily: "serif" },
+    { id: "p-calm", name: "Calm Focus", description: "Low-glare arctic tones for long days.", theme: "nord", accentColor: "blue", fontFamily: "system" },
+    { id: "p-night", name: "Night Shift", description: "Dark mode with a teal glow.", theme: "aurora", accentColor: "teal", fontFamily: "modern" },
+    { id: "p-fresh", name: "Fresh Retail", description: "Crisp emerald with friendly lettering.", theme: "emerald", accentColor: "green", fontFamily: "rounded" }
 ];
 
 export const DEFAULT_PREFERENCES = Object.freeze({

@@ -26,6 +26,7 @@ import InsightStrip from "../components/premium/InsightStrip";
 import { FaUsers, FaUserCheck, FaUserShield, FaSitemap, FaTimes as FaClear, FaEdit as FaEditIcon, FaBan } from "react-icons/fa";
 import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 import confirmWithGlass from "../components/common/ConfirmDialog/confirmWithGlass.jsx";
+import runAfterCommit from "../utils/runAfterCommit";
 
 function Users() {
 
@@ -79,8 +80,6 @@ const [showBulkModal, setShowBulkModal] =
 const [showDeleteModal, setShowDeleteModal] =
   useState(false);
 
-const [selectedFile, setSelectedFile] =
-  useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
 const usersPerPage = 10;
@@ -142,21 +141,7 @@ const isProtectedUser = (user) =>
   }
 };
 
-useEffect(() => {
-  fetchUsers();
-  fetchManagers();
-  fetchDepartments();
-}, []);
 
-useEffect(() => {
-  const viewUserId = Number(location.state?.viewUserId || 0);
-  if (!viewUserId || !users.length) return;
-  const found = users.find((item) => Number(item.id) === viewUserId);
-  if (found) {
-    setViewingUser(found);
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-}, [location.state, users]);
 const fetchManagers = async () => {
   try {
     const res = await axios.get(
@@ -247,7 +232,8 @@ const handleBulkUpload = async (file) => {
     throw new Error(
       err.response?.data?.message ||
       err.message ||
-      "Bulk upload failed."
+      "Bulk upload failed.",
+      { cause: err }
     );
   }
 };
@@ -365,13 +351,6 @@ const disableUser = async (id, user) => {
 // Edit User
 // ============================
 
-const editUser = (user) => {
-
-  alert("Edit feature will open AddUserModal.");
-
-  // We'll connect this to your AddUserModal next.
-
-};
 
 // ============================
 // Dropdown Data
@@ -430,9 +409,25 @@ const fetchDepartments = async () => {
     console.log(err);
   }
 };
+
+useEffect(() => runAfterCommit(() => {
+  fetchUsers();
+  fetchManagers();
+  fetchDepartments();
+}), []);
 const [showAddModal, setShowAddModal] = useState(false);
 const [editingUser, setEditingUser] = useState(null);
 const [viewingUser, setViewingUser] = useState(null);
+
+useEffect(() => runAfterCommit(() => {
+  const viewUserId = Number(location.state?.viewUserId || 0);
+  if (!viewUserId || !users.length) return;
+  const found = users.find((item) => Number(item.id) === viewUserId);
+  if (found) {
+    setViewingUser(found);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}), [location.state, users]);
 
 const indexOfLastUser = currentPage * usersPerPage;
 
