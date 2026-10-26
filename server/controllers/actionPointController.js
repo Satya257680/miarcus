@@ -1239,6 +1239,11 @@ exports.updateActionPoint = async (req, res) => {
 
     try {
 
+        // Photo rule (Administrator setting): closing / changing status
+        // through Edit must not bypass a mandatory Take Action photo.
+        // An image attached in Edit counts as the photo.
+        await actionPointService.assertEditPhotoRule(req.params.id, req.body, req.file);
+
         const attachment = req.file
             ? storedUploadPath(req.file)
             : null;
@@ -1285,20 +1290,49 @@ exports.getAssignees = async (req, res) => {
 // PUT /api/action-points/:id/take-action
 // ======================================================
 
+// Removes uploaded temp files when a request is rejected, so a failed
+// Take Action never leaves orphan photos on disk.
+const discardUploads = (files = []) => {
+    for (const file of files) {
+        if (file?.path) fs.unlink(file.path, () => {});
+    }
+};
+
 exports.takeAction = async (req, res) => {
 
+    const photoFiles = Array.isArray(req.files) ? req.files : [];
+
     try {
+
+        // Only images are accepted as Take Action photos.
+        const notImage = photoFiles.find(
+            (file) => !String(file?.mimetype || "").toLowerCase().startsWith("image/")
+        );
+        if (notImage) {
+            const err = new Error("Only photos (JPG, PNG, WEBP, GIF) can be attached in Take Action.");
+            err.statusCode = 400;
+            throw err;
+        }
+
+        const photos = photoFiles.map((file) => storedUploadPath(file)).filter(Boolean);
 
         const result = await actionPointService.takeAction(
             req.params.id,
             req.body,
-            req.user.id
+            req.user.id,
+            photos
         );
+
+        // Lets the Gallery sync tag the photos with the Action Point's store.
+        if (photos.length && result?.store_id && req.body) {
+            req.body.store_id = result.store_id;
+        }
 
         return res.status(200).json(result);
 
     }
     catch (error) {
+        discardUploads(photoFiles);
         console.error("TAKE ACTION ERROR:", error);
         return res.status(error.statusCode || 500).json({
             success: false,
@@ -1348,6 +1382,7 @@ exports.changeActionPointStatus = async (req, res) => {
         return res.status(error.statusCode || 500).json({
             success: false,
             message: error.statusCode ? error.message : "Unable to update Action Point status.",
+            code: error.code || undefined,
             error: error.message
         });
     }

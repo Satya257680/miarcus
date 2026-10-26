@@ -1478,6 +1478,36 @@ ActionPoint.takeAction = async (
 
 
         // ============================================
+        // TAKE ACTION PHOTOS
+        //
+        // New photos are APPENDED to the Action Point's
+        // photo list (JSON array of "uploads/..." paths),
+        // so every step keeps its own evidence.
+        // ============================================
+
+        if (Array.isArray(data.action_photos) && data.action_photos.length) {
+            const [photoRows] = await connection.execute(
+                `SELECT action_photos FROM action_points WHERE id = ?`,
+                [id]
+            );
+
+            let existing = [];
+            try {
+                const raw = photoRows?.[0]?.action_photos;
+                const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+                if (Array.isArray(parsed)) existing = parsed;
+            } catch {
+                existing = [];
+            }
+
+            await connection.execute(
+                `UPDATE action_points SET action_photos = ? WHERE id = ?`,
+                [JSON.stringify([...existing, ...data.action_photos]), id]
+            );
+        }
+
+
+        // ============================================
         // CHECKLIST ANSWER
         //
         // Only update this when this Action Point
@@ -1644,6 +1674,21 @@ ActionPoint.ensureRuleForeignKeyRemoved = async () => {
         if (!name) continue;
         await db.query(`ALTER TABLE action_points DROP FOREIGN KEY \`${name}\``);
         console.log(`✅ action_points: dropped stale foreign key ${name} on rule_id`);
+    }
+};
+
+// ======================================================
+// ENSURE TAKE ACTION PHOTOS COLUMN
+// JSON array (stored as TEXT for MySQL/MariaDB compatibility) of the
+// photos attached through "Take Action". Each step's own photos are
+// also kept in action_point_history.new_data.action_photos.
+// ======================================================
+
+ActionPoint.ensureActionPhotosColumn = async () => {
+    const rows = await db.query(`SHOW COLUMNS FROM action_points LIKE 'action_photos'`);
+    if (!rows || rows.length === 0) {
+        await db.query(`ALTER TABLE action_points ADD COLUMN action_photos TEXT NULL AFTER attachment`);
+        console.log("✅ action_points.action_photos added");
     }
 };
 

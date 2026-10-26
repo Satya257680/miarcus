@@ -343,6 +343,12 @@ router.put(
     ),
     apScope,
     requireActionPointInScope(),
+    // Optional "Take Action" photos (camera or gallery). Parsed only
+    // after the permission + scope checks so an out-of-scope user can
+    // never write files to disk. A plain JSON body (no photo) still
+    // works exactly as before — multer skips non-multipart requests.
+    upload.array("action_photos", 5),
+    syncGalleryAttachment("Action Points", "action_photos"),
     takeAction
 );
 

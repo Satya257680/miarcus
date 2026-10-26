@@ -1,5 +1,12 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
 import ActionPointEditModal from "../components/actionPoints/ActionPointEditModal";
+import {
+    TakeActionPhotoField,
+    PhotoRuleAdminSwitch,
+    PhotoRuleNote,
+    ActionPhotoThumbs
+} from "../components/actionPoints/TakeActionPhotos";
+import { isPhotoRequired, historyPhotos, historyActionTaken } from "../utils/actionPointPhotos";
 import { attachmentName, hasAttachment, openAttachment } from "../utils/attachments";
 import { useEffect, useRef, useState, useEffectEvent } from "react";
 import axios from "../axiosConfig.js";
@@ -358,6 +365,12 @@ function ActionPoints() {
     const [remarks, setRemarks] = useState("");
     const [actionComment, setActionComment] = useState("");
     const [actionStatus, setActionStatus] = useState("Closed");
+    const [actionPhotos, setActionPhotos] = useState([]);
+    const [savingAction, setSavingAction] = useState(false);
+
+    // Take Action photo rule (Administrator on/off). Photo is optional
+    // unless an Administrator switches "Photo mandatory" ON.
+    const [photoSettings, setPhotoSettings] = useState({ photo_mandatory: 0, mandatory_scope: "close" });
     const [showReclassify, setShowReclassify] = useState(false);
 
     // KPI tiles – refreshed every time the list reloads.
@@ -436,6 +449,35 @@ function ActionPoints() {
     const canDelete =
 
         permission === "Full";
+
+    // ======================================================
+    // TAKE ACTION PHOTO RULE
+    // ======================================================
+
+    // Errors keep the current rule ("optional" by default) – the rule
+    // must never block the form from opening.
+    const loadPhotoSettings = () =>
+        axios
+            .get("/api/action-point-photo-settings")
+            .then((res) => {
+                if (res.data?.data) setPhotoSettings(res.data.data);
+            })
+            .catch(() => {});
+
+    useEffect(() => {
+        let active = true;
+        axios
+            .get("/api/action-point-photo-settings")
+            .then((res) => {
+                if (active && res.data?.data) setPhotoSettings(res.data.data);
+            })
+            .catch(() => {});
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const photoRequiredFor = (status) => isPhotoRequired(photoSettings, status);
             // ======================================================
 // LOAD ACTION POINTS
 // ======================================================
@@ -726,13 +768,21 @@ const openHistory = async (row) => {
 
 const handleNextAction = async (row, value) => {
     if (!canEdit) return;
-    if (value === "Closed" || value === "Completed") {
+    // Closing always goes through Take Action. When an Admin has made
+    // the photo mandatory for EVERY action, Open / In Progress also
+    // opens Take Action so the photo can be attached.
+    const mustUseTakeAction =
+        value === "Closed" || value === "Completed" ||
+        (Number(photoSettings?.photo_mandatory) === 1 && photoSettings?.mandatory_scope === "all");
+    if (mustUseTakeAction) {
         setSelectedAction(row);
-        setActionStatus("Closed");
+        setActionStatus(value === "Completed" ? "Closed" : value);
         setActionTaken("");
         setRemarks(row.remarks || "");
         setActionComment(row.comment || "");
+        setActionPhotos([]);
         setShowOpenModal(true);
+        loadPhotoSettings();
         return;
     }
 
@@ -952,8 +1002,12 @@ const handleOpen = (row) => {
     setRemarks(row.remarks || "");
     setActionComment(row.comment || "");
     setActionStatus("Closed");
+    setActionPhotos([]);
 
     setShowOpenModal(true);
+
+    // Refresh the rule in case an Admin changed it meanwhile.
+    loadPhotoSettings();
 
 };
 
@@ -964,15 +1018,36 @@ const handleOpen = (row) => {
 // ======================================================
 
 const saveActionPoint = async () => {
+    if (savingAction) return;
+
+    if (actionStatus === "Closed" && !String(actionTaken || "").trim()) {
+        alert("Action Taken is required when closing an Action Point.");
+        return;
+    }
+
+    if (photoRequiredFor(actionStatus) && actionPhotos.length === 0) {
+        alert(
+            actionStatus === "Closed"
+                ? "A photo is mandatory to close this Action Point. Please take or upload a photo."
+                : "A photo is mandatory for this action. Please take or upload a photo."
+        );
+        return;
+    }
+
     try {
+        setSavingAction(true);
+
+        // multipart/form-data so the optional photos travel with the action.
+        const payload = new FormData();
+        payload.append("action_taken", actionTaken || "");
+        payload.append("remarks", remarks || "");
+        payload.append("comment", actionComment || "");
+        payload.append("status", actionStatus);
+        actionPhotos.forEach((photo) => payload.append("action_photos", photo.file, photo.file.name));
+
         await axios.put(
             `/api/action-points/${selectedAction.id}/take-action`,
-            {
-                action_taken: actionTaken,
-                remarks,
-                comment: actionComment,
-                status: actionStatus
-            }
+            payload
         );
 
         alert(
@@ -982,11 +1057,14 @@ const saveActionPoint = async () => {
         );
 
         setShowOpenModal(false);
+        setActionPhotos([]);
         await fetchActionPoints();
         if (showHistoryModal && selectedAction) await openHistory(selectedAction);
     } catch (err) {
         console.error(err);
         alert(err.response?.data?.message || "Unable to update Action Point.");
+    } finally {
+        setSavingAction(false);
     }
 };
 
@@ -2506,6 +2584,7 @@ return (
                 <button
                     className="workflow-close-btn"
                     onClick={() => setShowOpenModal(false)}
+                    disabled={savingAction}
                 >
                     ×
                 </button>
@@ -2513,6 +2592,15 @@ return (
             </div>
 
             <div className="workflow-modal-body">
+
+                {isAdmin ? (
+                    <PhotoRuleAdminSwitch
+                        settings={photoSettings}
+                        onSaved={(data) => data && setPhotoSettings(data)}
+                    />
+                ) : (
+                    <PhotoRuleNote settings={photoSettings} />
+                )}
 
                 <div className="filter-group">
 
@@ -2596,6 +2684,13 @@ return (
 
                 </div>
 
+                <TakeActionPhotoField
+                    photos={actionPhotos}
+                    onChange={setActionPhotos}
+                    required={photoRequiredFor(actionStatus)}
+                    disabled={savingAction}
+                />
+
                 <br />
 
                 <div className="filter-group">
@@ -2627,6 +2722,7 @@ return (
                     <button
                         className="cancel-btn"
                         onClick={() => setShowOpenModal(false)}
+                        disabled={savingAction}
                     >
                         Close
                     </button>
@@ -2634,8 +2730,9 @@ return (
                     <button
                         className="upload-btn"
                         onClick={saveActionPoint}
+                        disabled={savingAction}
                     >
-                        Save
+                        {savingAction ? "Saving..." : "Save"}
                     </button>
 
                 </div>
@@ -2699,8 +2796,10 @@ return (
                                         <strong>{item.changed_by_name || "System"}</strong>
                                         {item.changed_by_employee_id && <span>Employee ID: {item.changed_by_employee_id}</span>}
                                     </div>
+                                    {historyActionTaken(item) && <div className="history-note"><b>Action Taken</b><span>{fixMojibake(historyActionTaken(item))}</span></div>}
                                     {item.comment && <div className="history-note"><b>Comment</b><span>{fixMojibake(item.comment)}</span></div>}
                                     {item.remarks && <div className="history-note"><b>Remarks</b><span>{fixMojibake(item.remarks)}</span></div>}
+                                    <ActionPhotoThumbs photos={historyPhotos(item)} />
                                 </div>
                             </div>
                         ))}

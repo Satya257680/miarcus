@@ -429,6 +429,16 @@ async function initializeDatabase() {
         }
 
         // --------------------------------------------------
+        // ACTION POINT TAKE ACTION PHOTO RULE (admin on/off)
+        // --------------------------------------------------
+        try {
+            await require("./models/actionPointPhotoSettingsModel").ensureTable();
+            console.log("✅ Action Point photo settings verified");
+        } catch (error) {
+            console.error("❌ Action Point photo settings initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
         // TRAVEL PLAN EMAIL ROUTING
         // --------------------------------------------------
         try {
@@ -549,6 +559,9 @@ async function initializeDatabase() {
             }
             if (typeof ActionPoint.ensureHistoryActorColumn === "function") {
                 await ActionPoint.ensureHistoryActorColumn();
+            }
+            if (typeof ActionPoint.ensureActionPhotosColumn === "function") {
+                await ActionPoint.ensureActionPhotosColumn();
             }
             if (typeof ActionPoint.ensureRuleForeignKeyRemoved === "function") {
                 await ActionPoint.ensureRuleForeignKeyRemoved();
@@ -1805,6 +1818,16 @@ loadRoute(
     "./routes/checklistAccessRoutes",
     "/api/checklist-access",
     "Checklist Access Routes"
+);
+
+// ======================================================
+// ACTION POINT TAKE ACTION PHOTO RULE
+// (GET: Action Points viewers · PUT: Administrators only)
+// ======================================================
+loadRoute(
+    "./routes/actionPointPhotoSettingsRoutes",
+    "/api/action-point-photo-settings",
+    "Action Point Photo Settings Routes"
 );
 
 // ======================================================

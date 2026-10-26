@@ -5,6 +5,7 @@ const Audit = require("../models/auditModel");
 const Notification = require("./notificationService");
 const checklistEmailService = require("./checklistEmailService");
 const { resolveStoreIdFuzzy } = require("../utils/storeMatcher");
+const PhotoSettings = require("../models/actionPointPhotoSettingsModel");
  
 // ======================================================
 // HELPER
@@ -1346,7 +1347,8 @@ const update = async (
 const takeAction = async (
     id,
     body,
-    userId
+    userId,
+    photos = []
 ) => {
  
     const {
@@ -1370,6 +1372,19 @@ const takeAction = async (
         err.statusCode = 400;
         throw err;
     }
+
+    // Photo rule – set by an Administrator (optional by default).
+    const actionPhotos = Array.isArray(photos) ? photos.filter(Boolean) : [];
+    const photoSettings = await PhotoSettings.getSettings();
+    if (PhotoSettings.isPhotoRequired(photoSettings, normalizedStatus) && actionPhotos.length === 0) {
+        const err = new Error(
+            photoSettings.mandatory_scope === "all"
+                ? "A photo is mandatory for Take Action. Please take or upload a photo."
+                : "A photo is mandatory to close this Action Point. Please take or upload a photo."
+        );
+        err.statusCode = 400;
+        throw err;
+    }
  
     const oldData = await getById(id);
     if (!oldData) {
@@ -1385,7 +1400,8 @@ const takeAction = async (
             action_taken,
             remarks,
             comment,
-            status: normalizedStatus
+            status: normalizedStatus,
+            action_photos: actionPhotos
         }
     );
  
@@ -1402,7 +1418,8 @@ const takeAction = async (
                 status: normalizedStatus,
                 action_taken: action_taken || null,
                 comment: comment || null,
-                remarks: remarks || null
+                remarks: remarks || null,
+                ...(actionPhotos.length ? { action_photos: actionPhotos } : {})
             },
             changed_by: userId
         }
@@ -1427,7 +1444,8 @@ const takeAction = async (
             status: normalizedStatus,
             action_taken: action_taken || null,
             comment: comment || null,
-            remarks: remarks || null
+            remarks: remarks || null,
+            ...(actionPhotos.length ? { action_photos: actionPhotos } : {})
         },
         changed_by: userId
     }, () => {});
@@ -1475,8 +1493,42 @@ const takeAction = async (
         success: true,
         message: normalizedStatus === "Closed"
             ? "Action Point completed successfully."
-            : `Action Point moved to ${normalizedStatus}.`
+            : `Action Point moved to ${normalizedStatus}.`,
+        photos: actionPhotos.length,
+        store_id: oldData.store_id || null
     };
+};
+
+// ======================================================
+// PHOTO RULE FOR THE EDIT FORM
+// When an Administrator has made the Take Action photo mandatory,
+// the Edit form must not be used to close (or, with scope "all",
+// change the status of) an Action Point without a photo. An image
+// attached in the Edit form counts as that photo.
+// ======================================================
+
+const assertEditPhotoRule = async (id, body = {}, file = null) => {
+    const nextStatus = body?.status;
+    if (!nextStatus) return;
+
+    const settings = await PhotoSettings.getSettings();
+    if (!PhotoSettings.isPhotoRequired(settings, nextStatus)) return;
+
+    const oldData = await getById(id);
+    if (!oldData || oldData.status === nextStatus) return;
+
+    const isImage = String(file?.mimetype || "").toLowerCase().startsWith("image/");
+    if (isImage) return;
+
+    if (file?.path) require("fs").unlink(file.path, () => {});
+
+    const err = new Error(
+        nextStatus === "Closed"
+            ? "A photo is mandatory to close this Action Point. Attach a photo or use Take Action."
+            : "A photo is mandatory to change the status. Attach a photo or use Take Action."
+    );
+    err.statusCode = 400;
+    throw err;
 };
  
 // ======================================================
@@ -1488,6 +1540,15 @@ const changeStatus = async (id, status, comment, userId) => {
     if (!allowed.includes(status)) {
         const err = new Error("Use Take Action to close an Action Point.");
         err.statusCode = 400;
+        throw err;
+    }
+
+    // Photo rule "every action": the quick Next Action dropdown has no
+    // photo, so the change must go through Take Action.
+    if (PhotoSettings.isPhotoRequired(await PhotoSettings.getSettings(), status)) {
+        const err = new Error("A photo is mandatory for every action. Please use Take Action and attach a photo.");
+        err.statusCode = 400;
+        err.code = "PHOTO_REQUIRED";
         throw err;
     }
  
@@ -1799,6 +1860,7 @@ module.exports = {
     // Take action
     takeAction,
     changeStatus,
+    assertEditPhotoRule,
  
     // History
     getHistory: (id) => asPromise(ActionPoint.getHistory, id),

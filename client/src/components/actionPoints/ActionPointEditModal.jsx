@@ -46,6 +46,22 @@ export default function ActionPointEditModal({ row, stores = [], departments = [
     const [file, setFile] = useState(null);
     const [assignees, setAssignees] = useState([]);
     const [saving, setSaving] = useState(false);
+    // Take Action photo rule (Administrator on/off) – the Edit form must
+    // not be a way around a mandatory photo.
+    const [photoRule, setPhotoRule] = useState({ photo_mandatory: 0, mandatory_scope: "close" });
+
+    useEffect(() => {
+        let active = true;
+        axios
+            .get("/api/action-point-photo-settings")
+            .then((res) => {
+                if (active && res.data?.data) setPhotoRule(res.data.data);
+            })
+            .catch(() => {});
+        return () => {
+            active = false;
+        };
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -73,7 +89,23 @@ export default function ActionPointEditModal({ row, stores = [], departments = [
     const linkedToChecklist = Boolean(row?.submission_answer_id);
     const closingChecklistPoint = form.status === "Closed" && (row?.submission_answer_id || row?.submission_id);
 
+    const statusChanged = form.status !== (row?.status || "Open");
+    const photoRequired =
+        statusChanged &&
+        Number(photoRule?.photo_mandatory) === 1 &&
+        (photoRule?.mandatory_scope === "all" || form.status === "Closed");
+    const fileIsImage = Boolean(file && String(file.type || "").startsWith("image/"));
+
     const save = async () => {
+        if (photoRequired && !fileIsImage) {
+            alert(
+                form.status === "Closed"
+                    ? "A photo is mandatory to close this Action Point. Attach a photo below or use Take Action."
+                    : "A photo is mandatory to change the status. Attach a photo below or use Take Action."
+            );
+            return;
+        }
+
         const payload = new FormData();
         payload.append("store_id", form.store_id ?? "");
         payload.append("department_id", form.department_id ?? "");
@@ -223,8 +255,17 @@ export default function ActionPointEditModal({ row, stores = [], departments = [
             <PmSection title="Attachment" icon={<FaPaperclip />}>
                 <PmGrid cols={2}>
                     <PmItem label="Current Attachment"><PmAttachment value={row.attachment} /></PmItem>
-                    <PmField label="Replace Attachment" hint="Optional — image, PDF, Word, Excel, CSV or video">
-                        <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                    <PmField
+                        label={photoRequired ? "Photo (mandatory to save this status) *" : "Replace Attachment"}
+                        hint={photoRequired
+                            ? "Admin has made a photo mandatory — attach a photo (JPG / PNG)"
+                            : "Optional — image, PDF, Word, Excel, CSV or video"}
+                    >
+                        <input
+                            type="file"
+                            accept={photoRequired ? "image/*" : undefined}
+                            onChange={(e) => setFile(e.target.files?.[0] || null)}
+                        />
                     </PmField>
                 </PmGrid>
             </PmSection>

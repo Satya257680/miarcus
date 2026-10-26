@@ -1,0 +1,910 @@
+/* ======================================================
+   TAKE ACTION – PHOTO EVIDENCE · PREMIUM GLASS
+   Used by components/actionPoints/TakeActionPhotos.jsx
+   ====================================================== */
+
+.tap-card,
+.tap-rule,
+.tap-note,
+.tap-history {
+    --tap-violet: #6d28d9;
+    --tap-violet-2: #8b5cf6;
+    --tap-indigo: #4f46e5;
+    --tap-sky: #38bdf8;
+    --tap-ink: #1e1b4b;
+    --tap-muted: #6b6a8a;
+    --tap-glass: rgba(255, 255, 255, 0.58);
+    --tap-glass-strong: rgba(255, 255, 255, 0.78);
+    --tap-edge: rgba(255, 255, 255, 0.85);
+    --tap-line: rgba(109, 40, 217, 0.14);
+    --tap-shadow: 0 18px 40px -18px rgba(76, 29, 149, 0.35), 0 2px 6px rgba(30, 27, 75, 0.06);
+    --tap-danger: #e11d48;
+    font-family: inherit;
+}
+
+/* ---------- shared glass surface ---------- */
+.tap-card,
+.tap-rule {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 18px;
+    border: 1px solid var(--tap-edge);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.42)),
+        radial-gradient(120% 140% at 0% 0%, rgba(139, 92, 246, 0.22), transparent 55%),
+        radial-gradient(120% 140% at 100% 100%, rgba(56, 189, 248, 0.20), transparent 55%),
+        #f6f3ff;
+    box-shadow: var(--tap-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(109, 40, 217, 0.06);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+}
+
+/* soft light streak across the glass */
+.tap-card::before,
+.tap-rule::before {
+    content: "";
+    position: absolute;
+    inset: -40% -10% auto auto;
+    width: 60%;
+    height: 120%;
+    background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+    transform: rotate(8deg);
+    pointer-events: none;
+    z-index: -1;
+}
+
+.tap-eyebrow {
+    display: block;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    color: var(--tap-violet);
+}
+
+/* ======================================================
+   PHOTO CARD
+   ====================================================== */
+.tap-card {
+    margin: 4px 0 14px;
+    padding: 14px;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+
+.tap-card.is-dragging {
+    border-color: rgba(139, 92, 246, 0.9);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18), var(--tap-shadow);
+    transform: translateY(-1px);
+}
+
+.tap-card.is-required {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.46)),
+        radial-gradient(120% 140% at 0% 0%, rgba(244, 63, 94, 0.16), transparent 55%),
+        radial-gradient(120% 140% at 100% 100%, rgba(139, 92, 246, 0.18), transparent 55%),
+        #fff5f7;
+}
+
+.tap-card-head {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 12px;
+}
+
+.tap-head-icon,
+.tap-rule-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 15px;
+    background: linear-gradient(135deg, var(--tap-violet-2), var(--tap-indigo));
+    box-shadow: 0 8px 18px -6px rgba(79, 70, 229, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.tap-head-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.tap-head-text strong {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 2px;
+    font-size: 14px;
+    color: var(--tap-ink);
+}
+
+.tap-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 19px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--tap-violet);
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.22);
+}
+
+.tap-badge-required {
+    color: #fff;
+    background: linear-gradient(135deg, #fb7185, var(--tap-danger));
+    border-color: transparent;
+    box-shadow: 0 4px 10px -3px rgba(225, 29, 72, 0.55);
+}
+
+.tap-count {
+    flex: 0 0 auto;
+    min-width: 42px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--tap-ink);
+    background: var(--tap-glass-strong);
+    border: 1px solid var(--tap-edge);
+    box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(30, 27, 75, 0.06);
+}
+
+.tap-count.is-full {
+    color: #fff;
+    background: linear-gradient(135deg, #34d399, #059669);
+    border-color: transparent;
+}
+
+/* ---------- empty state / drop zone ---------- */
+.tap-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 14px 18px;
+    border-radius: 14px;
+    border: 1.5px dashed rgba(109, 40, 217, 0.28);
+    background: rgba(255, 255, 255, 0.45);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.tap-card.is-required .tap-dropzone {
+    border-color: rgba(225, 29, 72, 0.35);
+}
+
+.tap-drop-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+    color: var(--tap-violet);
+    background: radial-gradient(circle at 30% 25%, #fff, rgba(237, 233, 254, 0.9));
+    border: 1px solid var(--tap-edge);
+    box-shadow: 0 10px 22px -10px rgba(109, 40, 217, 0.55), inset 0 -2px 6px rgba(139, 92, 246, 0.12);
+}
+
+.tap-drop-title {
+    margin: 10px 0 2px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--tap-ink);
+}
+
+.tap-drop-sub {
+    margin: 0 0 14px;
+    font-size: 11px;
+    color: var(--tap-muted);
+}
+
+.tap-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* ---------- buttons ---------- */
+.tap-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 18px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.tap-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.tap-btn-primary {
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: linear-gradient(135deg, var(--tap-violet-2) 0%, var(--tap-indigo) 100%);
+    box-shadow: 0 10px 22px -10px rgba(79, 70, 229, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.tap-btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 26px -10px rgba(79, 70, 229, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.tap-btn-glass {
+    color: var(--tap-ink);
+    border: 1px solid var(--tap-edge);
+    background: var(--tap-glass-strong);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 6px 16px -10px rgba(30, 27, 75, 0.35), inset 0 1px 0 #fff;
+}
+
+.tap-btn-glass svg {
+    color: var(--tap-violet);
+}
+
+.tap-btn-glass:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #fff;
+}
+
+/* ---------- photo grid ---------- */
+.tap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 10px;
+}
+
+.tap-tile {
+    position: relative;
+    margin: 0;
+    aspect-ratio: 1;
+    border-radius: 14px;
+    padding: 4px;
+    background: var(--tap-glass-strong);
+    border: 1px solid var(--tap-edge);
+    box-shadow: 0 12px 24px -14px rgba(30, 27, 75, 0.55), inset 0 1px 0 #fff;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    animation: tap-pop 0.28s ease;
+}
+
+@keyframes tap-pop {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.tap-tile-view {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: zoom-in;
+    background: #ede9fe;
+}
+
+.tap-tile-view img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.35s ease;
+}
+
+.tap-tile-view::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(30, 27, 75, 0) 45%, rgba(30, 27, 75, 0.45) 100%);
+    opacity: 0.7;
+    transition: opacity 0.25s ease;
+}
+
+.tap-tile-view:hover img {
+    transform: scale(1.06);
+}
+
+.tap-tile-zoom {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tap-tile-view:hover .tap-tile-zoom,
+.tap-tile-view:focus-visible .tap-tile-zoom {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.tap-tile-index {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    z-index: 2;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+}
+
+.tap-tile-remove,
+.tap-glass-icon {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #fff;
+    background: rgba(17, 12, 46, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.tap-tile-remove {
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    z-index: 2;
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+}
+
+.tap-tile-remove:hover:not(:disabled) {
+    background: rgba(225, 29, 72, 0.88);
+    transform: scale(1.08);
+}
+
+/* "add more" tile */
+.tap-tile-add {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 4px;
+    border-style: dashed;
+    border-color: rgba(109, 40, 217, 0.3);
+    background: rgba(255, 255, 255, 0.5);
+    box-shadow: none;
+}
+
+.tap-tile-add button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: none;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--tap-violet);
+    background: rgba(237, 233, 254, 0.65);
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.tap-tile-add button:hover:not(:disabled) {
+    color: #fff;
+    background: linear-gradient(135deg, var(--tap-violet-2), var(--tap-indigo));
+}
+
+.tap-tile-add button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---------- messages ---------- */
+.tap-msg {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 12px 0 0;
+    padding: 8px 11px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.tap-msg-warn {
+    color: #be123c;
+    background: rgba(255, 228, 230, 0.7);
+    border: 1px solid rgba(251, 113, 133, 0.35);
+}
+
+.tap-msg-error {
+    color: #9f1239;
+    background: rgba(255, 241, 242, 0.85);
+    border: 1px solid rgba(225, 29, 72, 0.3);
+}
+
+/* ======================================================
+   LIGHTBOX
+   ====================================================== */
+.tap-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000; /* above every app modal / overlay */
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(15, 10, 40, 0.62);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    animation: tap-fade 0.2s ease;
+}
+
+@keyframes tap-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.tap-lightbox-frame {
+    position: relative;
+    max-width: min(920px, 100%);
+    max-height: 100%;
+    padding: 8px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+}
+
+.tap-lightbox-frame img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100vh - 80px);
+    border-radius: 14px;
+    object-fit: contain;
+}
+
+.tap-lightbox-bar {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.tap-lightbox-bar .tap-glass-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+}
+
+.tap-lightbox-nav {
+    position: absolute;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    margin-top: -20px;
+    font-size: 14px;
+}
+
+.tap-lightbox-nav.prev { left: 16px; }
+.tap-lightbox-nav.next { right: 16px; }
+.tap-glass-icon:hover { background: rgba(17, 12, 46, 0.7); }
+
+/* ======================================================
+   ADMIN RULE CARD
+   ====================================================== */
+.tap-rule {
+    margin-bottom: 16px;
+    padding: 13px 14px;
+}
+
+.tap-rule.is-on {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.42)),
+        radial-gradient(120% 140% at 0% 0%, rgba(52, 211, 153, 0.20), transparent 55%),
+        radial-gradient(120% 140% at 100% 100%, rgba(139, 92, 246, 0.22), transparent 55%),
+        #f3fbf8;
+}
+
+.tap-rule-main {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.tap-rule-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.tap-rule-text strong {
+    margin-top: 2px;
+    font-size: 14px;
+    color: var(--tap-ink);
+}
+
+.tap-rule-text small {
+    font-size: 11px;
+    color: var(--tap-muted);
+}
+
+/* iOS-style glass switch */
+.tap-switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 68px;
+    height: 32px;
+    padding: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background: linear-gradient(180deg, rgba(203, 213, 225, 0.9), rgba(148, 163, 184, 0.9));
+    box-shadow: inset 0 2px 5px rgba(15, 23, 42, 0.22), 0 4px 10px -6px rgba(15, 23, 42, 0.4);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.tap-switch.on {
+    background: linear-gradient(135deg, #34d399, #059669);
+    box-shadow: inset 0 2px 5px rgba(6, 78, 59, 0.3), 0 8px 18px -8px rgba(5, 150, 105, 0.85);
+}
+
+.tap-switch:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.tap-switch-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, #eef2ff);
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.3), inset 0 -1px 2px rgba(15, 23, 42, 0.08);
+    transition: transform 0.28s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.tap-switch.on .tap-switch-knob {
+    transform: translateX(36px);
+}
+
+.tap-switch-label {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    color: #fff;
+    transition: opacity 0.2s ease;
+}
+
+.tap-switch-label.off { right: 9px; }
+.tap-switch-label.on { left: 10px; opacity: 0; }
+.tap-switch.on .tap-switch-label.on { opacity: 1; }
+.tap-switch.on .tap-switch-label.off { opacity: 0; }
+
+/* scope segmented control */
+.tap-segment {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-top: 12px;
+    padding: 4px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--tap-edge);
+    box-shadow: inset 0 1px 3px rgba(30, 27, 75, 0.08);
+}
+
+.tap-segment button {
+    height: 30px;
+    border: none;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--tap-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tap-segment button.active {
+    color: #fff;
+    background: linear-gradient(135deg, var(--tap-violet-2), var(--tap-indigo));
+    box-shadow: 0 6px 14px -8px rgba(79, 70, 229, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.tap-segment button:disabled {
+    cursor: wait;
+}
+
+/* ======================================================
+   NOTE FOR NON-ADMINS
+   ====================================================== */
+.tap-note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 9px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    color: #7c2d12;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.4)),
+        radial-gradient(120% 160% at 0% 0%, rgba(251, 191, 36, 0.28), transparent 60%),
+        #fff8eb;
+    box-shadow: 0 10px 24px -16px rgba(180, 83, 9, 0.55), inset 0 1px 0 #fff;
+}
+
+.tap-note em {
+    font-style: normal;
+    color: #a16207;
+}
+
+.tap-note-icon {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 12px;
+    background: linear-gradient(135deg, #fbbf24, #d97706);
+    box-shadow: 0 6px 12px -6px rgba(217, 119, 6, 0.9);
+}
+
+/* ======================================================
+   HISTORY PHOTOS
+   ====================================================== */
+.tap-history {
+    margin-top: 9px;
+    padding: 9px 10px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.45)),
+        radial-gradient(120% 160% at 0% 0%, rgba(139, 92, 246, 0.14), transparent 60%),
+        #f8f6ff;
+    box-shadow: inset 0 1px 0 #fff, 0 6px 16px -12px rgba(76, 29, 149, 0.45);
+}
+
+.tap-history-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    color: var(--tap-violet);
+}
+
+.tap-history-head b {
+    color: var(--tap-ink);
+}
+
+.tap-history-head span {
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-weight: 800;
+    background: rgba(139, 92, 246, 0.12);
+}
+
+.tap-history-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tap-history-thumb {
+    position: relative;
+    width: 70px;
+    height: 70px;
+    padding: 3px;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: zoom-in;
+    color: var(--tap-violet);
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 18px -10px rgba(30, 27, 75, 0.55);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tap-history-thumb:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 24px -12px rgba(76, 29, 149, 0.6);
+}
+
+.tap-history-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: 9px;
+}
+
+.tap-history-thumb > span:first-child {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 9px;
+    background: #ede9fe;
+}
+
+.tap-history-thumb.is-loading > span:first-child {
+    background: linear-gradient(100deg, #ede9fe 30%, #f8f6ff 50%, #ede9fe 70%);
+    background-size: 200% 100%;
+    animation: tap-shimmer 1.2s linear infinite;
+}
+
+@keyframes tap-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+.tap-history-zoom {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 8px;
+    color: #fff;
+    background: rgba(17, 12, 46, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+
+/* ======================================================
+   DARK MODE
+   ====================================================== */
+:root[data-miarcus-mode="dark"] .tap-card,
+:root[data-miarcus-mode="dark"] .tap-rule,
+:root[data-miarcus-mode="dark"] .tap-history {
+    --tap-ink: #ede9fe;
+    --tap-muted: #a5a3c6;
+    --tap-glass-strong: rgba(46, 40, 86, 0.72);
+    --tap-edge: rgba(167, 139, 250, 0.22);
+    background:
+        linear-gradient(135deg, rgba(40, 34, 78, 0.78), rgba(24, 20, 52, 0.6)),
+        radial-gradient(120% 140% at 0% 0%, rgba(139, 92, 246, 0.32), transparent 55%),
+        radial-gradient(120% 140% at 100% 100%, rgba(56, 189, 248, 0.18), transparent 55%),
+        #17142e;
+    box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:root[data-miarcus-mode="dark"] .tap-card::before,
+:root[data-miarcus-mode="dark"] .tap-rule::before {
+    opacity: 0.12;
+}
+
+:root[data-miarcus-mode="dark"] .tap-eyebrow,
+:root[data-miarcus-mode="dark"] .tap-btn-glass svg,
+:root[data-miarcus-mode="dark"] .tap-history-head {
+    color: #c4b5fd;
+}
+
+:root[data-miarcus-mode="dark"] .tap-dropzone,
+:root[data-miarcus-mode="dark"] .tap-segment,
+:root[data-miarcus-mode="dark"] .tap-tile-add {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(167, 139, 250, 0.3);
+}
+
+:root[data-miarcus-mode="dark"] .tap-drop-icon {
+    color: #c4b5fd;
+    background: radial-gradient(circle at 30% 25%, rgba(167, 139, 250, 0.35), rgba(46, 40, 86, 0.9));
+}
+
+:root[data-miarcus-mode="dark"] .tap-btn-glass:hover:not(:disabled) {
+    background: rgba(76, 64, 140, 0.8);
+}
+
+:root[data-miarcus-mode="dark"] .tap-tile-add button {
+    color: #c4b5fd;
+    background: rgba(139, 92, 246, 0.12);
+}
+
+:root[data-miarcus-mode="dark"] .tap-history-thumb {
+    background: rgba(46, 40, 86, 0.8);
+    border-color: rgba(167, 139, 250, 0.25);
+}
+
+:root[data-miarcus-mode="dark"] .tap-note {
+    color: #fde68a;
+    border-color: rgba(251, 191, 36, 0.25);
+    background:
+        linear-gradient(135deg, rgba(60, 40, 10, 0.75), rgba(35, 24, 8, 0.6)),
+        radial-gradient(120% 160% at 0% 0%, rgba(251, 191, 36, 0.25), transparent 60%),
+        #1f1608;
+}
+
+:root[data-miarcus-mode="dark"] .tap-note em {
+    color: #fcd34d;
+}
+
+:root[data-miarcus-mode="dark"] .tap-msg-warn,
+:root[data-miarcus-mode="dark"] .tap-msg-error {
+    color: #fda4af;
+    background: rgba(136, 19, 55, 0.3);
+    border-color: rgba(251, 113, 133, 0.3);
+}
+
+/* ======================================================
+   SMALL SCREENS
+   ====================================================== */
+@media (max-width: 600px) {
+    .tap-card { padding: 12px; }
+    .tap-actions { width: 100%; }
+    .tap-actions .tap-btn { flex: 1 1 140px; }
+    .tap-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .tap-head-icon, .tap-rule-icon { width: 34px; height: 34px; border-radius: 11px; }
+    .tap-lightbox { padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tap-tile, .tap-lightbox, .tap-switch-knob, .tap-tile-view img, .tap-history-thumb.is-loading > span:first-child {
+        animation: none;
+        transition: none;
+    }
+}
