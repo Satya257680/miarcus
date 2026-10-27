@@ -35,7 +35,7 @@ function downloadCsv(rows) {
   const columns = [
     ["Checklist", "checklist_type"], ["Question", "question_text"], ["No-Issue Answer", "expected_answer"],
     ["Issue Answer", "issue_answer"], ["Priority", "priority"], ["SLA Days", "sla_days"],
-    ["Department", "departments"], ["Status", "is_active"], ["Question Status", "question_state"], ["Needs Attention", "config_errors"],
+    ["Department", "departments"], ["Question Departments", "question_departments"], ["Status", "is_active"], ["Question Status", "question_state"], ["Needs Attention", "config_errors"],
   ];
   const quote = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const cell = (row, key) => {
@@ -533,7 +533,7 @@ export default function IssueControlCenter() {
                     <td><span className="icc-answer issue">{r.issue_answer || "—"}</span></td>
                     <td><span className={`icc-priority ${String(r.priority || "medium").toLowerCase()}`}>{r.priority || "Medium"}</span></td>
                     <td>{r.sla_days} day(s)</td>
-                    <td>{r.departments || "—"}</td>
+                    <td>{r.departments || r.question_departments || "—"}</td>
                     <td><span className={`icc-status ${isActive(r) ? "active" : "inactive"}`}>{isActive(r) ? "Active" : "Inactive"}</span></td>
                     <td className="icc-actions-cell"><div className="icc-actions">
                       <button type="button" className="edit" onClick={() => navigate(`/issue-control-center/${r.id}/edit`)}><FaEdit /> Edit</button>

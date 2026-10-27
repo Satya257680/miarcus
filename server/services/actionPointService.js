@@ -320,13 +320,25 @@ const createFromRules = async (
         // DEPARTMENT IDS
         // --------------------------------------------------
  
-        const departmentIds =
-            rule.department_ids
-                ? String(rule.department_ids)
+        // FIX: question departments (item.department_ids) first; the
+        // rule's own list is only a legacy fallback. Same rule as
+        // inspectionService.buildActionPointData.
+        const toDepartmentIds = (value) =>
+            value
+                ? String(value)
                     .split(",")
                     .map((id) => Number(id))
-                    .filter(Boolean)
+                    .filter((id) => Number.isInteger(id) && id > 0)
+                    .sort((a, b) => a - b)
                 : [];
+
+        const questionDepartmentIds =
+            toDepartmentIds(item.department_ids);
+
+        const departmentIds =
+            questionDepartmentIds.length
+                ? questionDepartmentIds
+                : toDepartmentIds(rule.department_ids);
  
         // --------------------------------------------------
         // ACTION POINT DATA

@@ -36,8 +36,18 @@ const badRequest = (res, errors) => res.status(400).json({ success: false, messa
 // ------------------------------------------------------
 // QUESTIONS (with checklist type) — authoritative source
 // ------------------------------------------------------
+// department_names: the question's configured departments (Settings ->
+// Questions). Shown read-only in the rule library when the rule's own
+// free-text "Responsible department(s)" is empty, because the question
+// mapping is what Action Points use for their department.
 const loadQuestions = () => Rule.query(`
-    SELECT q.id, q.question, q.status, q.sequence_no, q.checklist_type_id, ct.checklist_name
+    SELECT q.id, q.question, q.status, q.sequence_no, q.checklist_type_id, ct.checklist_name,
+        (
+            SELECT GROUP_CONCAT(DISTINCT d.department_name ORDER BY d.department_name SEPARATOR ', ')
+            FROM question_departments qd
+            INNER JOIN departments d ON d.id = qd.department_id
+            WHERE qd.question_id = q.id
+        ) AS department_names
     FROM questions q
     LEFT JOIN checklist_types ct ON ct.id = q.checklist_type_id
     ORDER BY ct.checklist_name, q.sequence_no, q.id
@@ -77,6 +87,7 @@ const describeRule = (rule, questions, byId) => {
         linked_question_id: question ? question.id : null,
         question_status: question ? (question.status || "Active") : null,
         question_state: !question ? "missing" : isActiveQuestion(question) ? "active" : "inactive",
+        question_departments: question ? (question.department_names || null) : null,
         config_errors: configErrors,
         suggested_repair: suggestedRepair(rule)
     };

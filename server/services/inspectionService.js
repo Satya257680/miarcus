@@ -1136,17 +1136,36 @@ const notifyActionPoint = async ({
 // Shared by createActionPoints() and the Re-check so both write
 // exactly the same columns/values (store, question, rule, SLA …).
 // ------------------------------------------------------
+// FIX (department-aware Action Points): the department comes from the
+// QUESTION's configured departments (Settings -> Questions, stored in
+// question_departments), carried on the matched answer as
+// item.department_ids. Issue Control Center rules are loaded with
+// "NULL AS department_ids" (see getActiveRules), so reading only
+// rule.department_ids left department_id NULL on every checklist
+// Action Point and the Department filter on the Action Points page
+// returned 0 records. rule.department_ids is now only a fallback for
+// legacy automatic NSO rules that carry their own department list.
+// A question with no department keeps department_id NULL (existing
+// behaviour) — no department is ever guessed.
+const parseDepartmentIds = (value) =>
+    value === undefined || value === null || value === ""
+        ? []
+        : [...new Set(
+            String(value)
+                .split(",")
+                .map(Number)
+                .filter((id) => Number.isInteger(id) && id > 0)
+        )].sort((a, b) => a - b);
+
 const buildActionPointData = (submission, item, userId) => {
 
     const rule = item.rule || {};
 
-    const departmentIds =
-        rule.department_ids
-            ? String(rule.department_ids)
-                .split(",")
-                .map(Number)
-                .filter(Boolean)
-            : [];
+    const questionDepartmentIds = parseDepartmentIds(item.department_ids);
+
+    const departmentIds = questionDepartmentIds.length
+        ? questionDepartmentIds
+        : parseDepartmentIds(rule.department_ids);
 
     // New Store Opening is NOT required. Keep the legacy column NULL.
     const actionPointData = {
@@ -2008,6 +2027,8 @@ module.exports = {
     findExistingActionPoint,
 
     buildActionPointData,
+
+    parseDepartmentIds,
 
     isAutomaticProblem,
 

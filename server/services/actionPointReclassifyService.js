@@ -664,6 +664,10 @@ const applyCreates = async (creates, userId, summary, progress) => {
                         remarks: row.remarks,
                         question_sla_value: row.question_sla_value,
                         question_sla_unit: row.question_sla_unit,
+                        // FIX: pass the question's configured departments
+                        // (already loaded by scanMissing) so Re-check
+                        // creates department-linked Action Points too.
+                        department_ids: row.department_ids,
                         rule
                     },
                     userId

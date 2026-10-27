@@ -377,6 +377,67 @@ const accessFilterSql = (filters, values) => {
 
 ActionPoint.accessFilterSql = accessFilterSql;
 
+
+// ======================================================
+// DEPARTMENT FILTER (question-department aware)
+// ======================================================
+// FIX: a checklist question's department is configured in
+// Settings -> Questions and stored in question_departments. Action
+// Points created before the fix have department_id = NULL (the
+// inspection engine read the department from the Issue Control
+// rule, which never carries one), so "ap.department_id = ?" alone
+// hid every checklist Action Point from the Department filter.
+//
+// An Action Point matches the selected department when:
+//   1. its own department_id is that department, OR
+//   2. it is linked to a question configured for that department
+//      AND its own department_id is either empty (legacy rows) or one
+//      of that question's departments (multi-department questions).
+// A department set manually to something OUTSIDE the question's
+// departments is respected: the question mapping does not override it.
+// Manual / bulk Action Points without a question keep matching on
+// department_id only.
+const departmentFilterSql = (departmentId, values) => {
+    values.push(departmentId, departmentId);
+    return `
+            AND (
+                ap.department_id = ?
+                OR (
+                    ap.question_id IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM question_departments flt_qd
+                        WHERE flt_qd.question_id = ap.question_id
+                          AND flt_qd.department_id = ?
+                    )
+                    AND (
+                        ap.department_id IS NULL
+                        OR EXISTS (
+                            SELECT 1
+                            FROM question_departments own_qd
+                            WHERE own_qd.question_id = ap.question_id
+                              AND own_qd.department_id = ap.department_id
+                        )
+                    )
+                )
+            )
+        `;
+};
+
+ActionPoint.departmentFilterSql = departmentFilterSql;
+
+// Display name: the Action Point's own department, else (legacy rows
+// with department_id NULL) the question's configured department(s).
+const DEPARTMENT_NAME_SQL = `COALESCE(
+                d.department_name,
+                (
+                    SELECT GROUP_CONCAT(DISTINCT dn_d.department_name ORDER BY dn_d.department_name SEPARATOR ', ')
+                    FROM question_departments dn_qd
+                    INNER JOIN departments dn_d ON dn_d.id = dn_qd.department_id
+                    WHERE dn_qd.question_id = ap.question_id
+                )
+            )`;
+
 ActionPoint.getAll = (
     filters,
     callback
@@ -482,7 +543,7 @@ ActionPoint.getAll = (
 
             u.employee_id,
 
-            d.department_name,
+            ${DEPARTMENT_NAME_SQL} AS department_name,
 
             au.name AS assigned_to_name
 
@@ -558,12 +619,9 @@ ActionPoint.getAll = (
 
     if (filters.department_id) {
 
-        sql += `
-            AND ap.department_id = ?
-        `;
-
-        values.push(
-            filters.department_id
+        sql += departmentFilterSql(
+            filters.department_id,
+            values
         );
     }
 
@@ -819,12 +877,9 @@ ActionPoint.count = (
 
     if (filters.department_id) {
 
-        sql += `
-            AND ap.department_id = ?
-        `;
-
-        values.push(
-            filters.department_id
+        sql += departmentFilterSql(
+            filters.department_id,
+            values
         );
     }
 
@@ -1062,7 +1117,7 @@ ActionPoint.getById = (
 
             au.name AS assigned_to_name,
 
-            d.department_name
+            ${DEPARTMENT_NAME_SQL} AS department_name
 
         FROM action_points ap
 
@@ -2168,7 +2223,7 @@ ActionPoint.exportData = (
 
             q.question,
 
-            d.department_name,
+            ${DEPARTMENT_NAME_SQL} AS department_name,
 
             csa.answer,
 
@@ -2256,10 +2311,7 @@ ActionPoint.exportData = (
 
     // DEPARTMENT
     if (filters.department_id) {
-        sql += `
-            AND ap.department_id = ?
-        `;
-        values.push(filters.department_id);
+        sql += departmentFilterSql(filters.department_id, values);
     }
 
     // NEW STORE OPENING (NSO PROJECT)
