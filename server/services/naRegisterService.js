@@ -40,6 +40,7 @@ const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
 // ------------------------------------------------------
 // WHERE CLAUSE
 // filters: { search, store_id, checklist_type_id, question_id,
+//            department_id, designation_id, new_store_opening_id,
 //            from, to }
 // scope:   { all, storeIds }
 // ------------------------------------------------------
@@ -73,6 +74,30 @@ const buildWhere = (filters = {}, scope = { all: true, storeIds: [] }) => {
     if (questionId) {
         where.push("csa.question_id = ?");
         params.push(questionId);
+    }
+
+    // Department = a department the question is mapped to.
+    const departmentId = toPositiveInt(filters.department_id);
+    if (departmentId) {
+        where.push(`EXISTS (
+            SELECT 1 FROM question_departments flt_qd
+            WHERE flt_qd.question_id = csa.question_id
+              AND flt_qd.department_id = ?
+        )`);
+        params.push(departmentId);
+    }
+
+    // Designation = designation of the employee who submitted.
+    const designationId = toPositiveInt(filters.designation_id);
+    if (designationId) {
+        where.push("u.designation_id = ?");
+        params.push(designationId);
+    }
+
+    const nsoId = toPositiveInt(filters.new_store_opening_id);
+    if (nsoId) {
+        where.push("cs.new_store_opening_id = ?");
+        params.push(nsoId);
     }
 
     if (isDate(filters.from)) {
@@ -124,6 +149,7 @@ const selectSql = (withPhotos) => `
         DATE_FORMAT(cs.created_at, '%Y-%m-%d %H:%i:%s') AS submitted_at,
         cs.store_id,
         cs.checklist_type_id,
+        cs.new_store_opening_id,
         s.store_name,
         s.city,
         s.state,
@@ -276,13 +302,152 @@ const filterOptions = async (scope) => {
         "SELECT id, checklist_name FROM checklist_types ORDER BY checklist_name"
     );
 
-    return { stores: stores || [], checklist_types: types || [] };
+    // Optional lookups — a missing table must not empty every dropdown.
+    const safe = async (sql, params = []) => {
+        try {
+            return (await db.query(sql, params)) || [];
+        } catch (error) {
+            console.warn("[N/A Register] filter lookup failed:", error.message);
+            return [];
+        }
+    };
+
+    const departments = await safe(
+        "SELECT id, department_name FROM departments ORDER BY department_name"
+    );
+
+    const designations = await safe(
+        "SELECT id, designation_name, department_id FROM designations ORDER BY designation_name"
+    );
+
+    const nsoProjects = await safe(
+        `SELECT nso.id, nso.location, nso.city, nso.status
+         FROM new_store_openings nso
+         ORDER BY nso.id DESC`
+    );
+
+    return {
+        stores: stores || [],
+        checklist_types: types || [],
+        departments,
+        designations,
+        nso_projects: nsoProjects
+    };
+};
+
+// ------------------------------------------------------
+// ONE N/A ANSWER (view / edit) — respects the store scope
+// ------------------------------------------------------
+const getById = async (answerId, scope) => {
+    const id = toPositiveInt(answerId);
+    if (!id) return null;
+    const withPhotos = await hasPhotosColumn();
+    const { sql: whereSql, params } = buildWhere({}, scope);
+    const rows = await runSelect(
+        `${selectSql(withPhotos)}
+         WHERE ${whereSql}
+           AND csa.id = ?
+         LIMIT 1`,
+        [...params, id]
+    );
+    return rows?.[0] ? mapRow(rows[0]) : null;
+};
+
+// ------------------------------------------------------
+// EDIT — answer + remarks.
+// Changing the answer away from N/A removes the row from the
+// register; Action Points → "Re-check Answers" then raises an Action
+// Point for it if the new answer reports a problem.
+// ------------------------------------------------------
+const update = async (answerId, data = {}, scope) => {
+    const existing = await getById(answerId, scope);
+    if (!existing) return null;
+
+    const sets = [];
+    const params = [];
+    const next = {};
+
+    if (data.answer !== undefined) {
+        const answer = String(data.answer ?? "").trim().slice(0, 1000);
+        if (!answer) {
+            const error = new Error("Answer is required.");
+            error.status = 400;
+            throw error;
+        }
+        sets.push("answer = ?");
+        params.push(answer);
+        next.answer = answer;
+    }
+
+    if (data.remarks !== undefined) {
+        const remarks = String(data.remarks ?? "").trim().slice(0, 5000) || null;
+        sets.push("remarks = ?");
+        params.push(remarks);
+        next.remarks = remarks;
+    }
+
+    if (!sets.length) return existing;
+
+    await db.query(
+        `UPDATE checklist_submission_answers SET ${sets.join(", ")} WHERE id = ?`,
+        [...params, existing.answer_id]
+    );
+
+    return { ...existing, ...next };
+};
+
+// ------------------------------------------------------
+// DELETE (one / filtered / all)
+// Only N/A answers inside the user's store scope are ever removed.
+// ------------------------------------------------------
+const deleteWhere = async (whereSql, params) => {
+    const result = await db.query(
+        `DELETE csa
+         ${FROM_SQL}
+         WHERE ${whereSql}`,
+        params
+    );
+    return Number(result?.affectedRows || 0);
+};
+
+const remove = async (answerId, scope) => {
+    const id = toPositiveInt(answerId);
+    if (!id) return 0;
+    const { sql: whereSql, params } = buildWhere({}, scope);
+    return deleteWhere(`${whereSql}\n AND csa.id = ?`, [...params, id]);
+};
+
+// options: { ids } → only those rows (still N/A + in scope)
+//          { filters } → every row matching the filters
+//          neither → every N/A answer the user can see
+const removeMany = async ({ ids, filters } = {}, scope) => {
+    const { sql: whereSql, params } = buildWhere(filters || {}, scope);
+
+    if (Array.isArray(ids)) {
+        const list = [...new Set(ids.map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+        if (!list.length) return 0;
+        let deleted = 0;
+        // Chunk to keep the IN (...) list reasonable.
+        for (let i = 0; i < list.length; i += 1000) {
+            deleted += await deleteWhere(
+                `${whereSql}\n AND csa.id IN (?)`,
+                [...params, list.slice(i, i + 1000)]
+            );
+        }
+        return deleted;
+    }
+
+    return deleteWhere(whereSql, params);
 };
 
 module.exports = {
     list,
     exportRows,
     filterOptions,
+    getById,
+    update,
+    remove,
+    removeMany,
     buildWhere,
     MAX_EXPORT_ROWS
 };

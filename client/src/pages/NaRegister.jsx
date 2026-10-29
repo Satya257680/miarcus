@@ -8,6 +8,11 @@ import Card from "../components/common/Card";
 import DataTable from "../components/common/DataTable";
 import Pagination from "../components/common/Pagination";
 import AttachmentLinks from "../components/common/AttachmentLinks";
+import ActionButtons from "../components/common/ActionButtons";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import ProfessionalModal from "../components/common/ProfessionalModal";
+import { FaTrash } from "react-icons/fa";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import { exportObjectsData } from "../utils/exportUtils.js";
 import runAfterCommit from "../utils/runAfterCommit";
 
@@ -28,7 +33,20 @@ import "../styles/NaRegister.css";
 //   • Everyone else → only when "N/A Register" is granted in
 //     Users → Access
 // Store users granted access see only their own stores.
+//
+// Actions (same levels as Action Points)
+//   • View  → View button
+//   • Edit  → Edit (answer / remarks)
+//   • Full  → Delete, Delete All / Delete Filtered
 // ======================================================
+
+const ANSWER_SUGGESTIONS = ["N/A", "Yes", "No"];
+const LEVEL_RANK = { None: 0, View: 1, Add: 2, Edit: 3, Full: 4 };
+
+const isNaAnswer = (value) =>
+    ["n/a", "na", "n.a", "n.a.", "n a", "not applicable", "not-applicable", "notapplicable"].includes(
+        String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase()
+    );
 
 const formatDateTime = (value) => {
     if (!value) return "-";
@@ -68,11 +86,30 @@ export default function NaRegister() {
 
     const [stores, setStores] = useState([]);
     const [checklists, setChecklists] = useState([]);
+    const [departments, setDepartments] = useState([]);
+    const [designations, setDesignations] = useState([]);
+    const [nsoProjects, setNsoProjects] = useState([]);
+
+    // Effective level returned by the server ("View" | "Edit" | "Full").
+    const [level, setLevel] = useState("View");
+    const canEdit = (LEVEL_RANK[level] || 0) >= LEVEL_RANK.Edit;
+    const canDelete = level === "Full";
+
+    const [viewRow, setViewRow] = useState(null);
+    const [editRow, setEditRow] = useState(null);
+    const [editForm, setEditForm] = useState({ answer: "", remarks: "" });
+    const [saving, setSaving] = useState(false);
+    const [deleteRow, setDeleteRow] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+    const [showDeleteAll, setShowDeleteAll] = useState(false);
 
     const [search, setSearch] = useState("");
     const [store, setStore] = useState("");
     const [checklistType, setChecklistType] = useState("");
     const [questionId, setQuestionId] = useState("");
+    const [department, setDepartment] = useState("");
+    const [designation, setDesignation] = useState("");
+    const [nsoProject, setNsoProject] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
 
@@ -88,12 +125,15 @@ export default function NaRegister() {
         if (store) params.store_id = store;
         if (checklistType) params.checklist_type_id = checklistType;
         if (questionId) params.question_id = questionId;
+        if (department) params.department_id = department;
+        if (designation) params.designation_id = designation;
+        if (nsoProject) params.new_store_opening_id = nsoProject;
         if (fromDate) params.from = fromDate;
         if (toDate) params.to = toDate;
-        return params;
-    }, [search, store, checklistType, questionId, fromDate, toDate]);
+        return activeFilters(params);
+    }, [search, store, checklistType, questionId, department, designation, nsoProject, fromDate, toDate]);
 
-    const isFiltered = Object.keys(filterParams()).length > 0;
+    const isFiltered = hasActiveFilters(filterParams());
 
     const fetchRows = useCallback(async () => {
         const requestId = ++requestRef.current;
@@ -107,6 +147,7 @@ export default function NaRegister() {
             setRows(Array.isArray(data?.data) ? data.data : []);
             setSummary(data?.summary || { total: 0, stores: 0, questions: 0, submissions: 0, top_questions: [] });
             setTotalPages(data?.pagination?.totalPages || 1);
+            if (data?.level) setLevel(data.level);
         } catch (error) {
             if (requestId !== requestRef.current) return;
             setRows([]);
@@ -128,6 +169,9 @@ export default function NaRegister() {
                 if (!alive) return;
                 setStores(Array.isArray(data?.stores) ? data.stores : []);
                 setChecklists(Array.isArray(data?.checklist_types) ? data.checklist_types : []);
+                setDepartments(Array.isArray(data?.departments) ? data.departments : []);
+                setDesignations(Array.isArray(data?.designations) ? data.designations : []);
+                setNsoProjects(Array.isArray(data?.nso_projects) ? data.nso_projects : []);
             })
             .catch(() => {});
         return () => {
@@ -145,6 +189,9 @@ export default function NaRegister() {
         setStore("");
         setChecklistType("");
         setQuestionId("");
+        setDepartment("");
+        setDesignation("");
+        setNsoProject("");
         setFromDate("");
         setToDate("");
         setCurrentPage(1);
@@ -174,6 +221,90 @@ export default function NaRegister() {
             alert(error?.response?.data?.message || "Unable to export the N/A Register.");
         } finally {
             setExporting(false);
+        }
+    };
+
+    // ======================================================
+    // VIEW / EDIT / DELETE
+    // ======================================================
+
+    const openView = async (row) => {
+        setViewRow(row);
+        try {
+            const { data } = await axios.get(`/api/na-register/${row.answer_id}`);
+            if (data?.data) setViewRow(data.data);
+        } catch {
+            // keep the row from the list
+        }
+    };
+
+    const openEdit = (row) => {
+        if (!canEdit) return;
+        setEditRow(row);
+        setEditForm({ answer: row.answer || "N/A", remarks: row.remarks || "" });
+    };
+
+    const saveEdit = async () => {
+        if (!editRow || saving) return;
+        if (!String(editForm.answer || "").trim()) {
+            alert("Answer is required.");
+            return;
+        }
+        try {
+            setSaving(true);
+            const { data } = await axios.put(`/api/na-register/${editRow.answer_id}`, {
+                answer: editForm.answer,
+                remarks: editForm.remarks
+            });
+            const movedOut = !isNaAnswer(editForm.answer);
+            alert(
+                movedOut
+                    ? "Answer updated. It is no longer N/A, so it has left the N/A Register. Use Action Points → Re-check Answers to raise an Action Point if needed."
+                    : data?.message || "N/A record updated successfully."
+            );
+            setEditRow(null);
+            await fetchRows();
+        } catch (error) {
+            alert(error?.response?.data?.message || "Unable to update the N/A record.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteRow || deleting) return;
+        try {
+            setDeleting(true);
+            await axios.delete(`/api/na-register/${deleteRow.answer_id}`);
+            alert("N/A record deleted successfully.");
+            setDeleteRow(null);
+            if (rows.length === 1 && currentPage > 1) setCurrentPage((p) => p - 1);
+            else await fetchRows();
+        } catch (error) {
+            alert(error?.response?.data?.message || "Unable to delete the N/A record.");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    // No filter → every N/A record you can see. Any filter / search →
+    // only the records matching the filters (all pages).
+    const confirmDeleteAll = async () => {
+        if (!canDelete || deleting) return;
+        try {
+            setDeleting(true);
+            const { data } = await axios.delete(
+                "/api/na-register",
+                isFiltered ? { data: { scope: "filtered", filters: filterParams() } } : undefined
+            );
+            alert(data?.message || "N/A records deleted successfully.");
+            setShowDeleteAll(false);
+            setCurrentPage(1);
+            await fetchRows();
+        } catch (error) {
+            alert(error?.response?.data?.message || "Unable to delete N/A records.");
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -245,8 +376,34 @@ export default function NaRegister() {
                     subtitle={row.question || ""}
                 />
             )
+        },
+        {
+            key: "actions",
+            title: "Actions",
+            minWidth: "260px",
+            render: (row) => (
+                <ActionButtons
+                    showView
+                    onView={() => openView(row)}
+                    showEdit={canEdit}
+                    onEdit={() => openEdit(row)}
+                    showDelete={canDelete}
+                    onDelete={() => setDeleteRow(row)}
+                />
+            )
         }
     ];
+
+    const filteredDesignations = designations.filter(
+        (item) => !department || item.department_id == null || String(item.department_id) === String(department)
+    );
+
+    const detail = (label, value) => (
+        <div className="na-detail">
+            <span>{label}</span>
+            <div>{value || value === 0 ? value : "-"}</div>
+        </div>
+    );
 
     const stat = (label, value, hint) => (
         <div className="na-stat">
@@ -305,6 +462,20 @@ export default function NaRegister() {
                 exportLoading={exporting}
             />
 
+            {canDelete && (
+                <div className="action-point-management-actions">
+                    <button
+                        type="button"
+                        className="delete-all-action-btn"
+                        onClick={() => setShowDeleteAll(true)}
+                        disabled={!summary.total}
+                    >
+                        <FaTrash />
+                        {deleteAllLabel(isFiltered, isFiltered ? summary.total : undefined)}
+                    </button>
+                </div>
+            )}
+
             <FilterBar onClear={clearFilters}>
                 <div className="filter-group">
                     <label>Store</label>
@@ -314,6 +485,49 @@ export default function NaRegister() {
                             <option key={item.id} value={item.id}>
                                 {item.store_name}
                                 {item.city ? ` — ${item.city}` : ""}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="filter-group">
+                    <label>Department</label>
+                    <select
+                        value={department}
+                        onChange={(e) => {
+                            const next = e.target.value;
+                            resetToFirstPage(setDepartment)(next);
+                            // Keep Designation consistent with the department.
+                            const current = designations.find((d) => String(d.id) === String(designation));
+                            if (next && current && current.department_id != null && String(current.department_id) !== String(next)) {
+                                setDesignation("");
+                            }
+                        }}
+                    >
+                        <option value="">All Departments</option>
+                        {departments.map((item) => (
+                            <option key={item.id} value={item.id}>{item.department_name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="filter-group">
+                    <label>Designation</label>
+                    <select value={designation} onChange={(e) => resetToFirstPage(setDesignation)(e.target.value)}>
+                        <option value="">All Designations</option>
+                        {filteredDesignations.map((item) => (
+                            <option key={item.id} value={item.id}>{item.designation_name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="filter-group">
+                    <label>NSO Project</label>
+                    <select value={nsoProject} onChange={(e) => resetToFirstPage(setNsoProject)(e.target.value)}>
+                        <option value="">All NSO Projects</option>
+                        {nsoProjects.map((item) => (
+                            <option key={item.id} value={item.id}>
+                                #{item.id} - {item.location || item.city || "NSO Project"}
                             </option>
                         ))}
                     </select>
@@ -376,6 +590,163 @@ export default function NaRegister() {
                     }}
                 />
             </Card>
+
+            {/* ================= VIEW ================= */}
+            <ProfessionalModal
+                isOpen={Boolean(viewRow)}
+                onClose={() => setViewRow(null)}
+                title="N/A Record"
+                subtitle={viewRow ? `${viewRow.store_name || "Store"} · Submission #${viewRow.submission_id}` : ""}
+                icon="i"
+                size="large"
+                scrollable
+                footer={
+                    <>
+                        {canEdit && viewRow && (
+                            <button
+                                type="button"
+                                className="professional-btn professional-btn-primary"
+                                onClick={() => {
+                                    const row = viewRow;
+                                    setViewRow(null);
+                                    openEdit(row);
+                                }}
+                            >
+                                Edit
+                            </button>
+                        )}
+                        <button type="button" className="professional-btn professional-btn-secondary" onClick={() => setViewRow(null)}>
+                            Close
+                        </button>
+                    </>
+                }
+            >
+                {viewRow && (
+                    <div className="na-detail-grid">
+                        {detail("Submitted", formatDateTime(viewRow.submission_date))}
+                        {detail("Store", [viewRow.store_name, viewRow.city, viewRow.state].filter(Boolean).join(", "))}
+                        {detail("Checklist", viewRow.checklist_name)}
+                        {detail("Department", viewRow.department_name)}
+                        <div className="na-detail na-detail-wide">
+                            <span>Question</span>
+                            <div>{viewRow.question || "-"}</div>
+                        </div>
+                        {detail("Answer", <span className="na-chip">{viewRow.answer || "N/A"}</span>)}
+                        {detail("Submitted By", [viewRow.employee_name, viewRow.employee_id].filter(Boolean).join(" · "))}
+                        <div className="na-detail na-detail-wide">
+                            <span>Remarks</span>
+                            <div>{viewRow.remarks || "-"}</div>
+                        </div>
+                        <div className="na-detail na-detail-wide">
+                            <span>Attachment</span>
+                            <div>
+                                <AttachmentLinks
+                                    items={viewRow.photos}
+                                    title={`N/A · ${viewRow.store_name || "Store"}`}
+                                    subtitle={viewRow.question || ""}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </ProfessionalModal>
+
+            {/* ================= EDIT ================= */}
+            <ProfessionalModal
+                isOpen={Boolean(editRow)}
+                onClose={() => !saving && setEditRow(null)}
+                title="Edit N/A Record"
+                subtitle={editRow ? editRow.question || "" : ""}
+                icon="✎"
+                size="medium"
+                footer={
+                    <>
+                        <button
+                            type="button"
+                            className="professional-btn professional-btn-secondary"
+                            onClick={() => setEditRow(null)}
+                            disabled={saving}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            className="professional-btn professional-btn-primary"
+                            onClick={saveEdit}
+                            disabled={saving}
+                        >
+                            {saving ? "Saving..." : "Save Changes"}
+                        </button>
+                    </>
+                }
+            >
+                {editRow && (
+                    <div className="na-edit-form">
+                        <div className="na-detail-grid">
+                            {detail("Store", editRow.store_name)}
+                            {detail("Checklist", editRow.checklist_name)}
+                        </div>
+
+                        <label className="na-field">
+                            <span>Answer</span>
+                            <input
+                                type="text"
+                                list="na-answer-suggestions"
+                                value={editForm.answer}
+                                onChange={(e) => setEditForm((f) => ({ ...f, answer: e.target.value }))}
+                                maxLength={1000}
+                            />
+                            <datalist id="na-answer-suggestions">
+                                {ANSWER_SUGGESTIONS.map((item) => (
+                                    <option key={item} value={item} />
+                                ))}
+                            </datalist>
+                            {!isNaAnswer(editForm.answer) && String(editForm.answer || "").trim() && (
+                                <small className="na-field-warning">
+                                    This answer is not N/A — after saving, the record leaves the N/A Register.
+                                </small>
+                            )}
+                        </label>
+
+                        <label className="na-field">
+                            <span>Remarks</span>
+                            <textarea
+                                rows={4}
+                                value={editForm.remarks}
+                                onChange={(e) => setEditForm((f) => ({ ...f, remarks: e.target.value }))}
+                                maxLength={5000}
+                                placeholder="Add remarks..."
+                            />
+                        </label>
+                    </div>
+                )}
+            </ProfessionalModal>
+
+            {/* ================= DELETE ONE ================= */}
+            <ConfirmDialog
+                open={Boolean(deleteRow)}
+                title="Delete N/A Record"
+                message="Are you sure you want to delete this N/A record? The checklist answer is removed permanently."
+                confirmText="Delete"
+                cancelText="Cancel"
+                confirmVariant="danger"
+                loading={deleting}
+                onConfirm={confirmDelete}
+                onCancel={() => setDeleteRow(null)}
+            />
+
+            {/* ================= DELETE ALL / FILTERED ================= */}
+            <ConfirmDialog
+                open={showDeleteAll}
+                title={isFiltered ? "Delete Filtered N/A Records" : "Delete All N/A Records"}
+                message={deleteAllMessage(isFiltered, isFiltered ? summary.total : null, "N/A records")}
+                confirmText={isFiltered ? "Delete Filtered" : "Delete All"}
+                cancelText="Cancel"
+                confirmVariant="danger"
+                loading={deleting}
+                onConfirm={confirmDeleteAll}
+                onCancel={() => setShowDeleteAll(false)}
+            />
         </div>
     );
 }
