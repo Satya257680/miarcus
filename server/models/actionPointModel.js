@@ -339,8 +339,22 @@ const AP_VIEW_SQL = {
 
 const apViewSql = (view) => AP_VIEW_SQL[String(view || "").trim().toLowerCase()] || "";
 
+// ======================================================
+// ACTION POINT LIFECYCLE
+// ------------------------------------------------------
+// Active   = Open / In Progress  -> Action Points page.
+// Complete = Closed (UI label "Completed") -> Completed Action Points
+//            page. A completed record is never hard-deleted from that
+//            page; it is archived (completed_archived_at) so Checklist
+//            Reports keep showing "Action Completed" for the answer.
+// ======================================================
+const ACTIVE_ONLY_SQL = `LOWER(COALESCE(ap.status, 'Open')) <> 'closed'`;
+const TERMINAL_STATUS = "Closed";
+
 ActionPoint.AP_SLA_MINUTES_SQL = AP_SLA_MINUTES_SQL;
 ActionPoint.apViewSql = apViewSql;
+ActionPoint.ACTIVE_ONLY_SQL = ACTIVE_ONLY_SQL;
+ActionPoint.TERMINAL_STATUS = TERMINAL_STATUS;
 
 // ======================================================
 // DESIGNATION FILTER + FILTER ACCESS SCOPE
@@ -478,6 +492,15 @@ ActionPoint.getAll = (
 
             ap.attachment,
 
+            -- Evidence used to build the Attachment "View" list
+            -- (utils/actionPointAttachments.js): Take Action photos, the
+            -- originating question's photos and the checklist attachment.
+            ap.action_photos,
+
+            csa.photos AS answer_photos,
+
+            cs.attachment AS submission_attachment,
+
             ap.completed_at,
 
             ap.created_at,
@@ -580,10 +603,10 @@ ActionPoint.getAll = (
         -- Completed (Closed) checklist Action Points leave this module and
         -- appear in Checklist Reports instead. Manual Action Points that are
         -- not linked to a checklist submission stay visible.
-        AND NOT (
-            LOWER(COALESCE(ap.status, 'Open')) = 'closed'
-            AND (ap.submission_answer_id IS NOT NULL OR ap.submission_id IS NOT NULL)
-        )
+        -- LIFECYCLE: every Completed (Closed) Action Point — checklist or
+        -- manual — leaves the active list and lives in the Completed
+        -- Action Points module (see models/completedActionPointModel.js).
+        AND ${ACTIVE_ONLY_SQL}
 
 
         -- Bulk imports must remain fully visible in Action Points so the
@@ -853,10 +876,10 @@ ActionPoint.count = (
         -- Completed (Closed) checklist Action Points leave this module and
         -- appear in Checklist Reports instead. Manual Action Points that are
         -- not linked to a checklist submission stay visible.
-        AND NOT (
-            LOWER(COALESCE(ap.status, 'Open')) = 'closed'
-            AND (ap.submission_answer_id IS NOT NULL OR ap.submission_id IS NOT NULL)
-        )
+        -- LIFECYCLE: every Completed (Closed) Action Point — checklist or
+        -- manual — leaves the active list and lives in the Completed
+        -- Action Points module (see models/completedActionPointModel.js).
+        AND ${ACTIVE_ONLY_SQL}
     `;
 
 
@@ -1062,6 +1085,12 @@ ActionPoint.getById = (
             ap.comment AS comment,
 
             ap.attachment,
+
+            ap.action_photos,
+
+            csa.photos AS answer_photos,
+
+            cs.attachment AS submission_attachment,
 
             ap.completed_at,
 
@@ -1756,6 +1785,39 @@ ActionPoint.ensureCommentColumn = async () => {
 };
 
 // ======================================================
+// ENSURE COMPLETED-ARCHIVE COLUMNS (Completed Action Points module)
+//
+// Deleting a record from Completed Action Points must not change history:
+// Checklist Reports joins action_points to show "Action Completed" for the
+// originating answer, so a hard DELETE would turn it into "No Action
+// Needed". Delete / Delete All therefore archive the row instead. Both
+// columns are nullable additions — existing rows are untouched (NULL =
+// visible), nothing is dropped or rewritten.
+// ======================================================
+
+ActionPoint.ensureCompletedArchiveColumns = async () => {
+    const archivedAt = await db.query(`SHOW COLUMNS FROM action_points LIKE 'completed_archived_at'`);
+    if (!archivedAt || archivedAt.length === 0) {
+        await db.query(`ALTER TABLE action_points ADD COLUMN completed_archived_at DATETIME NULL AFTER completed_at`);
+        console.log("✅ action_points.completed_archived_at added");
+    }
+
+    const archivedBy = await db.query(`SHOW COLUMNS FROM action_points LIKE 'completed_archived_by'`);
+    if (!archivedBy || archivedBy.length === 0) {
+        await db.query(`ALTER TABLE action_points ADD COLUMN completed_archived_by INT NULL AFTER completed_archived_at`);
+        console.log("✅ action_points.completed_archived_by added");
+    }
+
+    // Lookup used by the per-store question lock (open Action Point for
+    // store + question) and by the Completed list (status + archive).
+    const lockIndex = await db.query(`SHOW INDEX FROM action_points WHERE Key_name = 'idx_action_points_store_question_status'`);
+    if (!lockIndex || lockIndex.length === 0) {
+        await db.query(`ALTER TABLE action_points ADD INDEX idx_action_points_store_question_status (store_id, question_id, status)`);
+        console.log("✅ action_points store/question/status index added");
+    }
+};
+
+// ======================================================
 // ENSURE HISTORY ACTOR NAME COLUMN
 //
 // Existing installations created action_point_history before
@@ -1959,30 +2021,44 @@ ActionPoint.deleteAll = (
         ids = null;
     }
 
-    if (Array.isArray(ids)) {
-        if (!ids.length) return callback(null, { affectedRows: 0 });
-        const marks = ids.map(() => "?").join(", ");
-        return db.query(
-            `DELETE FROM action_point_history WHERE action_point_id IN (${marks})`,
-            ids,
-            (historyErr) => {
-                if (historyErr) return callback(historyErr);
-                db.query(`DELETE FROM action_points WHERE id IN (${marks})`, ids, callback);
-            }
-        );
-    }
+    // LIFECYCLE SAFETY: Delete All on the Action Points page only ever
+    // removes ACTIVE (Open / In Progress) Action Points. Completed records
+    // belong to the Completed Action Points module (which archives instead
+    // of deleting) and back the "Action Completed" state in Checklist
+    // Reports, so they are never swept away from here.
+    (async () => {
+        let targetIds;
 
-    const sql = `
-        DELETE FROM action_points
-    `;
-
-
-    db.query(
-        `DELETE FROM action_point_history`,
-        (historyErr) => {
-            if (historyErr) return callback(historyErr);
-            db.query(sql, callback);
+        if (Array.isArray(ids)) {
+            const clean = [...new Set(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+            if (!clean.length) return { affectedRows: 0 };
+            const rows = await db.query(
+                `SELECT ap.id FROM action_points ap
+                 WHERE ap.id IN (${clean.map(() => "?").join(", ")})
+                   AND ${ACTIVE_ONLY_SQL}`,
+                clean
+            );
+            targetIds = (rows || []).map((row) => Number(row.id));
+        } else {
+            const rows = await db.query(
+                `SELECT ap.id FROM action_points ap WHERE ${ACTIVE_ONLY_SQL}`
+            );
+            targetIds = (rows || []).map((row) => Number(row.id));
         }
+
+        let affectedRows = 0;
+        for (let i = 0; i < targetIds.length; i += 1000) {
+            const part = targetIds.slice(i, i + 1000);
+            const marks = part.map(() => "?").join(", ");
+            await db.query(`DELETE FROM action_point_history WHERE action_point_id IN (${marks})`, part);
+            const result = await db.query(`DELETE FROM action_points WHERE id IN (${marks})`, part);
+            affectedRows += Number(result?.affectedRows || 0);
+        }
+
+        return { affectedRows };
+    })().then(
+        (result) => callback(null, result),
+        (err) => callback(err)
     );
 };
 
@@ -2280,10 +2356,10 @@ ActionPoint.exportData = (
         -- Action Points have moved to Checklist Reports, so they are not
         -- part of the Action Points export either. Manual Action Points
         -- (no checklist link) stay included.
-        AND NOT (
-            LOWER(COALESCE(ap.status, 'Open')) = 'closed'
-            AND (ap.submission_answer_id IS NOT NULL OR ap.submission_id IS NOT NULL)
-        )
+        -- LIFECYCLE: every Completed (Closed) Action Point — checklist or
+        -- manual — leaves the active list and lives in the Completed
+        -- Action Points module (see models/completedActionPointModel.js).
+        AND ${ACTIVE_ONLY_SQL}
 
     `;
 

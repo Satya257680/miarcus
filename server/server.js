@@ -566,6 +566,11 @@ async function initializeDatabase() {
             if (typeof ActionPoint.ensureRuleForeignKeyRemoved === "function") {
                 await ActionPoint.ensureRuleForeignKeyRemoved();
             }
+            // Completed Action Points module: archive columns (nullable,
+            // additive) + store/question lookup index for the question lock.
+            if (typeof ActionPoint.ensureCompletedArchiveColumns === "function") {
+                await ActionPoint.ensureCompletedArchiveColumns();
+            }
             await require("./utils/filterAccess").ensureTable();
             console.log("✅ Action Point comment/history schema verified");
         } catch (error) {

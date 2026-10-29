@@ -1499,3 +1499,94 @@ textarea:focus-visible {
   color: #c2410c;
   background: #ffedd5;
 }
+
+/* =========================================================
+   QUESTION LOCKED FOR THIS STORE
+   (unresolved Action Point — see pages/ChecklistSubmission.jsx)
+   ========================================================= */
+
+.question-list .question-card.is-locked {
+  background: #fbfaff;
+  border: 1px dashed #c9bdf5;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.question-list .question-card.is-locked:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #c9bdf5;
+}
+
+.question-card.is-locked .question-number {
+  color: #6d3df2;
+  background: #efe9ff;
+}
+
+.question-card.is-locked .question-title h4 {
+  color: #6b6890;
+}
+
+.cs-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6d3df2;
+  white-space: nowrap;
+  background: #f1ebff;
+  border: 1px solid #ddd0ff;
+  border-radius: 999px;
+}
+
+.cs-locked-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  color: #4b4f72;
+  background: #f6f2ff;
+  border: 1px solid #e6dcff;
+  border-radius: 9px;
+}
+
+.cs-locked-note .cs-locked-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #6d3df2;
+}
+
+.cs-locked-note strong {
+  display: block;
+  font-size: 13px;
+  color: #2b2563;
+}
+
+.cs-locked-note small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #6b6890;
+}
+
+[data-theme="dark"] .question-list .question-card.is-locked {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(185, 164, 255, 0.4);
+}
+
+[data-theme="dark"] .cs-locked-note {
+  color: #d9d5f5;
+  background: rgba(109, 61, 242, 0.12);
+  border-color: rgba(185, 164, 255, 0.3);
+}
+
+[data-theme="dark"] .cs-locked-note strong {
+  color: #f1efff;
+}
+
+[data-theme="dark"] .cs-locked-note small {
+  color: #b9b6d6;
+}

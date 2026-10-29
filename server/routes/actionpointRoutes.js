@@ -237,6 +237,80 @@ router.get(
 
 
 // ======================================================
+// COMPLETED ACTION POINTS
+// /api/action-points/completed[...]
+//
+// IMPORTANT: every route here MUST stay before the generic /:id routes,
+// otherwise GET/DELETE "/completed" would be read as id = "completed".
+//
+// Permission (Action Points module):
+//   View -> list / export / view     Edit -> edit     Full -> delete(s)
+// ======================================================
+
+const {
+    getCompletedActionPoints,
+    exportCompletedActionPoints,
+    getCompletedActionPoint,
+    updateCompletedActionPoint,
+    deleteCompletedActionPoint,
+    deleteAllCompletedActionPoints
+} = require("../controllers/completedActionPointController");
+
+router.get(
+    "/completed",
+    authMiddleware,
+    permissionMiddleware("Action Points", "View"),
+    apScope,
+    validateFilterValues,
+    getCompletedActionPoints
+);
+
+router.get(
+    "/completed/export",
+    authMiddleware,
+    permissionMiddleware("Action Points", "View"),
+    apScope,
+    validateFilterValues,
+    exportCompletedActionPoints
+);
+
+router.get(
+    "/completed/:id",
+    authMiddleware,
+    permissionMiddleware("Action Points", "View"),
+    apScope,
+    requireActionPointInScope(),
+    getCompletedActionPoint
+);
+
+router.put(
+    "/completed/:id",
+    authMiddleware,
+    permissionMiddleware("Action Points", "Edit"),
+    apScope,
+    requireActionPointInScope(),
+    updateCompletedActionPoint
+);
+
+router.delete(
+    "/completed/:id",
+    authMiddleware,
+    permissionMiddleware("Action Points", "Full"),
+    apScope,
+    requireActionPointInScope(),
+    deleteCompletedActionPoint
+);
+
+router.delete(
+    "/completed",
+    authMiddleware,
+    permissionMiddleware("Action Points", "Full"),
+    apScope,
+    deleteAllCompletedActionPoints
+);
+
+
+// ======================================================
 // GET ACTION POINT BY ID
 // GET /api/action-points/:id
 //

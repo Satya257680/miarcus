@@ -14,6 +14,7 @@ import {
   FaRedoAlt,
   FaSyncAlt,
   FaArrowRight,
+  FaLock,
 } from "react-icons/fa";
 import checklistHeroArt from "../assets/premium/checklist-hero.png";
 import checklistBulb from "../assets/premium/checklist-bulb.png";
@@ -329,6 +330,16 @@ function ChecklistSubmission() {
   const [stores, setStores] = useState([]);
   const [questions, setQuestions] = useState([]);
 
+  // Questions this store may not answer right now because the Action
+  // Point raised from them for THIS store is still unresolved:
+  // { [questionId]: { action_point_id, status, priority, raised_at, message } }.
+  // Only these cards are disabled; the rest of the checklist stays open.
+  const [lockedQuestions, setLockedQuestions] = useState({});
+  const lockRequestRef = useRef(0);
+  const [lockMessage, setLockMessage] = useState(
+    "This question is unavailable while its action point is unresolved."
+  );
+
   // =========================================================
   // FORM
   // =========================================================
@@ -374,6 +385,18 @@ function ChecklistSubmission() {
       return count ? `Photo attached (${count})` : "";
     }
     return answers[questionId];
+  };
+
+  const questionIdOf = (question) => question.id || question.question_id;
+  const lockOf = (question) => lockedQuestions[String(questionIdOf(question))] || null;
+  const isQuestionLocked = (question) => Boolean(lockOf(question));
+
+  const applyLockedList = (list) => {
+    const next = {};
+    (Array.isArray(list) ? list : []).forEach((item) => {
+      if (item?.question_id) next[String(item.question_id)] = item;
+    });
+    setLockedQuestions(next);
   };
 
   // =========================================================
@@ -577,6 +600,46 @@ function ChecklistSubmission() {
 
 
   // =========================================================
+  // LOCKED QUESTIONS (per store, per question)
+  // =========================================================
+
+  const loadLockedQuestions = async () => {
+    if (!checklistTypeId || !storeId) {
+      setLockedQuestions({});
+      return;
+    }
+
+    // Only the newest request may update the cards, so a slow answer for
+    // a store / checklist the user already left is ignored.
+    const seq = ++lockRequestRef.current;
+
+    try {
+      const response = await axios.get(
+        `${API}/api/checklist-submissions/form-options/locked-questions`,
+        {
+          params: {
+            checklist_type_id: checklistTypeId,
+            store_id: storeId,
+          },
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
+        }
+      );
+
+      if (seq !== lockRequestRef.current) return;
+
+      if (response.data?.message) setLockMessage(response.data.message);
+      applyLockedList(response.data?.data);
+    } catch (error) {
+      if (seq !== lockRequestRef.current) return;
+      console.warn("Unable to load question availability:", error?.message || error);
+      setLockedQuestions({});
+    }
+  };
+
+  // =========================================================
   // FETCH QUESTIONS
   // =========================================================
 
@@ -589,6 +652,11 @@ function ChecklistSubmission() {
       setErrorMessage("");
 
       const refreshToken = manual ? `&_refresh=${Date.now()}` : "";
+
+      // Per-store question availability (loaded alongside the questions;
+      // the server re-checks it on submit, so a failed lookup never
+      // blocks the form).
+      loadLockedQuestions();
 
       const response = await axios.get(
         `${API}/api/checklist-submissions/form-options/questions?checklist_type_id=${encodeURIComponent(checklistTypeId)}${refreshToken}`,
@@ -712,6 +780,8 @@ function ChecklistSubmission() {
 
     // Reset previous answers when checklist changes.
     setQuestions([]);
+    lockRequestRef.current += 1;
+    setLockedQuestions({});
     setAnswers({});
       clearPhotos();
     setRemarks({});
@@ -728,6 +798,8 @@ function ChecklistSubmission() {
     // Clear old questions until the new
     // combination is loaded.
     setQuestions([]);
+    lockRequestRef.current += 1;
+    setLockedQuestions({});
     setAnswers({});
       clearPhotos();
     setRemarks({});
@@ -1100,11 +1172,22 @@ function ChecklistSubmission() {
       return;
     }
 
+    // Questions waiting on an unresolved Action Point for this store are
+    // neither required nor sent. Everything else is answered as usual.
+    const answerableQuestions = questions.filter((question) => !isQuestionLocked(question));
+
+    if (answerableQuestions.length === 0) {
+      alert(
+        "Every question in this checklist is waiting for an unresolved action point for this store. It can be submitted again once those action points are completed."
+      );
+      return;
+    }
+
     // -------------------------------------------------------
     // REQUIRED QUESTIONS
     // -------------------------------------------------------
 
-    for (const question of questions) {
+    for (const question of answerableQuestions) {
       const questionId =
         question.id ||
         question.question_id;
@@ -1139,7 +1222,7 @@ function ChecklistSubmission() {
     // REQUIRED PHOTO EVIDENCE
     // -------------------------------------------------------
 
-    for (const question of questions) {
+    for (const question of answerableQuestions) {
       const questionId = question.id || question.question_id;
       const rule = photoRule(question, answers[questionId]);
 
@@ -1194,7 +1277,7 @@ function ChecklistSubmission() {
       // -----------------------------------------------------
 
       const formattedAnswers =
-        questions.map((question) => {
+        answerableQuestions.map((question) => {
           const questionId =
             question.id ||
             question.question_id;
@@ -1284,7 +1367,7 @@ function ChecklistSubmission() {
 
       const photoMap = [];
 
-      questions.forEach((question) => {
+      answerableQuestions.forEach((question) => {
         const questionId = question.id || question.question_id;
         photosOf(questionId)
           .filter((photo) => photo.kind === "file" && photo.file)
@@ -1339,6 +1422,8 @@ function ChecklistSubmission() {
       );
 
       setQuestions([]);
+      lockRequestRef.current += 1;
+      setLockedQuestions({});
       setAnswers({});
       clearPhotos();
       setRemarks({});
@@ -1362,6 +1447,19 @@ function ChecklistSubmission() {
       const message =
         error.response?.data?.message ||
         "Unable to submit checklist.";
+
+      // A question was locked meanwhile (another submission for this
+      // store raised an Action Point). Show it as unavailable right away.
+      if (error.response?.data?.code === "QUESTION_LOCKED") {
+        const locked = Array.isArray(error.response.data.locked) ? error.response.data.locked : [];
+        setLockedQuestions((previous) => {
+          const next = { ...previous };
+          locked.forEach((item) => {
+            if (item?.question_id) next[String(item.question_id)] = item;
+          });
+          return next;
+        });
+      }
 
       setErrorMessage(message);
 
@@ -1401,10 +1499,13 @@ function ChecklistSubmission() {
   // eslint-disable-next-line no-unused-vars
   const isRequired = (question) => true;
 
-  const answeredCount = questions.filter(isAnswered).length;
+  // Locked questions are shown but neither answered nor required.
+  const answerableQuestions = questions.filter((question) => !isQuestionLocked(question));
+  const lockedCount = questions.length - answerableQuestions.length;
+  const answeredCount = answerableQuestions.filter(isAnswered).length;
   const totalPhotos = Object.values(photos).reduce((sum, list) => sum + (list?.length || 0), 0);
-  const requiredLeft = questions.filter((question) => isRequired(question) && !isAnswered(question)).length;
-  const allAnswered = questions.length > 0 && requiredLeft === 0 && answeredCount > 0;
+  const requiredLeft = answerableQuestions.filter((question) => isRequired(question) && !isAnswered(question)).length;
+  const allAnswered = answerableQuestions.length > 0 && requiredLeft === 0 && answeredCount > 0;
 
   // Attach Evidence is optional, so once every required answer is filled
   // the flow moves straight to Review & Submit.
@@ -1430,6 +1531,8 @@ function ChecklistSubmission() {
     setStoreId("");
     setSubmissionDate(new Date().toISOString().split("T")[0]);
     setQuestions([]);
+    lockRequestRef.current += 1;
+    setLockedQuestions({});
     setAnswers({});
       clearPhotos();
     setRemarks({});
@@ -1710,6 +1813,7 @@ function ChecklistSubmission() {
               <span>
                 <strong>{questions.length}</strong> questions loaded ·{" "}
                 <strong>{answeredCount}</strong> answered
+                {lockedCount > 0 && <> · <strong>{lockedCount}</strong> unavailable (action point open)</>}
                 {totalPhotos > 0 && <> · <strong>{totalPhotos}</strong> photo{totalPhotos > 1 ? "s" : ""}</>}
                 {requiredLeft > 0 ? <> · <strong>{requiredLeft}</strong> required remaining</> : " · all required questions answered"}
               </span>
@@ -1856,6 +1960,47 @@ function ChecklistSubmission() {
                     const questionPhotos = photosOf(questionId);
                     const typeLabel =
                       question.answer_type || question.question_type || question.type || "Text";
+
+                    // -------------------------------------------------
+                    // LOCKED FOR THIS STORE (unresolved Action Point)
+                    // -------------------------------------------------
+                    const lock = lockOf(question);
+                    if (lock) {
+                      const raised = lock.raised_at ? new Date(lock.raised_at) : null;
+                      return (
+                        <div
+                          className="question-card is-locked"
+                          key={questionId}
+                          id={`cs-q-${questionId}`}
+                          aria-disabled="true"
+                        >
+                          <div className="question-top">
+                            <div className="question-number">{index + 1}</div>
+                            <div className="question-content">
+                              <div className="question-title">
+                                <h4>{questionText}</h4>
+                                <span className="cs-locked-badge">
+                                  <FaLock /> Unavailable
+                                </span>
+                              </div>
+                              <div className="cs-locked-note" role="note">
+                                <FaLock className="cs-locked-icon" />
+                                <div>
+                                  <strong>{lock.message || lockMessage}</strong>
+                                  <small>
+                                    Action Point #{lock.action_point_id} · {lock.status || "Open"}
+                                    {raised && !Number.isNaN(raised.getTime())
+                                      ? ` · raised ${raised.toLocaleDateString("en-IN")}`
+                                      : ""}
+                                    . It will be available again once that action point is completed.
+                                  </small>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
 
                     return (
                       <div

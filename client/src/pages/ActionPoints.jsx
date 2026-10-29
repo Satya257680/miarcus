@@ -7,8 +7,9 @@ import {
     ActionPhotoThumbs
 } from "../components/actionPoints/TakeActionPhotos";
 import { isPhotoRequired, historyPhotos, historyActionTaken } from "../utils/actionPointPhotos";
-import { attachmentName, hasAttachment, openAttachment } from "../utils/attachments";
+import AttachmentLinks from "../components/common/AttachmentLinks";
 import { useEffect, useRef, useState, useEffectEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "../axiosConfig.js";
 
 // ======================================================
@@ -218,6 +219,8 @@ function ActionPoints() {
     // ======================================================
 
     const [actionPoints, setActionPoints] = useState([]);
+
+    const navigate = useNavigate();
 
     const [stores, setStores] = useState([]);
 
@@ -1617,24 +1620,17 @@ if (loading && !hasLoadedOnce) {
 
     title: "Attachment",
 
+    // One "View" link for every file of the Action Point: its own
+    // attachment, Take Action photos and the originating checklist
+    // question's evidence (server-built `attachments` list).
     render: (row) => (
 
-        hasAttachment(row.attachment) ? (
-
-            <button
-                type="button"
-                className="table-link attachment-link-btn"
-                onClick={() => openAttachment(row.attachment)}
-                title={attachmentName(row.attachment)}
-            >
-                View
-            </button>
-
-        ) : (
-
-            "-"
-
-        )
+        <AttachmentLinks
+            items={row.attachments}
+            value={row.attachment}
+            title={`Action Point #${row.id}`}
+            subtitle={[row.store_name, fixMojibake(row.question)].filter(Boolean).join(" · ")}
+        />
 
     )
 
@@ -1924,7 +1920,7 @@ return (
         <PageHeader
             className="premium-hero"
             title="Action Points"
-            subtitle="Only checklist answers that report a problem land here. Once closed, they move to Checklist Reports."
+            subtitle="Only checklist answers that report a problem land here. Once completed, they move to Completed Action Points and the answer appears in Checklist Reports."
         />
 
         <InsightStrip
@@ -1934,7 +1930,7 @@ return (
                     key: "total",
                     label: "Total",
                     value: apSummary?.total,
-                    hint: "All Action Points",
+                    hint: "All active Action Points",
                     tone: "violet",
                     icon: FaListUl,
                     active: !status && !view,
@@ -1974,11 +1970,11 @@ return (
                     key: "closed",
                     label: "Completed",
                     value: apSummary?.closed,
-                    hint: "Moved to Checklist Reports",
+                    hint: "Open Completed Action Points",
                     tone: "green",
                     icon: FaCheckCircle,
-                    active: status === "Closed" && !view,
-                    onClick: () => showCard("Closed", "")
+                    active: false,
+                    onClick: () => navigate("/completed-action-points")
                 },
                 {
                     key: "overdue",
@@ -2259,9 +2255,8 @@ return (
                         In Progress
                     </option>
 
-                    <option value="Closed">
-                        Closed
-                    </option>
+                    {/* Completed (Closed) records live in Completed
+                        Action Points — see the "Completed" card. */}
 
                 </select>
 

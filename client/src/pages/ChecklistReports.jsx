@@ -1,6 +1,6 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
 import { ChecklistReportViewModal, ChecklistReportEditModal } from "../components/checklist/ChecklistReportModals";
-import { attachmentName, hasAttachment, openAttachment } from "../utils/attachments";
+import { attachmentName, attachmentPath, hasAttachment, openAttachment } from "../utils/attachments";
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
@@ -1053,7 +1053,9 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
             Device: r.device || "-",
 
-            Attachment: r.attachment || "-",
+            // Relative "uploads/..." reference only — never the server's
+            // disk path (e.g. "C:/miarcus/server/uploads/...").
+            Attachment: hasAttachment(r.attachment) ? attachmentPath(r.attachment) : "-",
 
             Latitude: r.latitude || "-",
 

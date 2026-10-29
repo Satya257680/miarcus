@@ -42,6 +42,7 @@ const ChecklistAccessControl = lazy(() => import("./pages/ChecklistAccessControl
 const ChecklistReports = lazy(() => import("./pages/ChecklistReports"));
 const ChecklistTracker = lazy(() => import("./pages/ChecklistTracker"));
 const ActionPoints = lazy(() => import("./pages/ActionPoints"));
+const CompletedActionPoints = lazy(() => import("./pages/CompletedActionPoints"));
 const Announcements = lazy(() => import("./pages/Announcements"));
 const Gallery = lazy(() => import("./pages/Gallery"));
 const GalleryMobile = lazy(() => import("./pages/GalleryMobile"));
@@ -371,6 +372,15 @@ function App() {
                         element={
                             <ModulePermissionRoute page="actionpoints.list">
                                 <ActionPoints />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/completed-action-points"
+                        element={
+                            <ModulePermissionRoute page="actionpoints.completed">
+                                <CompletedActionPoints />
                             </ModulePermissionRoute>
                         }
                     />

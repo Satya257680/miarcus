@@ -319,6 +319,73 @@ router.get(
 );
 
 // ======================================================
+// LOCKED QUESTIONS (per store, per question)
+// GET /api/checklist-submissions/form-options/locked-questions
+//     ?checklist_type_id=ID&store_id=ID
+// Permission : Checklist Submission → View
+// IMPORTANT: KEEP BEFORE /:id
+//
+// Questions of this Opening / Closing checklist that the selected store
+// may not answer right now because an Action Point raised from that
+// question for THAT store is still unresolved. Only the user's own
+// stores can be queried. See services/checklistQuestionLockService.js.
+// ======================================================
+
+router.get(
+
+    "/form-options/locked-questions",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Submission",
+
+        "View"
+
+    ),
+
+    async (req, res) => {
+        try {
+            const lockService = require("../services/checklistQuestionLockService");
+            const checklistTypeId = Number(req.query.checklist_type_id);
+            const storeId = Number(req.query.store_id);
+
+            if (!Number.isInteger(checklistTypeId) || checklistTypeId <= 0 ||
+                !Number.isInteger(storeId) || storeId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "checklist_type_id and store_id are required"
+                });
+            }
+
+            if (!(await lockService.canUserAccessStore(req.user, storeId))) {
+                return res.status(403).json({
+                    success: false,
+                    message: "You do not have access to this store."
+                });
+            }
+
+            const data = await lockService.getLockedQuestions({ storeId, checklistTypeId });
+
+            return res.status(200).json({
+                success: true,
+                count: data.length,
+                message: lockService.LOCKED_MESSAGE,
+                data
+            });
+        } catch (error) {
+            console.error("LOCKED QUESTIONS ERROR:", error);
+            return res.status(500).json({
+                success: false,
+                message: "Unable to load question availability."
+            });
+        }
+    }
+
+);
+
+// ======================================================
 // GET SUBMISSIONS FOR NEW STORE OPENING
 // GET /api/checklist-submissions/by-nso/:newStoreOpeningId
 // Permission : View

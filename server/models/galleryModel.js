@@ -79,6 +79,19 @@ const Gallery = {
         await addColumnIfMissing("gallery_photos", "source_module", "VARCHAR(100) NULL");
         await addColumnIfMissing("gallery_photos", "source_record_id", "BIGINT NULL");
         await addColumnIfMissing("gallery_photos", "source_field", "VARCHAR(100) NULL");
+        // SHA-256 of the file bytes. Lets module attachment sync skip a
+        // second Gallery entry when the same file is processed again for
+        // the same record (re-sync, retried request, edit re-uploading the
+        // identical file). Nullable: older rows simply have no hash.
+        await addColumnIfMissing("gallery_photos", "content_hash", "CHAR(64) NULL");
+        const hashIndex = await db.query(
+            `SHOW INDEX FROM gallery_photos WHERE Key_name = 'idx_gallery_source_hash'`
+        );
+        if (!hashIndex || !hashIndex.length) {
+            await db.query(
+                `ALTER TABLE gallery_photos ADD INDEX idx_gallery_source_hash (source_module, source_record_id, content_hash)`
+            );
+        }
 
         await db.query(`
             CREATE TABLE IF NOT EXISTS gallery_mobile_sessions (
@@ -225,12 +238,19 @@ const Gallery = {
     },
 
     async create(data) {
+        const columns = [
+            "file_name", "file_path", "mime_type", "file_size", "file_data", "uploaded_by", "category", "description",
+            "location_type", "store_id", "latitude", "longitude", "location_accuracy",
+            "source_module", "source_record_id", "source_field"
+        ];
+        // content_hash is only written when supplied, so Gallery keeps
+        // working on a database where the column was not added yet.
+        if (data.content_hash) columns.push("content_hash");
+
         const result = await db.query(`
             INSERT INTO gallery_photos
-            (file_name, file_path, mime_type, file_size, file_data, uploaded_by, category, description,
-             location_type, store_id, latitude, longitude, location_accuracy,
-             source_module, source_record_id, source_field)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (${columns.join(", ")})
+            VALUES (${columns.map(() => "?").join(", ")})
         `, [
             data.file_name,
             data.file_path,
@@ -247,9 +267,32 @@ const Gallery = {
             data.location_accuracy ?? null,
             data.source_module || "Gallery",
             data.source_record_id || null,
-            data.source_field || "photo"
+            data.source_field || "photo",
+            ...(data.content_hash ? [data.content_hash] : [])
         ]);
         return Number(result.insertId);
+    },
+
+    // Active Gallery item that already holds exactly these bytes for the
+    // same module record (see middleware/galleryAttachmentSync.js).
+    async findAttachmentDuplicate({ source_module, source_record_id, content_hash }) {
+        if (!source_module || !source_record_id || !content_hash) return null;
+        try {
+            const rows = await db.query(`
+                SELECT id
+                FROM gallery_photos
+                WHERE source_module = ?
+                  AND source_record_id = ?
+                  AND content_hash = ?
+                  AND status = 'active'
+                LIMIT 1
+            `, [source_module, source_record_id, content_hash]);
+            return rows?.[0] ? Number(rows[0].id) : null;
+        } catch (error) {
+            // Column not migrated yet -> behave exactly as before (no dedupe).
+            if (error?.code === "ER_BAD_FIELD_ERROR") return null;
+            throw error;
+        }
     },
 
     async registerAttachment(data) {

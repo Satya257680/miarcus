@@ -145,7 +145,12 @@ export const RBAC_GROUPS = [
         name: "Action Points",
         icon: "actionPoints",
         description: "Corrective actions raised from audits",
-        pages: [{ key: "actionpoints.list", label: "Action Points", paths: ["/action-points"] }],
+        pages: [
+          { key: "actionpoints.list", label: "Action Points", paths: ["/action-points"] },
+          // Completed (Closed) Action Points: view / edit / export /
+          // delete follow the Action Points module permission.
+          { key: "actionpoints.completed", label: "Completed Action Points", paths: ["/completed-action-points"] },
+        ],
       },
       {
         name: "Attendance",

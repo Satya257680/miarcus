@@ -1,0 +1,201 @@
+/* ==========================================================
+   COMPLETED ACTION POINTS
+   Builds on styles/ActionPoints.css + premium/ChecklistPremium.css
+   (.ap-premium) so the page matches the Action Points module.
+========================================================== */
+
+.cap-page .action-point-management-actions .delete-all-action-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.cap-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+    background: linear-gradient(135deg, #6d3df2, #8b5cf6);
+}
+
+/* Opening / Closing / Other / Manual chip */
+.cap-kind {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    border-radius: 999px;
+    color: #4b4f72;
+    background: #eef0f7;
+}
+
+.cap-kind--opening {
+    color: #047857;
+    background: #d1fae5;
+}
+
+.cap-kind--closing {
+    color: #6d3df2;
+    background: #efe9ff;
+}
+
+.cap-kind--manual {
+    color: #b45309;
+    background: #fef3c7;
+}
+
+.cap-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #b91c1c;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+}
+
+.cap-error button {
+    padding: 6px 14px;
+    font: inherit;
+    font-weight: 600;
+    color: #b91c1c;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #fca5a5;
+    border-radius: 999px;
+}
+
+/* Attachments inside the View dialog */
+.cap-attachments {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.cap-attachments li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #faf8ff;
+    border: 1px solid #ece6ff;
+    border-radius: 12px;
+}
+
+.cap-attachments li > span {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.cap-attachments strong {
+    font-size: 13.5px;
+    color: #14123f;
+}
+
+.cap-attachments small {
+    overflow: hidden;
+    font-size: 12px;
+    color: #6b6890;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Status history timeline */
+.cap-history {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 0;
+    padding: 0 0 0 4px;
+    list-style: none;
+}
+
+.cap-history li {
+    position: relative;
+    display: flex;
+    gap: 12px;
+}
+
+.cap-history li:not(:last-child)::after {
+    position: absolute;
+    top: 16px;
+    bottom: -14px;
+    left: 5px;
+    width: 2px;
+    content: "";
+    background: #ece6ff;
+}
+
+.cap-history-dot {
+    flex: 0 0 12px;
+    width: 12px;
+    height: 12px;
+    margin-top: 4px;
+    background: #6d3df2;
+    border: 2px solid #efe9ff;
+    border-radius: 50%;
+}
+
+.cap-history strong {
+    font-size: 13.5px;
+    color: #14123f;
+}
+
+.cap-history-status {
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6d3df2;
+    background: #f1ebff;
+    border-radius: 999px;
+}
+
+.cap-history small {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: #6b6890;
+}
+
+.cap-history p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #4b4f72;
+}
+
+[data-theme="dark"] .cap-attachments li {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .cap-attachments strong,
+[data-theme="dark"] .cap-history strong {
+    color: #f1efff;
+}
+
+[data-theme="dark"] .cap-attachments small,
+[data-theme="dark"] .cap-history small,
+[data-theme="dark"] .cap-history p {
+    color: #b9b6d6;
+}
+
+[data-theme="dark"] .cap-history li:not(:last-child)::after {
+    background: rgba(185, 164, 255, 0.25);
+}
+
+@media (max-width: 640px) {
+    .cap-attachments li {
+        flex-wrap: wrap;
+    }
+}

@@ -29,18 +29,21 @@ exports.getActionPointSummary = async (req, res) => {
         // countdown in the table (sla_minutes, else legacy sla_value days).
         const SLA_MIN = ActionPoint.AP_SLA_MINUTES_SQL;
 
-        // Rows the Action Points list shows (closed checklist Action
-        // Points move to Checklist Reports) – used for "Today" so the
-        // card count equals the records shown when it is clicked.
-        const VISIBLE = `NOT (LOWER(COALESCE(ap.status, 'Open')) = 'closed'
-                          AND (ap.submission_answer_id IS NOT NULL OR ap.submission_id IS NOT NULL))`;
+        // Rows the Action Points list shows (every Completed / Closed
+        // Action Point moves to Completed Action Points) – used for
+        // "Total" and "Today" so the card count equals the records shown
+        // when it is clicked.
+        const VISIBLE = ActionPoint.ACTIVE_ONLY_SQL;
 
         const rows = await db.query(`
             SELECT
-                COUNT(*) AS total,
+                SUM(CASE WHEN ${VISIBLE} THEN 1 ELSE 0 END) AS total,
                 SUM(CASE WHEN LOWER(COALESCE(ap.status,'Open')) = 'open' THEN 1 ELSE 0 END) AS open_count,
                 SUM(CASE WHEN LOWER(COALESCE(ap.status,'')) = 'in progress' THEN 1 ELSE 0 END) AS in_progress_count,
-                SUM(CASE WHEN LOWER(COALESCE(ap.status,'')) = 'closed' THEN 1 ELSE 0 END) AS closed_count,
+                -- "Completed" card = what Completed Action Points lists
+                -- (archived completed records are excluded).
+                SUM(CASE WHEN LOWER(COALESCE(ap.status,'')) = 'closed'
+                          AND ap.completed_archived_at IS NULL THEN 1 ELSE 0 END) AS closed_count,
                 SUM(CASE WHEN LOWER(COALESCE(ap.status,'Open')) <> 'closed'
                           AND ap.priority IN ('High','Critical') THEN 1 ELSE 0 END) AS high_priority_count,
                 SUM(CASE WHEN LOWER(COALESCE(ap.status,'Open')) <> 'closed'

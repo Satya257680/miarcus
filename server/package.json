@@ -6,10 +6,11 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node test/security.test.js && node --test test/realtime.test.js && node --test test/themePreferences.test.js",
+    "test": "node test/security.test.js && node --test test/realtime.test.js && node --test test/themePreferences.test.js && node --test test/actionPointLifecycle.test.js",
     "security:audit": "node test/security-audit.js",
     "check": "node --check server.js",
-    "test:realtime": "node --test test/realtime.test.js"
+    "test:realtime": "node --test test/realtime.test.js",
+    "test:action-points": "node --test test/actionPointLifecycle.test.js"
   },
   "keywords": [],
   "author": "",

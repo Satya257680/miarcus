@@ -7,6 +7,7 @@ const { readUpload, BulkReport, translateDbError, saveExtraData } = require("../
 const { defineBulkModule, COMMON_GUIDELINES } = require("../config/bulkUploadModules");
 const { readDeleteScope } = require("../utils/deleteScope");
 const filterAccess = require("../utils/filterAccess");
+const { withAttachments } = require("../utils/actionPointAttachments");
 
 // Filter Access scope of the signed-in user (set by
 // middleware/filterAccessMiddleware.attachFilterScope) as SQL for the
@@ -1179,7 +1180,7 @@ exports.getActionPointById = async (req, res) => {
             });
         }
 
-        return res.status(200).json({ success: true, data });
+        return res.status(200).json({ success: true, data: withAttachments(data) });
 
     }
     catch (error) {

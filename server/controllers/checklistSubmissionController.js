@@ -15,6 +15,7 @@ const checklistEmailService = require(
     "../services/checklistEmailService"
 );
 const { getStoreScope } = require("../services/notificationAudience");
+const questionLockService = require("../services/checklistQuestionLockService");
 const {
     getUserAccess: getUserChecklistAccess,
     canUseType: canUseChecklistType
@@ -414,6 +415,42 @@ exports.createSubmission = async (req, res) => {
                     `All checklist questions are mandatory. ${unanswered.length} question(s) are not answered.`
 
             });
+
+        }
+
+
+        // ==================================================
+        // PER-STORE QUESTION LOCK (Opening / Closing)
+        // ==================================================
+        // A question whose Action Point is still unresolved for THIS
+        // store cannot be answered again until that Action Point is
+        // completed. Only that question is blocked — the rest of the
+        // checklist and other stores are unaffected. Enforced here so a
+        // direct API request cannot bypass the disabled card in the form.
+
+        try {
+
+            await questionLockService.assertAnswersAllowed({
+                storeId: Number(store_id),
+                checklistTypeId: Number(checklist_type_id),
+                checklistName: checklistType.checklist_name,
+                answers: validAnswers
+            });
+
+        } catch (lockError) {
+
+            if (lockError.code === "QUESTION_LOCKED") {
+
+                return res.status(409).json({
+                    success: false,
+                    code: "QUESTION_LOCKED",
+                    message: lockError.message,
+                    locked: lockError.locked
+                });
+
+            }
+
+            throw lockError;
 
         }
 

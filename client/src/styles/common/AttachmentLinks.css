@@ -1,0 +1,120 @@
+/* ==========================================================
+   ATTACHMENT "VIEW" LINK (components/common/AttachmentLinks)
+   Re-uses the pill style of .attachment-link-btn
+   (styles/premium/PremiumModal.css) so every module looks the same.
+========================================================== */
+
+.att-empty {
+    color: #9a97b5;
+}
+
+.att-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 4px;
+    padding: 0 5px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    background: #6d3df2;
+    border-radius: 999px;
+}
+
+.att-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.att-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #faf8ff;
+    border: 1px solid #ece6ff;
+    border-radius: 12px;
+}
+
+.att-icon {
+    display: grid;
+    flex: 0 0 34px;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    color: #6d3df2;
+    background: #f1ebff;
+    border-radius: 10px;
+}
+
+.att-text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.att-text strong {
+    font-size: 13.5px;
+    color: #14123f;
+}
+
+.att-text small {
+    overflow: hidden;
+    font-size: 12px;
+    color: #6b6890;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.att-open {
+    margin-left: 4px;
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.att-download {
+    display: grid;
+    flex: 0 0 32px;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: #4b4f72;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #e2ddf7;
+    border-radius: 999px;
+}
+
+.att-download:hover {
+    background: #f6f4ff;
+}
+
+[data-theme="dark"] .att-row {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .att-text strong {
+    color: #f1efff;
+}
+
+[data-theme="dark"] .att-text small {
+    color: #b9b6d6;
+}
+
+@media (max-width: 560px) {
+    .att-row {
+        flex-wrap: wrap;
+    }
+
+    .att-text {
+        flex-basis: calc(100% - 46px);
+    }
+}

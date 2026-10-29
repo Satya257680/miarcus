@@ -120,8 +120,16 @@ export function FileDrop({ file, onChange, error, label = "Upload bill, receipt 
 export function FileLink({ path, name }) {
     if (!path) return <span className="pc-muted">—</span>;
     return (
-        <button type="button" className="pc-file-link" onClick={() => openAttachment(path)} title={name || "Open file"}>
-            <FaFileAlt /> <span>{name || "View file"}</span>
+        // Consistent attachment link: the column reads "View"; the file
+        // name stays available as the tooltip / accessible label.
+        <button
+            type="button"
+            className="pc-file-link"
+            onClick={() => openAttachment(path)}
+            title={name || "Open file"}
+            aria-label={name ? `View ${name}` : "View file"}
+        >
+            <FaFileAlt /> <span>View</span>
         </button>
     );
 }

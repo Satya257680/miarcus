@@ -6,6 +6,7 @@ const Notification = require("./notificationService");
 const checklistEmailService = require("./checklistEmailService");
 const { resolveStoreIdFuzzy } = require("../utils/storeMatcher");
 const PhotoSettings = require("../models/actionPointPhotoSettingsModel");
+const { withAttachments } = require("../utils/actionPointAttachments");
  
 // ======================================================
 // HELPER
@@ -162,7 +163,9 @@ const getAll = async (filters) => {
             : 0;
  
     return {
-        rows,
+        // Each row carries a safe `attachments` list (own attachment, Take
+        // Action photos, question evidence) for the Attachment "View" link.
+        rows: (rows || []).map(withAttachments),
  
         pagination: {
             page:
@@ -1646,6 +1649,17 @@ const deleteActionPoint = async (
         throw err;
     }
  
+    // A completed Action Point is managed from Completed Action Points,
+    // which archives it (Checklist Reports keep its "Action Completed"
+    // state). Never hard-delete it through the active module.
+    if (String(oldData.status || "").toLowerCase() === "closed") {
+        const err = new Error(
+            "This Action Point is completed. Manage it from Completed Action Points."
+        );
+        err.statusCode = 409;
+        throw err;
+    }
+ 
  
     const result =
         await asPromise(
@@ -1774,7 +1788,7 @@ const deleteAll = async (
             description:
                 filtered
                     ? `${result.affectedRows} filtered Action Point(s) removed.`
-                    : "All Action Points removed.",
+                    : "All active Action Points removed (completed records kept).",
  
             module_name:
                 "Action Points",
@@ -1835,7 +1849,7 @@ const deleteAll = async (
  
         message: filtered
             ? `${result.affectedRows} filtered Action Point(s) deleted successfully.`
-            : "All Action Points deleted successfully."
+            : `${result.affectedRows} active Action Point(s) deleted successfully. Completed Action Points were kept.`
     };
 };
  

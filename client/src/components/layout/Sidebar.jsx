@@ -281,6 +281,7 @@ function Sidebar({ collapsed }) {
     const canLocationReports = can("location.reports");
     const canEmployeeLocation = canEmployeeLocationLive || canLocationReports;
     const canActionPoints = can("actionpoints.list");
+    const canCompletedActionPoints = can("actionpoints.completed");
     const canChecklistReports = can("checklist.reports");
     const canChecklistSubmit = can("checklist.submit");
     const canNewStoreOpenings = can("nso.openings");
@@ -630,6 +631,25 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Action Points
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    COMPLETED ACTION POINTS
+                ================================================== */}
+
+                {canCompletedActionPoints && (
+                    <NavLink
+                        to="/completed-action-points"
+                        className={getMenuClass}
+                    >
+                        <FaCheckDouble />
+
+                        {!collapsed && (
+                            <span>
+                                Completed Action Points
                             </span>
                         )}
                     </NavLink>

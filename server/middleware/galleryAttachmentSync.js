@@ -140,6 +140,23 @@ const notifyAttachments = async ({
     }
 };
 
+// SHA-256 of an attachment snapshot (in-memory buffer, or streamed from
+// disk for large files). Returns null when the bytes cannot be read, in
+// which case the duplicate guard is simply skipped.
+const hashSnapshot = (buffer, largeSourcePath) => {
+    if (Buffer.isBuffer(buffer)) {
+        return Promise.resolve(crypto.createHash("sha256").update(buffer).digest("hex"));
+    }
+    if (!largeSourcePath) return Promise.resolve(null);
+    return new Promise((resolve) => {
+        const hash = crypto.createHash("sha256");
+        fs.createReadStream(largeSourcePath)
+            .on("data", (chunk) => hash.update(chunk))
+            .on("end", () => resolve(hash.digest("hex")))
+            .on("error", () => resolve(null));
+    });
+};
+
 const GALLERY_DB_MAX_BYTES =
     Number(process.env.GALLERY_DB_ATTACHMENT_MAX_BYTES) > 0
         ? Number(process.env.GALLERY_DB_ATTACHMENT_MAX_BYTES)
@@ -196,6 +213,22 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
 
                 for (const { file, buffer, largeSourcePath, size } of attachmentSnapshots) {
                     try {
+                        // DUPLICATE GUARD: the same bytes for the same module
+                        // record are registered once. A re-sync, a retried
+                        // request or an edit that re-uploads the identical
+                        // file reuses the existing Gallery item instead of
+                        // writing a second copy.
+                        const contentHash = await hashSnapshot(buffer, largeSourcePath);
+                        const existingId = await Gallery.findAttachmentDuplicate({
+                            source_module: moduleName,
+                            source_record_id: recordId,
+                            content_hash: contentHash
+                        });
+                        if (existingId) {
+                            lastGalleryId = existingId;
+                            continue;
+                        }
+
                         const extension = path.extname(file.originalname || file.filename || "").toLowerCase();
                         const now = new Date();
                         const galleryDir = path.join(
@@ -237,7 +270,8 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
                             location_accuracy: accuracy,
                             source_module: moduleName,
                             source_record_id: recordId,
-                            source_field: fieldName
+                            source_field: fieldName,
+                            content_hash: contentHash
                         });
 
                         syncedNames.push(file.originalname || file.filename || galleryFileName);

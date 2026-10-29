@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../axiosConfig.js";
+import AttachmentLinks from "../components/common/AttachmentLinks";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import { useEffect, useRef, useState, useEffectEvent } from "react";
 import { useRbacVersion } from "../hooks/usePermission";
@@ -1683,33 +1683,10 @@ function NewStoreOpenings() {
 
             title: "Attachment",
 
-            render: (row) => {
-
-                if (!row.attachment) {
-                    return "-";
-                }
-
-                const attachmentPath =
-                    String(
-                        row.attachment
-                    ).replace(
-                       (/^\/+/, "")
-                    );
-
-                return (
-
-                    <a
-                        href={`${API_BASE_URL}/${attachmentPath}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="pp-link"
-                    >
-                        View
-                    </a>
-
-                );
-
-            }
+            // Secure "View" (authenticated /api/files). The old link built
+            // "<api>/undefineduploads/..." (a .replace() comma bug) and
+            // bypassed file authorization.
+            render: (row) => <AttachmentLinks value={row.attachment} />
 
         },
 
