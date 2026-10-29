@@ -202,7 +202,7 @@ export function ChecklistReportViewModal({ report, answers = [], loading = false
                     <PmItem label="Answer">
                         {report.answer ? <span className="pm-chip">{report.answer}</span> : "-"}
                     </PmItem>
-                    <PmItem label="Comment / Remarks" value={report.remarks} wide />
+                    <PmItem label="Remarks" value={report.remarks} wide />
                 </PmGrid>
             </PmSection>
 
@@ -230,8 +230,7 @@ export function ChecklistReportViewModal({ report, answers = [], loading = false
                             ? formatReportDate(report.action_point_completed_at || report.completion_date)
                             : "-"}
                     />
-                    <PmItem label="Action Point Comment" value={report.action_point_comment} />
-                    <PmItem label="Action Point Remarks" value={report.action_point_remarks} wide />
+                    <PmItem label="Action Point Remarks" value={report.action_point_remarks || report.action_point_comment} wide />
                 </PmGrid>
             </PmSection>
 
@@ -307,7 +306,7 @@ export function ChecklistReportEditModal({ report, stores = [], users = [], chec
         action_point_priority: report?.action_point_priority || "Medium",
         action_point_sla_days: report?.action_point_sla_days ?? "",
         action_point_comment: report?.action_point_comment || "",
-        action_point_remarks: report?.action_point_remarks || "",
+        action_point_remarks: report?.action_point_remarks || report?.action_point_comment || "",
         device: report?.device || "",
         latitude: report?.latitude ?? "",
         longitude: report?.longitude ?? "",
@@ -443,7 +442,7 @@ export function ChecklistReportEditModal({ report, stores = [], users = [], chec
                     <PmField label="Status">
                         <select value="Completed" disabled><option>Completed</option></select>
                     </PmField>
-                    <PmField label="Comment / Remarks" wide>
+                    <PmField label="Remarks" wide>
                         <textarea value={form.remarks} onChange={set("remarks")} />
                     </PmField>
                 </PmGrid>
@@ -469,9 +468,6 @@ export function ChecklistReportEditModal({ report, stores = [], users = [], chec
                             </PmField>
                             <PmField label="SLA (Days)">
                                 <input type="number" min="0" value={form.action_point_sla_days} onChange={set("action_point_sla_days")} />
-                            </PmField>
-                            <PmField label="Action Point Comment">
-                                <input type="text" value={form.action_point_comment} onChange={set("action_point_comment")} />
                             </PmField>
                             <PmField label="Action Point Remarks" wide>
                                 <textarea value={form.action_point_remarks} onChange={set("action_point_remarks")} />

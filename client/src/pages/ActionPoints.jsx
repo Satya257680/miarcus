@@ -781,7 +781,7 @@ const handleNextAction = async (row, value) => {
         setSelectedAction(row);
         setActionStatus(value === "Completed" ? "Closed" : value);
         setActionTaken("");
-        setRemarks(row.remarks || "");
+        setRemarks(row.remarks || row.comment || "");
         setActionComment(row.comment || "");
         setActionPhotos([]);
         setShowOpenModal(true);
@@ -1002,7 +1002,9 @@ const handleOpen = (row) => {
 
     setActionTaken("");
 
-    setRemarks(row.remarks || "");
+    // Comment and Remarks are one field now — prefill Remarks with
+    // whichever the row has.
+    setRemarks(row.remarks || row.comment || "");
     setActionComment(row.comment || "");
     setActionStatus("Closed");
     setActionPhotos([]);
@@ -1547,20 +1549,6 @@ if (loading && !hasLoadedOnce) {
         },
 
         // ==================================================
-        // COMMENT
-        // ==================================================
-        {
-            key: "comment",
-            title: "Comment",
-            minWidth: "260px",
-            render: (row) => (
-                <div className="comment-cell">
-                    {fixMojibake(row.comment || row.answer_remarks) || "-"}
-                </div>
-            )
-        },
-
-        // ==================================================
 // PRIORITY
 // ==================================================
 
@@ -1801,7 +1789,7 @@ if (loading && !hasLoadedOnce) {
 
         <div className="remarks-cell">
 
-            {fixMojibake(row.remarks) || "-"}
+            {fixMojibake(row.remarks || row.comment || row.answer_remarks) || "-"}
 
         </div>
 
@@ -2689,16 +2677,6 @@ return (
                 <br />
 
                 <div className="filter-group">
-                    <label>Comment</label>
-                    <textarea
-                        rows={3}
-                        value={actionComment}
-                        onChange={(e) => setActionComment(e.target.value)}
-                        placeholder="Add a workflow comment"
-                    />
-                </div>
-
-                <div className="filter-group">
 
                     <label>Remarks</label>
 
@@ -2792,8 +2770,7 @@ return (
                                         {item.changed_by_employee_id && <span>Employee ID: {item.changed_by_employee_id}</span>}
                                     </div>
                                     {historyActionTaken(item) && <div className="history-note"><b>Action Taken</b><span>{fixMojibake(historyActionTaken(item))}</span></div>}
-                                    {item.comment && <div className="history-note"><b>Comment</b><span>{fixMojibake(item.comment)}</span></div>}
-                                    {item.remarks && <div className="history-note"><b>Remarks</b><span>{fixMojibake(item.remarks)}</span></div>}
+                                    {(item.remarks || item.comment) && <div className="history-note"><b>Remarks</b><span>{fixMojibake(item.remarks || item.comment)}</span></div>}
                                     <ActionPhotoThumbs photos={historyPhotos(item)} />
                                 </div>
                             </div>

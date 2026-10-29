@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useEffectEvent } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/ChecklistSubmission.css";
 import "../styles/pages/ChecklistSubmissionPremium.css";
+import "../styles/checklist/NaAnswer.css";
 import {
   FaFileAlt,
   FaStore,
@@ -74,6 +75,9 @@ const photoRule = (question, answerValue) => {
   const setting = String(question.photo_requirement || "").trim().toLowerCase();
   const text = question.question || question.question_text || question.title || "";
 
+  // Not applicable → no photo at all.
+  if (isNaAnswer(answerValue)) return { mode: "none", reason: "" };
+
   if (isImageQuestion(question)) {
     return { mode: "required", reason: "Answer this question with a photo" };
   }
@@ -114,6 +118,17 @@ const photoRule = (question, answerValue) => {
   if (PHOTO_WORDS.test(text)) return { mode: "required", reason: "" };
   return { mode: "optional", reason: "" };
 };
+
+// ---------------------------------------------------------
+// N/A (NOT APPLICABLE)
+// Every question can be answered "N/A" — the item / feature the
+// question asks about is not present at this store. An N/A answer
+// never creates an Action Point and never needs a photo; it is
+// listed in the "N/A Register" module instead.
+// ---------------------------------------------------------
+const NA_ANSWER = "N/A";
+const isNaAnswer = (value) =>
+  /^(n\/a|na|n\.a\.?|not applicable)$/i.test(String(value ?? "").trim());
 
 const answerToText = (value) => {
   if (value === undefined || value === null) return "";
@@ -381,6 +396,7 @@ function ChecklistSubmission() {
   const effectiveAnswer = (question) => {
     const questionId = question.id || question.question_id;
     if (isImageQuestion(question)) {
+      if (isNaAnswer(answers[questionId])) return NA_ANSWER;
       const count = photosOf(questionId).length;
       return count ? `Photo attached (${count})` : "";
     }
@@ -848,6 +864,36 @@ function ChecklistSubmission() {
   // QUESTION TYPE
   // =========================================================
 
+  // Yes / No / N/A buttons for Yes-No questions.
+  const YES_NO_NA_OPTIONS = [
+    { value: "Yes", icon: "✓", label: "Yes", className: "choice-yes" },
+    { value: "No", icon: "✕", label: "No", className: "choice-no" },
+    { value: NA_ANSWER, icon: "–", label: "N/A", className: "choice-na" },
+  ];
+
+  // "Not applicable" switch shown under every non Yes/No answer.
+  const renderNaToggle = (questionId, value) => {
+    const active = isNaAnswer(value);
+    return (
+      <label className={`cs-na-toggle ${active ? "is-active" : ""}`}>
+        <input
+          type="checkbox"
+          checked={active}
+          onChange={(e) =>
+            handleAnswerChange(questionId, e.target.checked ? NA_ANSWER : "")
+          }
+        />
+        <span className="cs-na-toggle-box" aria-hidden="true">
+          {active ? "✓" : ""}
+        </span>
+        <span className="cs-na-toggle-text">
+          <strong>N/A — Not applicable</strong>
+          <small>This item is not present at the store. No Action Point is raised.</small>
+        </span>
+      </label>
+    );
+  };
+
   const renderQuestionInput = (question) => {
     const questionId =
       question.id ||
@@ -867,8 +913,10 @@ function ChecklistSubmission() {
     const value =
       answers[questionId] || "";
 
+    const naSelected = isNaAnswer(value);
+
     // =======================================================
-    // YES / NO
+    // YES / NO / N/A
     // =======================================================
 
     if (
@@ -878,73 +926,67 @@ function ChecklistSubmission() {
       type === "boolean"
     ) {
       return (
-        <div className="answer-choice-group">
-          <label
-            className={`choice-option ${
-              value === "Yes"
-                ? "selected"
-                : ""
-            }`}
-          >
-            <input
-              type="radio"
-              name={`question-${questionId}`}
-              value="Yes"
-              checked={value === "Yes"}
-              onChange={(e) =>
-                handleAnswerChange(
-                  questionId,
-                  e.target.value
-                )
-              }
-            />
-
-            <span className="choice-circle">
-              ✓
-            </span>
-
-            <span>Yes</span>
-          </label>
-
-          <label
-            className={`choice-option ${
-              value === "No"
-                ? "selected"
-                : ""
-            }`}
-          >
-            <input
-              type="radio"
-              name={`question-${questionId}`}
-              value="No"
-              checked={value === "No"}
-              onChange={(e) =>
-                handleAnswerChange(
-                  questionId,
-                  e.target.value
-                )
-              }
-            />
-
-            <span className="choice-circle">
-              ✕
-            </span>
-
-            <span>No</span>
-          </label>
+        <div className="answer-choice-group has-na">
+          {YES_NO_NA_OPTIONS.map((option) => {
+            const selected =
+              option.value === NA_ANSWER ? naSelected : value === option.value;
+            return (
+              <label
+                key={option.value}
+                className={`choice-option ${option.className} ${
+                  selected ? "selected" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name={`question-${questionId}`}
+                  value={option.value}
+                  checked={selected}
+                  onChange={(e) =>
+                    handleAnswerChange(questionId, e.target.value)
+                  }
+                />
+                <span className="choice-circle">{option.icon}</span>
+                <span>{option.label}</span>
+              </label>
+            );
+          })}
         </div>
       );
     }
 
     // =======================================================
-    // NUMBER
+    // IMAGE / FILE — answered with the photo block below the
+    // question, or marked N/A.
     // =======================================================
 
     if (
+      type === "image" ||
+      type === "photo" ||
+      type === "file" ||
+      type === "picture"
+    ) {
+      return renderNaToggle(questionId, value);
+    }
+
+    // Every other type: the normal input, plus the N/A switch.
+    // While N/A is on, the input is replaced by an N/A note.
+    let input;
+
+    if (naSelected) {
+      input = (
+        <div className="cs-na-placeholder">
+          Marked as <b>N/A</b> — not applicable for this store.
+        </div>
+      );
+    } else if (
       type === "number" ||
       type === "numeric"
     ) {
-      return (
+      // ===================================================
+      // NUMBER
+      // ===================================================
+      input = (
         <input
           type="number"
           className="answer-input"
@@ -958,14 +1000,11 @@ function ChecklistSubmission() {
           }
         />
       );
-    }
-
-    // =======================================================
-    // DATE
-    // =======================================================
-
-    if (type === "date") {
-      return (
+    } else if (type === "date") {
+      // ===================================================
+      // DATE
+      // ===================================================
+      input = (
         <input
           type="date"
           className="answer-input"
@@ -978,16 +1017,13 @@ function ChecklistSubmission() {
           }
         />
       );
-    }
-
-    // =======================================================
-    // DROPDOWN
-    // =======================================================
-
-    if (
+    } else if (
       type === "dropdown" ||
       type === "select"
     ) {
+      // ===================================================
+      // DROPDOWN
+      // ===================================================
       let options = [];
 
       if (Array.isArray(question.options)) {
@@ -998,7 +1034,10 @@ function ChecklistSubmission() {
           .map((option) => option.trim());
       }
 
-      return (
+      // N/A is offered by the switch below — avoid a duplicate entry.
+      options = options.filter((option) => option && !isNaAnswer(option));
+
+      input = (
         <select
           className="answer-input"
           value={value}
@@ -1025,38 +1064,30 @@ function ChecklistSubmission() {
           )}
         </select>
       );
+    } else {
+      // ===================================================
+      // DEFAULT TEXT
+      // ===================================================
+      input = (
+        <textarea
+          className="answer-textarea"
+          placeholder="Enter your answer"
+          value={value}
+          onChange={(e) =>
+            handleAnswerChange(
+              questionId,
+              e.target.value
+            )
+          }
+        />
+      );
     }
-
-    // =======================================================
-    // IMAGE / FILE
-    // =======================================================
-
-    if (
-      type === "image" ||
-      type === "photo" ||
-      type === "file" ||
-      type === "picture"
-    ) {
-      // Answered with the photo evidence block below the question.
-      return null;
-    }
-
-    // =======================================================
-    // DEFAULT TEXT
-    // =======================================================
 
     return (
-      <textarea
-        className="answer-textarea"
-        placeholder="Enter your answer"
-        value={value}
-        onChange={(e) =>
-          handleAnswerChange(
-            questionId,
-            e.target.value
-          )
-        }
-      />
+      <div className="cs-answer-with-na">
+        {input}
+        {renderNaToggle(questionId, value)}
+      </div>
     );
   };
 
@@ -1292,8 +1323,9 @@ function ChecklistSubmission() {
               remarks[questionId] || "",
 
             // Photos added "From Website" (links). Uploaded photos
-            // are sent as files below (question_photos).
-            photo_urls: photosOf(questionId)
+            // are sent as files below (question_photos). An N/A
+            // answer carries no photo evidence.
+            photo_urls: (isNaAnswer(answers[questionId]) ? [] : photosOf(questionId))
               .filter((photo) => photo.kind === "url")
               .map((photo) => photo.url),
           };
@@ -1369,6 +1401,7 @@ function ChecklistSubmission() {
 
       answerableQuestions.forEach((question) => {
         const questionId = question.id || question.question_id;
+        if (isNaAnswer(answers[questionId])) return;
         photosOf(questionId)
           .filter((photo) => photo.kind === "file" && photo.file)
           .forEach((photo) => {
@@ -2034,9 +2067,15 @@ function ChecklistSubmission() {
                               </h4>
 
                               {answered && (
-                                <span className="answered-badge">
-                                  ✓ Answered
-                                </span>
+                                isNaAnswer(effectiveAnswer(question)) ? (
+                                  <span className="answered-badge cs-na-badge">
+                                    N/A · Not applicable
+                                  </span>
+                                ) : (
+                                  <span className="answered-badge">
+                                    ✓ Answered
+                                  </span>
+                                )
                               )}
 
                             </div>

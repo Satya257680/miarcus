@@ -78,6 +78,7 @@ const RBAC_MODULES = [
     "Dashboard",
     "Activity Center",
     "Action Points",
+    "N/A Register",
     "Quiz",
     "Checklist Reports",
     "Checklist Submission",

@@ -1,0 +1,188 @@
+/* =========================================================
+   N/A REGISTER
+   ========================================================= */
+
+.na-register-page .na-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin: 4px 0 16px;
+}
+
+.na-register-page .na-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 16px;
+    border: 1px solid #e6e1f5;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 6px 16px rgba(35, 25, 110, 0.05);
+}
+
+.na-register-page .na-stat span {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6b6390;
+}
+
+.na-register-page .na-stat strong {
+    font-size: 26px;
+    line-height: 1.15;
+    color: #2b1d6b;
+    font-variant-numeric: tabular-nums;
+}
+
+.na-register-page .na-stat small {
+    font-size: 12px;
+    color: #8a84a6;
+}
+
+.na-register-page .na-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1px dashed #d8d2ee;
+    border-radius: 16px;
+    background: #faf9ff;
+}
+
+.na-register-page .na-top-label {
+    flex: 0 0 auto;
+    padding-top: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6b6390;
+}
+
+.na-register-page .na-top-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.na-register-page .na-top-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 6px 8px 6px 12px;
+    border: 1px solid #e1dcf3;
+    border-radius: 999px;
+    background: #fff;
+    color: #3b2f7a;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.na-register-page .na-top-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 320px;
+}
+
+.na-register-page .na-top-item b {
+    min-width: 24px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #efeafd;
+    color: #4b36b5;
+    font-size: 12px;
+    text-align: center;
+}
+
+.na-register-page .na-top-item.is-active {
+    border-color: #6d4fe0;
+    background: #6d4fe0;
+    color: #fff;
+}
+
+.na-register-page .na-top-item.is-active b {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}
+
+.na-register-page .na-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid #d5dbe6;
+    background: #eef1f6;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.na-register-page .na-store-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.na-register-page .na-store-cell small {
+    color: #8a84a6;
+    font-size: 12px;
+}
+
+.na-register-page .cap-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border: 1px solid #f5c2c7;
+    border-radius: 12px;
+    background: #fff4f5;
+    color: #b42335;
+}
+
+.na-register-page .cap-error button {
+    border: 0;
+    border-radius: 8px;
+    padding: 6px 12px;
+    background: #b42335;
+    color: #fff;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    .na-register-page .na-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .na-register-page .na-top {
+        flex-direction: column;
+    }
+}
+
+/* ---------- dark mode ---------- */
+[data-theme="dark"] .na-register-page .na-stat,
+[data-theme="dark"] .na-register-page .na-top-item {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e5e1f7;
+}
+
+[data-theme="dark"] .na-register-page .na-stat strong {
+    color: #f1edff;
+}
+
+[data-theme="dark"] .na-register-page .na-top {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+[data-theme="dark"] .na-register-page .na-chip {
+    background: rgba(148, 163, 184, 0.15);
+    border-color: rgba(148, 163, 184, 0.35);
+    color: #cbd5e1;
+}

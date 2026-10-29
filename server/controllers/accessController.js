@@ -1,6 +1,7 @@
 const db = require("../config/db");
 const PagePermission = require("../models/pagePermissionModel");
 const lnd = require("../utils/lndAccess");
+const naRegisterAccess = require("../utils/naRegisterAccess");
 
 // ==========================================================
 // GET /api/users/me/access
@@ -45,6 +46,13 @@ const getMyAccess = async (req, res) => {
         permissions[lnd.MODULE_NAME] = lndOwner
             ? "Full"
             : await lnd.getGrantedLevel(userId);
+
+        // N/A Register: administrators and full-store users see it by
+        // default; others only when granted in Users → Access.
+        await naRegisterAccess.applyEffectiveLevel(
+            { id: userId, is_admin: administrator },
+            permissions
+        );
 
         // Optional per-user scope overrides (NULL means existing/default access rules).
         // Missing table is tolerated during rollout; apply server-side in module queries

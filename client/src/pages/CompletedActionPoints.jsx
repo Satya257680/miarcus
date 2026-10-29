@@ -264,7 +264,8 @@ function CompletedActionPoints() {
             priority: row.priority || "Medium",
             assigned_to: row.assigned_to ? String(row.assigned_to) : "",
             action_taken: row.action_taken || "",
-            remarks: row.remarks || "",
+            // Comment and Remarks are one field now.
+            remarks: row.remarks || row.comment || "",
             comment: row.comment || ""
         });
         if (!assignees.length) {
@@ -699,8 +700,7 @@ function CompletedActionPoints() {
                             <PmItem label="Raised on" value={formatDateTime(viewRecord.created_at)} />
                             <PmItem label="Priority" value={viewRecord.priority} />
                             <PmItem label="Final status" value="Completed" />
-                            <PmItem label="Remarks" value={viewRecord.remarks} wide />
-                            <PmItem label="Comment" value={viewRecord.comment} wide />
+                            <PmItem label="Remarks" value={viewRecord.remarks || viewRecord.comment} wide />
                         </PmGrid>
                     </PmSection>
 
@@ -736,8 +736,8 @@ function CompletedActionPoints() {
                                             <small>
                                                 {item.changed_by_name || "System"} · {formatDateTime(item.created_at)}
                                             </small>
-                                            {(item.comment || item.remarks) && (
-                                                <p>{item.comment || item.remarks}</p>
+                                            {(item.remarks || item.comment) && (
+                                                <p>{item.remarks || item.comment}</p>
                                             )}
                                         </div>
                                     </li>
@@ -825,13 +825,6 @@ function CompletedActionPoints() {
                                 />
                             </PmField>
 
-                            <PmField label="Comment" wide>
-                                <textarea
-                                    value={editForm.comment}
-                                    maxLength={5000}
-                                    onChange={(e) => setEditForm((form) => ({ ...form, comment: e.target.value }))}
-                                />
-                            </PmField>
                         </PmGrid>
                     </PmSection>
                 </PremiumModal>

@@ -26,9 +26,8 @@
 //                                 It never overrides the no-issue answer
 //                                 (so it never applies with "N/A").
 //   • A blank answer is an issue ONLY when the trigger is "Blank answer".
-//   • A literal "N/A" answer is never an issue unless the trigger itself
-//     is "N/A" (existing ICC rule: "N/A should not create an Action
-//     Point").
+//   • A literal "N/A" answer is NEVER an issue (the item is not present
+//     at the store). Such answers are listed in the N/A Register.
 //   • An answer matching neither the no-issue nor the issue-trigger
 //     answer is NOT an issue (only the configured trigger raises one).
 //   • No rule → no decision (the caller skips the answer).
@@ -100,7 +99,7 @@ const answerMatches = (option, answer) => {
 // ------------------------------------------------------
 // evaluateAnswer(answerValue, rule)
 //   → { issue: boolean, outcome, reason }
-//   outcome: "no_rule" | "issue" | "no_issue" | "unmatched"
+//   outcome: "no_rule" | "issue" | "no_issue" | "not_applicable" | "unmatched"
 // ------------------------------------------------------
 const evaluateAnswer = (answerValue, rule) => {
     if (!rule) {
@@ -128,10 +127,11 @@ const evaluateAnswer = (answerValue, rule) => {
         return { issue: false, outcome: "no_issue", reason: "No-issue answer is N/A: any non-empty response is acceptable." };
     }
 
-    // 4. A literal "N/A" answer never raises an Action Point unless
-    //    N/A itself is the trigger.
-    if (answer.kind === "na" && trigger.kind !== "na") {
-        return { issue: false, outcome: "no_issue", reason: "N/A answer does not create an Action Point." };
+    // 4. A literal "N/A" answer NEVER raises an Action Point — the
+    //    item does not exist at the store. It is listed in the
+    //    "N/A Register" module instead (whatever the rule says).
+    if (answer.kind === "na") {
+        return { issue: false, outcome: "not_applicable", reason: "N/A (not applicable) answer never creates an Action Point." };
     }
 
     // 5. The configured no-issue answer always wins.

@@ -40,8 +40,10 @@ export default function ActionPointEditModal({ row, stores = [], departments = [
         sla_hours: Math.floor((total % 1440) / 60),
         sla_minutes: total % 60,
         status: row?.status || "Open",
+        // Comment and Remarks are one field now; the stored comment is
+        // sent back unchanged.
         comment: row?.comment || "",
-        remarks: row?.remarks || "",
+        remarks: row?.remarks || row?.comment || "",
     }));
     const [file, setFile] = useState(null);
     const [assignees, setAssignees] = useState([]);
@@ -242,9 +244,6 @@ export default function ActionPointEditModal({ row, stores = [], departments = [
                             <input type="number" min="0" max="23" value={form.sla_hours} onChange={set("sla_hours")} aria-label="SLA hours" />
                             <input type="number" min="0" max="59" value={form.sla_minutes} onChange={set("sla_minutes")} aria-label="SLA minutes" />
                         </div>
-                    </PmField>
-                    <PmField label="Comment" wide>
-                        <textarea value={form.comment} onChange={set("comment")} placeholder="Add or update the Action Point comment" />
                     </PmField>
                     <PmField label="Remarks" wide>
                         <textarea value={form.remarks} onChange={set("remarks")} />

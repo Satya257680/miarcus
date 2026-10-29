@@ -43,6 +43,7 @@ const ChecklistReports = lazy(() => import("./pages/ChecklistReports"));
 const ChecklistTracker = lazy(() => import("./pages/ChecklistTracker"));
 const ActionPoints = lazy(() => import("./pages/ActionPoints"));
 const CompletedActionPoints = lazy(() => import("./pages/CompletedActionPoints"));
+const NaRegister = lazy(() => import("./pages/NaRegister"));
 const Announcements = lazy(() => import("./pages/Announcements"));
 const Gallery = lazy(() => import("./pages/Gallery"));
 const GalleryMobile = lazy(() => import("./pages/GalleryMobile"));
@@ -381,6 +382,18 @@ function App() {
                         element={
                             <ModulePermissionRoute page="actionpoints.completed">
                                 <CompletedActionPoints />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    {/* N/A REGISTER — checklist answers marked "Not applicable".
+                        Admins + full-store-access users by default; others
+                        only when granted in Users → Access. */}
+                    <Route
+                        path="/na-register"
+                        element={
+                            <ModulePermissionRoute page="naregister.list">
+                                <NaRegister />
                             </ModulePermissionRoute>
                         }
                     />

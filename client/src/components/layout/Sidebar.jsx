@@ -48,7 +48,8 @@ import {
     FaStoreAlt,
     FaLock,
     FaGraduationCap,
-    FaUserShield
+    FaUserShield,
+    FaBan
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -282,6 +283,7 @@ function Sidebar({ collapsed }) {
     const canEmployeeLocation = canEmployeeLocationLive || canLocationReports;
     const canActionPoints = can("actionpoints.list");
     const canCompletedActionPoints = can("actionpoints.completed");
+    const canNaRegister = can("naregister.list");
     const canChecklistReports = can("checklist.reports");
     const canChecklistSubmit = can("checklist.submit");
     const canNewStoreOpenings = can("nso.openings");
@@ -650,6 +652,25 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Completed Action Points
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    N/A REGISTER (checklist answers marked N/A)
+                ================================================== */}
+
+                {canNaRegister && (
+                    <NavLink
+                        to="/na-register"
+                        className={getMenuClass}
+                    >
+                        <FaBan />
+
+                        {!collapsed && (
+                            <span>
+                                N/A Register
                             </span>
                         )}
                     </NavLink>

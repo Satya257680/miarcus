@@ -1037,7 +1037,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
             Answer: r.answer || "-",
 
-            Comment: r.remarks || "-",
+            Remarks: r.remarks || "-",
 
             "Action Status": r.action_point_id
                 ? (r.action_point_status || "Open")
@@ -1515,7 +1515,7 @@ const uploadChecklistReport = async (file, assembled) => {
 
         {
             key: "remarks",
-            title: "Comment",
+            title: "Remarks",
             render: (row) => (
                 <div className="remarks-cell">
                     {row.remarks || "-"}
@@ -1575,11 +1575,11 @@ const uploadChecklistReport = async (file, assembled) => {
         },
 
         {
-            key: "action_point_comment",
-            title: "Action Point Comment",
+            key: "action_point_remarks",
+            title: "Action Point Remarks",
             render: (row) => (
                 <div className="remarks-cell">
-                    {row.action_point_comment || "-"}
+                    {row.action_point_remarks || row.action_point_comment || "-"}
                 </div>
             )
         },

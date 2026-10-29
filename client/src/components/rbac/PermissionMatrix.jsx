@@ -83,6 +83,7 @@ const MODULE_ICONS = {
   checklistSubmit: LuClipboardCheck,
   checklistReports: LuClipboardList,
   actionPoints: LuListTodo,
+  naRegister: LuBan,
   attendance: LuCalendarCheck,
   assets: LuScale,
   location: LuMapPinned,

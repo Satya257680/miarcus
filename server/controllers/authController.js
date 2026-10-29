@@ -1,5 +1,6 @@
 const PagePermission = require("../models/pagePermissionModel");
 const lnd = require("../utils/lndAccess");
+const naRegisterAccess = require("../utils/naRegisterAccess");
 const db = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -192,6 +193,13 @@ db.query(permissionSql, [user.id], async (permissionErr, permissionRows) => {
         console.error("L&D access lookup failed:", lndError.message);
         permissions[lnd.MODULE_NAME] = "None";
     }
+
+    // N/A Register: administrators and full-store users see it by
+    // default; others only when granted in Users → Access.
+    await naRegisterAccess.applyEffectiveLevel(
+        { id: user.id, is_admin: Number(user.is_admin) === 1 },
+        permissions
+    );
 
     // Page-level (sub-module) access. Missing keys = allowed.
     let pageAccess = {};

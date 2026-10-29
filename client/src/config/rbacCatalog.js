@@ -153,6 +153,19 @@ export const RBAC_GROUPS = [
         ],
       },
       {
+        // Checklist answers marked "N/A" (item not present at the store).
+        // N/A never raises an Action Point; the answers are listed here.
+        // Default: Administrators and users with FULL STORE ACCESS can
+        // view it automatically (server: utils/naRegisterAccess.js).
+        // Anyone else needs a level granted here.
+        name: "N/A Register",
+        icon: "naRegister",
+        description:
+          "Checklist items marked N/A (not present at the store). Admins and full-store-access users can view it by default.",
+        defaultForFullStore: "View",
+        pages: [{ key: "naregister.list", label: "N/A Register", paths: ["/na-register"] }],
+      },
+      {
         name: "Attendance",
         icon: "attendance",
         description: "Daily attendance and reports",

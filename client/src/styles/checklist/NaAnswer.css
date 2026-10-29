@@ -1,0 +1,204 @@
+/* =========================================================
+   CHECKLIST SUBMISSION — YES / NO / N/A
+   ---------------------------------------------------------
+   • Yes / No questions show three buttons (Yes · No · N/A)
+   • Every other answer type gets an "N/A — Not applicable"
+     switch under its input.
+   Selectors are deliberately specific (and use !important
+   where the premium theme does) so they win over the older
+   two-column Yes / No rules.
+   ========================================================= */
+
+/* ---------- three buttons side by side ---------- */
+.answer-choice-group.has-na,
+.cs-premium .answer-choice-group.has-na,
+.checklist-submission-page.cs-premium .answer-choice-group.has-na {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+}
+
+/* Colours are keyed by option, not by position. */
+.cs-premium .answer-choice-group.has-na .choice-option.choice-yes {
+    background: #effaf3 !important;
+    border-color: #c9ecd6 !important;
+    color: #15803d !important;
+}
+
+.cs-premium .answer-choice-group.has-na .choice-option.choice-no {
+    background: #fff2f3 !important;
+    border-color: #f8d0d5 !important;
+    color: #d92d3d !important;
+}
+
+.answer-choice-group.has-na .choice-option.choice-na,
+.cs-premium .answer-choice-group.has-na .choice-option.choice-na {
+    background: #f4f5f8 !important;
+    border-color: #d9dce5 !important;
+    color: #4b5563 !important;
+}
+
+.cs-premium .answer-choice-group.has-na .choice-option.choice-yes.selected {
+    background: #16a34a !important;
+    border-color: #16a34a !important;
+    color: #fff !important;
+    box-shadow: 0 8px 16px rgba(22, 163, 74, 0.25);
+}
+
+.cs-premium .answer-choice-group.has-na .choice-option.choice-no.selected {
+    background: #e03c4a !important;
+    border-color: #e03c4a !important;
+    color: #fff !important;
+    box-shadow: 0 8px 16px rgba(224, 60, 74, 0.25);
+}
+
+.answer-choice-group.has-na .choice-option.choice-na.selected,
+.cs-premium .answer-choice-group.has-na .choice-option.choice-na.selected {
+    background: #64748b !important;
+    border-color: #64748b !important;
+    color: #fff !important;
+    box-shadow: 0 8px 16px rgba(71, 85, 105, 0.25) !important;
+}
+
+.cs-premium .answer-choice-group.has-na .choice-option.selected .choice-circle {
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: #fff !important;
+}
+
+/* Small phones: keep three equal buttons on one row. */
+@media (max-width: 640px) {
+    .answer-choice-group.has-na,
+    .cs-premium .answer-choice-group.has-na,
+    .checklist-submission-page.cs-premium .answer-choice-group.has-na {
+        flex-direction: row !important;
+        gap: 8px !important;
+    }
+
+    .answer-choice-group.has-na .choice-option,
+    .checklist-submission-page.cs-premium .answer-choice-group.has-na .choice-option {
+        min-width: 0 !important;
+        padding: 8px 6px !important;
+        gap: 6px !important;
+        font-size: 14px !important;
+    }
+
+    .checklist-submission-page.cs-premium .answer-choice-group.has-na .choice-option .choice-circle {
+        width: 22px !important;
+        height: 22px !important;
+    }
+}
+
+/* ---------- N/A switch for other answer types ---------- */
+.cs-answer-with-na {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cs-na-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px dashed #cfd5e1;
+    border-radius: 12px;
+    background: #fafbfd;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.cs-na-toggle:hover {
+    border-color: #94a3b8;
+    background: #f4f6fa;
+}
+
+.cs-na-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.cs-na-toggle-box {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border: 1.5px solid #94a3b8;
+    border-radius: 6px;
+    background: #fff;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.cs-na-toggle input:focus-visible + .cs-na-toggle-box {
+    outline: 2px solid #7c5cff;
+    outline-offset: 2px;
+}
+
+.cs-na-toggle-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.cs-na-toggle-text strong {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cs-na-toggle-text small {
+    font-size: 11.5px;
+    color: #64748b;
+}
+
+.cs-na-toggle.is-active {
+    border-style: solid;
+    border-color: #64748b;
+    background: #f1f5f9;
+}
+
+.cs-na-toggle.is-active .cs-na-toggle-box {
+    border-color: #64748b;
+    background: #64748b;
+}
+
+.cs-na-placeholder {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 13px;
+}
+
+.answered-badge.cs-na-badge {
+    background: #eef1f6 !important;
+    color: #475569 !important;
+    border-color: #d5dbe6 !important;
+}
+
+/* ---------- dark mode ---------- */
+[data-theme="dark"] .cs-na-toggle {
+    background: rgba(148, 163, 184, 0.08);
+    border-color: rgba(148, 163, 184, 0.35);
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .cs-na-toggle-text small {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .cs-na-placeholder {
+    background: rgba(148, 163, 184, 0.12);
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .answer-choice-group.has-na .choice-option.choice-na:not(.selected) {
+    background: rgba(148, 163, 184, 0.12) !important;
+    border-color: rgba(148, 163, 184, 0.35) !important;
+    color: #cbd5e1 !important;
+}

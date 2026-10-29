@@ -595,7 +595,9 @@ exports.exportActionPointsCSV = async (req, res) => {
             // column above — mirrors the Action Points table's own
             // Overdue column (client/src/pages/ActionPoints.jsx) so the
             // export reads the same way the live page does.
-            return { ...row, sla_days: slaDisplay, overdue };
+            // Comment and Remarks are one field: export a single Remarks
+            // column, falling back to the older comment text.
+            return { ...row, sla_days: slaDisplay, overdue, remarks: row.remarks || row.comment || "" };
         });
 
         const parser = new Parser({
@@ -614,7 +616,6 @@ exports.exportActionPointsCSV = async (req, res) => {
                 "overdue",
                 "status",
                 "remarks",
-                "comment",
                 "submitted_by",
                 "assigned_to",
                 "completed_at",

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { getDashboardStats, getNSOSummary } from "../../../services/dashboardService";
 import {
     FaTasks,
+    FaBan,
     FaBullhorn,
     FaBoxes,
     FaCalendarAlt,
@@ -242,6 +243,13 @@ function Dashboard() {
       permission: ["Checklist Reports", "Reports"],
       icon: <FaChartBar />,
       link: "/checklist-reports",
+    },
+    {
+      title: "N/A Register",
+      description: "Checklist items marked N/A — not present at the store.",
+      permission: ["N/A Register"],
+      icon: <FaBan />,
+      link: "/na-register",
     },
     {
       title: "Expenses",

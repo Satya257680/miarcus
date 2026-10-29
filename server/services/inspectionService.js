@@ -27,6 +27,7 @@ const {
 // Single rule evaluator shared with the historical Re-check, so a new
 // submission and a re-check give the same result for the same answer.
 const { evaluateAnswer } = require("../utils/issueRuleEvaluator");
+const { isNotApplicableAnswer } = require("../utils/notApplicable");
 
 
 // ======================================================
@@ -483,6 +484,12 @@ const evaluateRules = (
 
         // Only answers with an ACTIVE Issue Control Center rule are
         // evaluated. No rule -> no guess, no Action Point.
+        // N/A (not applicable) never becomes an Action Point. These
+        // answers are listed in the N/A Register module.
+        if (isNotApplicableAnswer(answer.answer)) {
+            return;
+        }
+
         const rule = findRuleForAnswer(rules, answer);
 
         if (!rule) {
